@@ -6,7 +6,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `report.html` | 报告源文件(Swiss / Editorial 排版),内含"手动推送"按钮及内嵌的微信版全文(`<script id="wechat-parts">`) |
+| `report.html` | 报告源文件(歸藏风格 · 靛蓝瓷配色 + Swiss / Editorial 排版),内含"手动推送"按钮及内嵌的微信版全文(`<script id="wechat-parts">`) |
 | `tools/wechat_push.py` | 微信推送工具:把 `report.html` 转为微信兼容的内联样式 HTML,经 PushPlus 推送到微信 |
 | `.github/workflows/m.yml` | CI:部署 Pages(g.github/workflow 由人工维护) |
 
@@ -20,6 +20,10 @@
   重新生成内嵌内容(幂等)。
 
 Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中,网页按钮与本工具共用,更换只需改这一处。
+
+**一对多群组推送**:群组编码维护在 `report.html` 的 `PUSHPLUS_TOPIC` 常量中(当前 `oai.1`,
+群内成员都会收到推送);命令行可用 `--topic` 或环境变量 `PUSHPLUS_TOPIC` 覆盖。
+把常量留空 `''` 即退回一对一推送(token 本人)。
 
 ## 可选:每次合并 main 自动推送微信
 
@@ -38,3 +42,6 @@ Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中,网页按钮与本�
       - name: 🧩 生成微信推送内容 (wechat.json)
         run: python3 tools/wechat_push.py --emit _site/wechat.json
 ```
+
+> 群组编码无需改动工作流:Actions 推送会自动读取 `report.html` 的 `PUSHPLUS_TOPIC`(当前 `oai.1`)。
+> 仅当想用 Secrets 覆盖时,才需所有者在工作流 env 手动加一行 `PUSHPLUS_TOPIC: ${{ secrets.PUSHPLUS_TOPIC }}`。

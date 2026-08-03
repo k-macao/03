@@ -12,6 +12,8 @@
   python3 tools/wechat_push.py --push                        # 直接推送到微信
 
 Token 解析顺序: --token 参数 > 环境变量 PUSHPLUS_TOKEN > report.html 内的 PUSHPLUS_TOKEN 常量
+群组编码解析顺序(一对多推送): --topic 参数 > 环境变量 PUSHPLUS_TOPIC > report.html 内的 PUSHPLUS_TOPIC 常量
+  填了群组编码即为一对多推送(群内成员都会收到);留空退回一对一(token 本人)。
 """
 import argparse
 import json
@@ -32,11 +34,14 @@ CONTENT_LIMIT = 20000
 # 留出安全余量,避免 PushPlus 按字节/字符口径不同导致超限
 CONTENT_SAFE_LIMIT = 19000
 
-INK = '#050505'
-PAPER = '#f4f4f0'
-GREY_MID = '#c4c4c0'
-GREY_DEEP = '#8a8a85'
-ACCENT = '#d7263d'
+# 歸藏风格主题 · 🌊 靛蓝瓷:与 report.html 的 :root 变量保持一致
+INK = '#0a1f3d'        # 深靛墨色
+PAPER = '#f1f3f5'      # 瓷白纸面
+PAPER_TINT = '#e4e8ec'  # 瓷白深一档(swiss-box)
+CARD = '#f8fafc'        # 卡片底
+GREY_MID = '#bfc9d4'
+GREY_DEEP = '#7c8797'
+ACCENT = '#d7263d'     # 唯一重点色:朱砂红
 
 # class 名 -> 内联样式(贴近原版 Swiss/Editorial 视觉效果,已按微信体积压缩)
 CLASS_STYLE = {
@@ -46,9 +51,14 @@ CLASS_STYLE = {
     'meta-strip': 'padding:10px 0 14px 0;font-size:12px;color:%s;border-bottom:1px solid %s;margin-bottom:18px;line-height:2;' % (GREY_DEEP, INK),
     'section-title': 'font-size:19px;font-weight:900;margin:30px 0 14px 0;padding-left:12px;border-left:6px solid %s;' % INK,
     'sub-head': 'font-weight:700;font-size:14px;color:%s;margin:22px 0 8px 0;padding-bottom:5px;border-bottom:1px solid %s;' % (GREY_DEEP, GREY_MID),
-    'swiss-box': 'background:#eaeae8;border-left:4px solid %s;padding:12px 14px;margin:16px 0;' % INK,
-    'comment-card': 'background:#fff;border:1px solid %s;border-left:8px solid %s;padding:10px 12px;margin:10px 0;' % (INK, INK),
+    'swiss-box': 'background:%s;border-left:4px solid %s;padding:12px 14px;margin:16px 0;' % (PAPER_TINT, INK),
+    'comment-card': 'background:%s;border:1px solid %s;border-left:8px solid %s;padding:10px 12px;margin:10px 0;' % (CARD, INK, INK),
     'c-user': 'font-weight:800;font-size:13px;',
+    'verdict-bull': 'display:inline-block;font-weight:800;font-size:11px;letter-spacing:1px;background:%s;color:%s;padding:1px 8px;margin-left:6px;' % (INK, PAPER),
+    'verdict-bear': 'display:inline-block;font-weight:800;font-size:11px;letter-spacing:1px;background:%s;color:#ffffff;padding:1px 8px;margin-left:6px;' % ACCENT,
+    'verdict-neutral': 'display:inline-block;font-weight:800;font-size:11px;letter-spacing:1px;background:%s;color:%s;padding:1px 8px;margin-left:6px;' % (GREY_DEEP, PAPER),
+    'verdict-mixed': 'display:inline-block;font-weight:800;font-size:11px;letter-spacing:1px;border:1px solid %s;color:%s;padding:0 7px;margin-left:6px;' % (INK, INK),
+    'ai-verdict': 'background:%s;border-left:4px solid %s;padding:8px 10px;margin-top:10px;font-size:13px;line-height:1.55;' % (PAPER, ACCENT),
     'c-body': '',
     'c-time': 'font-size:11px;color:%s;margin-top:6px;' % GREY_DEEP,
     'swiss-list': 'margin:10px 0 14px 0;padding-left:0;list-style:none;',
@@ -276,13 +286,28 @@ def find_token(source_html, arg_token=None):
     return m.group(1) if m else ''
 
 
-def push_to_wechat(title, content, token):
-    payload = json.dumps({
+def find_topic(source_html, arg_topic=None):
+    """群组编码(一对多推送)。解析顺序同 token。"""
+    if arg_topic:
+        return arg_topic
+    env_topic = os.environ.get('PUSHPLUS_TOPIC', '').strip()
+    if env_topic:
+        return env_topic
+    html = open(source_html, encoding='utf-8').read()
+    m = re.search(r"PUSHPLUS_TOPIC\s*=\s*'([0-9A-Za-z_.\-]+)'", html)
+    return m.group(1) if m else ''
+
+
+def push_to_wechat(title, content, token, topic=''):
+    body = {
         'token': token,
         'title': title[:100],
         'content': content,
         'template': 'html',
-    }).encode('utf-8')
+    }
+    if topic:  # 一对多:群组编码,群内成员都会收到
+        body['topic'] = topic
+    payload = json.dumps(body).encode('utf-8')
     req = urllib.request.Request(
         PUSH_URL, data=payload,
         headers={'Content-Type': 'application/json; charset=utf-8'},
@@ -304,6 +329,7 @@ def main():
                     help='把推送负载内嵌进 report.html(供页面按钮读取)')
     ap.add_argument('--push', action='store_true', help='推送到 PushPlus')
     ap.add_argument('--token', default='', help='PushPlus token(可选)')
+    ap.add_argument('--topic', default='', help='PushPlus 群组编码(可选,填则为一对多推送)')
     ap.add_argument('--dry-run', action='store_true', help='只转换,打印统计')
     args = ap.parse_args()
 
@@ -339,11 +365,14 @@ def main():
         if not token:
             print('错误:未找到 PushPlus token', file=sys.stderr)
             sys.exit(3)
+        topic = find_topic(args.source, args.topic)
+        mode = '一对多(群组 %s)' % topic if topic else '一对一'
+        print('推送模式: %s' % mode)
         failed = 0
         for i, (t, c) in enumerate(parts, 1):
             if i > 1:
                 time.sleep(15)  # 温和对待接口频率限制(5 次/分钟)
-            result = push_to_wechat(t, c, token)
+            result = push_to_wechat(t, c, token, topic)
             print('PushPlus 响应 [%d/%d]:' % (i, len(parts)),
                   json.dumps(result, ensure_ascii=False))
             if result.get('code') != 200:
