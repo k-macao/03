@@ -6,7 +6,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `report.html` | 报告源文件(Swiss / Editorial 排版),内含"手动推送"按钮及内嵌的微信版全文(`<script id="wechat-parts">`) |
+| `report.html` | 报告源文件(歸藏风格 · 靛蓝瓷配色 + Swiss / Editorial 排版),内含"手动推送"按钮及内嵌的微信版全文(`<script id="wechat-parts">`) |
 | `tools/wechat_push.py` | 微信推送工具:把 `report.html` 转为微信兼容的内联样式 HTML,经 PushPlus 推送到微信 |
 | `.github/workflows/m.yml` | CI:部署 Pages(g.github/workflow 由人工维护) |
 
