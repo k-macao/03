@@ -21,6 +21,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -33,6 +34,8 @@ TITLE = '章鱼 AI 全景分析'
 CONTENT_LIMIT = 20000
 # 留出安全余量,避免 PushPlus 按字节/字符口径不同导致超限
 CONTENT_SAFE_LIMIT = 19000
+# 网络瞬时故障时的重试次数(URLError / 超时),避免偶发网络波动导致推送漏发
+MAX_PUSH_RETRIES = 3
 
 # 歸藏风格主题 · 🌊 靛蓝瓷:与 report.html 的 :root 变量保持一致
 INK = '#0a1f3d'        # 深靛墨色
@@ -298,7 +301,7 @@ def find_topic(source_html, arg_topic=None):
     return m.group(1) if m else ''
 
 
-def push_to_wechat(title, content, token, topic=''):
+def push_to_wechat(title, content, token, topic='', retries=MAX_PUSH_RETRIES):
     body = {
         'token': token,
         'title': title[:100],
@@ -312,13 +315,22 @@ def push_to_wechat(title, content, token, topic=''):
         PUSH_URL, data=payload,
         headers={'Content-Type': 'application/json; charset=utf-8'},
         method='POST')
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        raw = resp.read().decode('utf-8')
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        return {'code': -1, 'msg': '非 JSON 响应', 'raw': raw[:500]}
-    return data
+    for attempt in range(1, retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode('utf-8')
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if attempt < retries:
+                print('网络异常,%.0fs 后重试(%d/%d): %s'
+                      % (3 * attempt, attempt, retries, e), file=sys.stderr)
+                time.sleep(3 * attempt)
+                continue
+            return {'code': -1, 'msg': '网络错误', 'raw': str(e)}
+        try:
+            return json.loads(raw)
+        except ValueError:
+            return {'code': -1, 'msg': '非 JSON 响应', 'raw': raw[:500]}
+    return {'code': -1, 'msg': '网络错误'}
 
 
 def main():
