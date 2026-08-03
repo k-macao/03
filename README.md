@@ -21,6 +21,10 @@
 
 Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中,网页按钮与本工具共用,更换只需改这一处。
 
+**一对多群组推送**:群组编码维护在 `report.html` 的 `PUSHPLUS_TOPIC` 常量中(当前 `oai.1`,
+群内成员都会收到推送);命令行可用 `--topic` 或环境变量 `PUSHPLUS_TOPIC` 覆盖。
+把常量留空 `''` 即退回一对一推送(token 本人)。
+
 ## 可选:每次合并 main 自动推送微信
 
 工作流文件需账号所有者手动维护(机器人 token 无 workflow 修改权限)。

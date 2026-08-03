@@ -12,6 +12,8 @@
   python3 tools/wechat_push.py --push                        # 直接推送到微信
 
 Token 解析顺序: --token 参数 > 环境变量 PUSHPLUS_TOKEN > report.html 内的 PUSHPLUS_TOKEN 常量
+群组编码解析顺序(一对多推送): --topic 参数 > 环境变量 PUSHPLUS_TOPIC > report.html 内的 PUSHPLUS_TOPIC 常量
+  填了群组编码即为一对多推送(群内成员都会收到);留空退回一对一(token 本人)。
 """
 import argparse
 import json
@@ -284,13 +286,28 @@ def find_token(source_html, arg_token=None):
     return m.group(1) if m else ''
 
 
-def push_to_wechat(title, content, token):
-    payload = json.dumps({
+def find_topic(source_html, arg_topic=None):
+    """群组编码(一对多推送)。解析顺序同 token。"""
+    if arg_topic:
+        return arg_topic
+    env_topic = os.environ.get('PUSHPLUS_TOPIC', '').strip()
+    if env_topic:
+        return env_topic
+    html = open(source_html, encoding='utf-8').read()
+    m = re.search(r"PUSHPLUS_TOPIC\s*=\s*'([0-9A-Za-z_.\-]+)'", html)
+    return m.group(1) if m else ''
+
+
+def push_to_wechat(title, content, token, topic=''):
+    body = {
         'token': token,
         'title': title[:100],
         'content': content,
         'template': 'html',
-    }).encode('utf-8')
+    }
+    if topic:  # 一对多:群组编码,群内成员都会收到
+        body['topic'] = topic
+    payload = json.dumps(body).encode('utf-8')
     req = urllib.request.Request(
         PUSH_URL, data=payload,
         headers={'Content-Type': 'application/json; charset=utf-8'},
@@ -312,6 +329,7 @@ def main():
                     help='把推送负载内嵌进 report.html(供页面按钮读取)')
     ap.add_argument('--push', action='store_true', help='推送到 PushPlus')
     ap.add_argument('--token', default='', help='PushPlus token(可选)')
+    ap.add_argument('--topic', default='', help='PushPlus 群组编码(可选,填则为一对多推送)')
     ap.add_argument('--dry-run', action='store_true', help='只转换,打印统计')
     args = ap.parse_args()
 
@@ -347,11 +365,14 @@ def main():
         if not token:
             print('错误:未找到 PushPlus token', file=sys.stderr)
             sys.exit(3)
+        topic = find_topic(args.source, args.topic)
+        mode = '一对多(群组 %s)' % topic if topic else '一对一'
+        print('推送模式: %s' % mode)
         failed = 0
         for i, (t, c) in enumerate(parts, 1):
             if i > 1:
                 time.sleep(15)  # 温和对待接口频率限制(5 次/分钟)
-            result = push_to_wechat(t, c, token)
+            result = push_to_wechat(t, c, token, topic)
             print('PushPlus 响应 [%d/%d]:' % (i, len(parts)),
                   json.dumps(result, ensure_ascii=False))
             if result.get('code') != 200:

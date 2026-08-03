@@ -505,6 +505,8 @@
   // PushPlus 配置 — 用户已填 token，请在此确认或替换实际值
   // ⚠️ 此 token 同时被 GitHub Actions 的自动推送步骤读取（tools/wechat_push.py），更换后只需改这里
   const PUSHPLUS_TOKEN = '507a6c0cf9cf46229f5f3c5107a967cc'; // 用户已填 token
+  // 群组编码:一对多推送,群内成员都会收到;留空 '' 退回一对一(token 本人)
+  const PUSHPLUS_TOPIC = 'oai.1';
 
   async function manualPush() {
     const btn = document.querySelector('.push-btn');
@@ -549,6 +551,7 @@
         body.append('title', parts[i].title);
         body.append('content', parts[i].content);
         body.append('template', 'html');
+        if (PUSHPLUS_TOPIC) body.append('topic', PUSHPLUS_TOPIC); // 一对多群组推送
         await fetch('https://www.pushplus.plus/send', {
           method: 'POST',
           mode: 'no-cors', // PushPlus 不返回跨域头；请求照常送达，以微信收到为准
@@ -561,9 +564,9 @@
         }
       }
       btn.textContent = '已推送';
-      btn.style.background = '#050505';
-      btn.style.color = '#f4f4f0';
-      status.innerHTML = '<strong>推送完成</strong> — 共 ' + parts.length + ' 条 · ' + ts + ' · 请在微信查收';
+      btn.style.background = '#0a1f3d';
+      btn.style.color = '#f1f3f5';
+      status.innerHTML = '<strong>推送完成</strong> — 共 ' + parts.length + ' 条 · 群组 ' + (PUSHPLUS_TOPIC || '一对一') + ' · ' + ts + ' · 请在微信查收';
     } catch (err) {
       console.error('PushPlus 推送失败：', err);
       status.innerHTML = '<strong>推送失败</strong> — ' + err.message;
