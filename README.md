@@ -42,3 +42,6 @@ Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中,网页按钮与本�
       - name: 🧩 生成微信推送内容 (wechat.json)
         run: python3 tools/wechat_push.py --emit _site/wechat.json
 ```
+
+> 群组编码无需改动工作流:Actions 推送会自动读取 `report.html` 的 `PUSHPLUS_TOPIC`(当前 `oai.1`)。
+> 仅当想用 Secrets 覆盖时,才需所有者在工作流 env 手动加一行 `PUSHPLUS_TOPIC: ${{ secrets.PUSHPLUS_TOPIC }}`。
