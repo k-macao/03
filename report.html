@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>章鱼 AI 全景分析 — Swiss / Editorial</title>
+<title>章鱼 AI 全景分析 — Pixel Market Terminal</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Noto+Sans+SC:wght@300;400;700;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=Noto+Sans+SC:wght@300;400;700;900&family=Press+Start+2P&family=ZCOOL+QingKe+HuangYou&display=swap');
 
   :root {
     /* 歸藏风格主题 · 🌊 靛蓝瓷 Indigo Porcelain —— 纸白 + 墨色 + 一个重点色 */
@@ -229,6 +229,81 @@
     font-size: 0.78rem; background: var(--ink); color: var(--paper);
     padding: 2px 8px; letter-spacing: 0.06em; margin-right: 4px;
   }
+
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PIXEL MARKET TERMINAL · retro game visual system
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  :root {
+    --ink: #f8f3d0;
+    --paper: #111a38;
+    --paper-tint: #192650;
+    --card: #0b1230;
+    --grey-mid: #526696;
+    --grey-deep: #aab7d5;
+    --accent: #ffcf4a;
+    --rule: #6b7fae;
+    --up: #35ef8e;
+    --down: #ff536d;
+    --pixel-shadow: 4px 4px 0 #050914;
+  }
+  * { image-rendering: pixelated; }
+  body {
+    font-family: "ZCOOL QingKe HuangYou", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    font-size: 17px; line-height: 1.65; letter-spacing: .045em;
+    background-color: var(--paper);
+    background-image: linear-gradient(rgba(119,144,211,.10) 1px, transparent 1px), linear-gradient(90deg, rgba(119,144,211,.10) 1px, transparent 1px);
+    background-size: 18px 18px;
+    color: var(--ink); -webkit-font-smoothing: none;
+  }
+  .grid { max-width: 1120px; padding: 0 28px; }
+  .hero { border: 0; padding: 54px 0 38px; margin: 0; background: linear-gradient(90deg, #253a78 0 12px, transparent 12px); }
+  .hero::before { content: "●  OCTO MARKET OS  /  AI INTELLIGENCE ONLINE"; display: block; font: 10px/1.5 "Press Start 2P", monospace; color: var(--up); letter-spacing: .04em; margin-bottom: 20px; }
+  .hero::after { height: 6px; background: repeating-linear-gradient(90deg, var(--accent) 0 18px, transparent 18px 28px); }
+  .hero h1 { font-family: "Press Start 2P", "ZCOOL QingKe HuangYou", sans-serif; font-size: clamp(2rem, 5vw, 4.4rem); line-height: 1.25; letter-spacing: -.05em; color: #fff8d7; text-shadow: 5px 5px 0 #263b76, 9px 9px 0 #070b1c; }
+  .hero h1 .sub { font-family: "Press Start 2P", "Noto Sans SC", sans-serif; font-size: clamp(.65rem, 1.3vw, .9rem); line-height: 1.8; font-weight: 400; color: var(--accent); letter-spacing: .1em; margin-top: 18px; }
+  .meta-strip { border: 3px solid var(--grey-mid); border-top: 0; padding: 14px 16px; margin-bottom: 40px; gap: 18px 28px; background: #0c1432; color: var(--grey-deep); font-family: "Press Start 2P", "Noto Sans SC", monospace; font-size: .58rem; line-height: 1.8; }
+  .meta-strip strong { color: var(--accent); }
+  h2.section-title { font-family: "Press Start 2P", "ZCOOL QingKe HuangYou", sans-serif; font-size: clamp(1.1rem, 2.2vw, 1.55rem); line-height: 1.5; letter-spacing: .04em; color: #fff8d7; margin: 62px 0 22px; padding: 14px 18px; border: 3px solid var(--accent); border-left-width: 11px; background: #182752; box-shadow: var(--pixel-shadow); }
+  h2.section-title::before { position: static; display: inline-block; content: "LV." attr(data-num) "  "; font: .62rem/1 "Press Start 2P", monospace; color: var(--up); opacity: 1; vertical-align: 3px; }
+  h3.sub-head { color: var(--accent); font-family: "Press Start 2P", "Noto Sans SC", sans-serif; font-size: .72rem; line-height: 1.7; border-bottom: 3px solid var(--grey-mid); padding: 0 0 10px; margin: 38px 0 16px; }
+  h3.sub-head::before { content: "▣ "; color: var(--up); }
+  p { max-width: 76ch; margin-bottom: 18px; }
+  strong { color: #fff8d7; }
+  .swiss-box { position: relative; padding: 24px 26px 20px; background: #172652; border: 3px solid #5f75ad; border-left: 10px solid var(--accent); box-shadow: var(--pixel-shadow); font-size: 1.04rem; }
+  .swiss-box::before { content: "AI DATA CORE"; position: absolute; top: -12px; right: 14px; padding: 4px 7px; background: var(--accent); color: #111a38; font: .55rem "Press Start 2P", monospace; }
+  .push-module { position: sticky; top: 10px; border: 3px solid var(--accent); background: #192a60; padding: 15px 18px; box-shadow: var(--pixel-shadow); }
+  .push-module .label { font-family: "Press Start 2P", monospace; font-size: .62rem; color: #fff8d7; line-height: 1.8; }
+  .push-module .label .live-dot { width: 10px; height: 10px; border-radius: 0; background: var(--up); box-shadow: 0 0 0 3px #123d36; }
+  .push-status { color: var(--grey-deep); }
+  .push-btn { border: 3px solid #fff8d7; background: var(--accent); color: #111a38; padding: 12px 18px; font-family: "Press Start 2P", "Noto Sans SC", monospace; font-size: .62rem; box-shadow: 3px 3px 0 #050914; }
+  .push-btn:hover { background: var(--up); color: #111a38; }
+  .comment-card { background: var(--card); border: 3px solid #405889; padding: 20px 22px 18px 30px; box-shadow: var(--pixel-shadow); }
+  .comment-card:hover { background: #12204a; transform: translate(-2px, -2px); }
+  .comment-card::before { width: 9px; background: var(--grey-mid); }
+  .comment-card:has(.verdict-bull)::before { background: var(--up); }
+  .comment-card:has(.verdict-bear)::before { background: var(--down); }
+  .comment-card .c-user { font-family: "Press Start 2P", "Noto Sans SC", monospace; font-size: .66rem; line-height: 1.8; color: #fff8d7; }
+  .comment-card .c-user::before { content: "◈"; color: var(--accent); font-size: 1.2rem; margin-right: 10px; vertical-align: -2px; }
+  .comment-card .c-body { font-size: 1.03rem; color: #dce6ff; }
+  .comment-card .c-time { color: #8296c3; font-family: monospace; font-size: .76rem; }
+  .verdict-bull, .verdict-bear, .verdict-neutral, .verdict-mixed { font-family: "Press Start 2P", "Noto Sans SC", monospace; font-size: .55rem; line-height: 1.6; padding: 5px 7px; border: 2px solid currentColor; box-shadow: 2px 2px 0 #050914; }
+  .verdict-bull { background: var(--up); color: #09291f; }
+  .verdict-bull::before { content: "▲ "; }
+  .verdict-bear { background: var(--down); color: #3b0714; }
+  .verdict-bear::before { content: "▼ "; }
+  .verdict-neutral { background: #aab7d5; color: #16224a; }
+  .verdict-mixed { background: var(--accent); color: #312307; }
+  .ai-verdict { position: relative; margin-top: 17px; padding: 17px 17px 16px 22px; background: #202f60; border: 2px solid #6b85c1; border-left: 8px solid var(--accent); color: #eaf0ff; font-size: 1.02rem; line-height: 1.65; }
+  .ai-verdict::before { content: "AI ANALYSIS"; display: block; margin-bottom: 8px; color: var(--up); font: .56rem "Press Start 2P", monospace; letter-spacing: .06em; }
+  .ai-verdict strong { color: var(--accent); font-size: 1.1rem; }
+  ul.swiss-list li { padding-left: 29px; font-size: 1.04rem; }
+  ul.swiss-list li::before { content: "◆"; color: var(--up); font-size: .9rem; top: 5px; }
+  hr.swiss-rule { height: 5px; background: repeating-linear-gradient(90deg, var(--grey-mid) 0 16px, transparent 16px 24px); margin: 48px 0; }
+  .editorial-footer { border-top-color: var(--accent); color: var(--grey-deep); }
+  .editorial-footer .logo-mark { border-radius: 0; border-color: var(--accent); color: var(--accent); }
+  .mono-tag { background: #293e79; color: var(--up); border: 1px solid var(--up); }
+  @media (max-width: 600px) { .grid { padding: 0 15px; } .hero { padding-top: 35px; } .hero::before { font-size: 7px; } .meta-strip { font-size: .52rem; gap: 9px; } .comment-card { padding: 17px 14px 15px 23px; } .push-module { top: 4px; } }
 </style>
 </head>
 
