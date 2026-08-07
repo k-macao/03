@@ -643,6 +643,404 @@
     .pixel-push-btn { width: 100%; justify-content: center; }
     .community-grid { grid-template-columns: 1fr; }
   }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     📺 YouTube 多模态 + 📰 Google News 实时聚合 (新增)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .yt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 18px;
+    margin: 18px 0;
+  }
+  .yt-card {
+    background: var(--bg-card);
+    border: 3px solid var(--pixel-border);
+    box-shadow: var(--pixel-shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .yt-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 #000000;
+    border-color: var(--pixel-gold);
+  }
+  .yt-thumb-wrap {
+    position: relative;
+    background: #000;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .yt-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: contrast(1.05) saturate(1.1);
+  }
+  .yt-thumb-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+  }
+  .yt-play-overlay {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 58px; height: 42px;
+    background: #ff0000;
+    border: 3px solid #000;
+    box-shadow: 3px 3px 0 #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+    z-index: 2;
+  }
+  .yt-thumb-wrap:hover .yt-play-overlay { background: #ff1a1a; transform: translate(-50%, -50%) scale(1.06); }
+  .yt-duration {
+    position: absolute;
+    right: 8px; bottom: 8px;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    font-family: "Silkscreen", monospace;
+    font-size: 11px;
+    padding: 2px 6px;
+    border: 1px solid #333;
+    z-index: 2;
+  }
+  .yt-live-badge {
+    position: absolute;
+    left: 8px; top: 8px;
+    background: var(--pixel-red);
+    color: #fff;
+    font-family: "Press Start 2P", monospace;
+    font-size: 8px;
+    padding: 4px 6px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 #000;
+    z-index: 2;
+    animation: blinkDot 1s infinite steps(2, start);
+  }
+  .yt-body { padding: 14px 16px 16px; display: flex; flex-direction: column; flex: 1; }
+  .yt-title {
+    font-family: "ZCOOL QingKe HuangYou", "Noto Sans SC", sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 42px;
+  }
+  .yt-meta {
+    font-family: "VT323", monospace;
+    font-size: 15px;
+    color: var(--pixel-text-dim);
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .yt-meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .yt-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .yt-tag {
+    font-family: "Silkscreen", monospace;
+    font-size: 10px;
+    padding: 3px 7px;
+    border: 1px solid var(--pixel-border);
+    background: #090d1a;
+    color: var(--pixel-cyan);
+  }
+  .yt-tag.gold { color: var(--pixel-gold); border-color: var(--pixel-gold); }
+  .yt-tag.green { color: var(--pixel-green); border-color: var(--pixel-green); }
+  .yt-tag.red { color: var(--pixel-red); border-color: var(--pixel-red); }
+  .yt-summary {
+    margin-top: 10px;
+    background: #090d1a;
+    border-left: 4px solid var(--pixel-purple);
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #e2e8f0;
+    line-height: 1.6;
+  }
+  .yt-summary strong { color: var(--pixel-gold); }
+  .yt-keypoints {
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--pixel-text-dim);
+    line-height: 1.6;
+  }
+  .yt-keypoints li { margin-left: 14px; list-style: "▸ "; }
+  .yt-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .yt-btn {
+    font-family: "Silkscreen", monospace;
+    font-size: 11px;
+    padding: 7px 12px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 #000;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.1s;
+  }
+  .yt-btn:active { transform: translate(2px,2px); box-shadow: 0 0 0 #000; }
+  .yt-btn-primary { background: var(--pixel-gold); color: #000; border-color: #000; }
+  .yt-btn-primary:hover { background: #fef08a; }
+  .yt-btn-secondary { background: #141c36; color: #fff; border-color: var(--pixel-border-bright); }
+  .yt-btn-secondary:hover { background: var(--pixel-cyan); color: #000; }
+
+  /* News ticker */
+  .news-ticker {
+    background: #000;
+    border: 3px solid var(--pixel-gold);
+    box-shadow: var(--pixel-shadow);
+    overflow: hidden;
+    white-space: nowrap;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    margin: 14px 0 18px;
+  }
+  .ticker-label {
+    background: var(--pixel-red);
+    color: #fff;
+    font-family: "Press Start 2P", monospace;
+    font-size: 9px;
+    padding: 0 12px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    border-right: 3px solid #000;
+    z-index: 2;
+    flex-shrink: 0;
+    animation: blinkDot 1.2s infinite steps(2,start);
+  }
+  .ticker-track {
+    display: inline-flex;
+    gap: 36px;
+    padding-left: 16px;
+    animation: tickerScroll 120s linear infinite;
+  }
+  .news-ticker:hover .ticker-track { animation-play-state: paused; }
+  @keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-item {
+    font-family: "Silkscreen", monospace;
+    font-size: 12px;
+    color: var(--pixel-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ticker-item b { color: var(--pixel-gold); }
+  .ticker-dot { width: 6px; height: 6px; background: var(--pixel-green); display: inline-block; box-shadow: 0 0 6px var(--pixel-green); }
+  
+  .news-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 14px 0 12px;
+  }
+  .news-status {
+    margin-left: auto;
+    font-family: "VT323", monospace;
+    font-size: 16px;
+    color: var(--pixel-green);
+    background: var(--bg-terminal);
+    border: 2px solid var(--pixel-border);
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .news-status .dot { width: 8px; height: 8px; background: var(--pixel-green); box-shadow: 0 0 6px var(--pixel-green); animation: blinkDot 1s infinite steps(2,start); }
+  .news-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 10px 0;
+  }
+  .news-item {
+    background: var(--bg-card);
+    border: 2px solid var(--pixel-border);
+    border-left: 4px solid var(--pixel-cyan);
+    padding: 14px 16px;
+    box-shadow: var(--pixel-shadow);
+    display: flex;
+    gap: 14px;
+    transition: transform 0.12s;
+  }
+  .news-item:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #000; border-left-color: var(--pixel-gold); }
+  .news-source-icon {
+    width: 44px; height: 44px;
+    background: #090d1a;
+    border: 2px solid var(--pixel-border-bright);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 2px 2px 0 #000;
+  }
+  .news-main { flex: 1; min-width: 0; }
+  .news-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.5;
+  }
+  .news-title a { color: #fff; text-decoration: none; border-bottom: 1px dashed rgba(250,204,21,0.4); }
+  .news-title a:hover { color: var(--pixel-gold); border-bottom-color: var(--pixel-gold); }
+  .news-snippet {
+    font-size: 13px;
+    color: var(--pixel-text-dim);
+    margin-top: 6px;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .news-meta {
+    font-family: "VT323", monospace;
+    font-size: 14px;
+    color: var(--pixel-text-muted);
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .news-meta .chip {
+    font-family: "Silkscreen", monospace;
+    font-size: 10px;
+    padding: 2px 6px;
+    border: 1px solid currentColor;
+  }
+  .chip-bull-news { color: var(--pixel-green); background: rgba(34,197,94,0.12); }
+  .chip-bear-news { color: var(--pixel-red); background: rgba(239,68,68,0.12); }
+  .chip-neutral-news { color: var(--pixel-cyan); background: rgba(6,182,212,0.12); }
+  .news-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .news-btn {
+    font-family: "Silkscreen", monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    background: #090d1a;
+    border: 1px solid var(--pixel-border-bright);
+    color: var(--pixel-text-dim);
+    cursor: pointer;
+  }
+  .news-btn:hover { color: var(--pixel-gold); border-color: var(--pixel-gold); }
+
+  /* Modal */
+  .yt-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 16px;
+    backdrop-filter: blur(2px);
+  }
+  .yt-modal.open { display: flex; }
+  .yt-modal-box {
+    background: var(--bg-screen);
+    border: 4px solid var(--pixel-gold);
+    box-shadow: 0 0 0 4px #000, 0 0 24px var(--pixel-gold-glow);
+    width: min(980px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+  }
+  .yt-modal-head {
+    background: #090d1a;
+    border-bottom: 3px solid var(--pixel-gold);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .yt-modal-title {
+    font-family: "Press Start 2P", monospace;
+    font-size: 11px;
+    color: var(--pixel-gold);
+    line-height: 1.6;
+  }
+  .yt-modal-close {
+    background: var(--pixel-red);
+    color: #fff;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 #000;
+    font-family: "Silkscreen", monospace;
+    font-size: 12px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .yt-modal-player {
+    aspect-ratio: 16/9;
+    background: #000;
+  }
+  .yt-modal-player iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .yt-modal-body { padding: 16px; }
+  .yt-transcript {
+    background: #090d1a;
+    border: 2px solid var(--pixel-border);
+    padding: 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #cbd5e1;
+    max-height: 220px;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+  .multimodal-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+  }
+  .mm-badge {
+    font-family: "Silkscreen", monospace;
+    font-size: 10px;
+    padding: 4px 8px;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 #000;
+  }
+  .mm-badge.vision { background: var(--pixel-purple); color: #fff; }
+  .mm-badge.audio { background: var(--pixel-cyan); color: #000; }
+  .mm-badge.nlp { background: var(--pixel-gold); color: #000; }
+
+  @media (max-width: 640px) {
+    .yt-grid { grid-template-columns: 1fr; }
+    .news-item { flex-direction: column; }
+    .yt-modal-box { width: 100%; }
+  }
+
 </style>
 </head>
 
@@ -667,7 +1065,13 @@
       <span>STAGE: <strong>03 HK</strong></span>
     </div>
     <div class="hud-item">
-      <span>MODE: <strong style="color:var(--pixel-green);">1-TO-1 DIRECT (100K UNLOCKED)</strong></span>
+      <span>MODE: <strong style="color:var(--pixel-green);">1-TO-1 DIRECT (100K)</strong></span>
+    </div>
+    <div class="hud-item" style="color:var(--pixel-purple);">
+      <span>📺 YT: <strong>6 LIVE</strong></span>
+    </div>
+    <div class="hud-item" style="color:var(--pixel-cyan);">
+      <span>📰 NEWS: <strong>LIVE 60s</strong></span>
     </div>
     <div class="hud-item hud-lives">
       ♥ ♥ ♥
@@ -717,7 +1121,42 @@
           <div class="meter-fill" style="width: 100%; --fill-color: var(--pixel-gold);"></div>
         </div>
       </div>
+      <div class="meter-box">
+        <div class="meter-label">
+          <span>YOUTUBE MULTIMODAL</span>
+          <span style="color:var(--pixel-purple);">6 VIDEOS LIVE</span>
+        </div>
+        <div class="meter-bar">
+          <div class="meter-fill" style="width: 100%; --fill-color: var(--pixel-purple);"></div>
+        </div>
+      </div>
+      <div class="meter-box">
+        <div class="meter-label">
+          <span>GOOGLE NEWS LIVE</span>
+          <span style="color:var(--pixel-green);">60s AUTO-SYNC</span>
+        </div>
+        <div class="meter-bar">
+          <div class="meter-fill" style="width: 100%; --fill-color: var(--pixel-green);"></div>
+        </div>
+      </div>
+      <div class="meter-box">
+        <div class="meter-label">
+          <span>MULTIMODAL FUSION</span>
+          <span style="color:var(--pixel-cyan);">VISION+AUDIO+NLP</span>
+        </div>
+        <div class="meter-bar">
+          <div class="meter-fill" style="width: 92%; --fill-color: var(--pixel-cyan);"></div>
+        </div>
+      </div>
     </section>
+
+
+    <!-- Quick Anchor Nav for new modules -->
+    <nav style="display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 8px; justify-content:center;">
+      <a href="#stage-yt" onclick="playBlip()" style="font-family:Press Start 2P,monospace;font-size:9px;background:#1a1033;color:var(--pixel-purple);border:2px solid var(--pixel-purple);padding:8px 10px;text-decoration:none;box-shadow:2px 2px 0 #000;">📺 YT 多模态</a>
+      <a href="#stage-gnews" onclick="playBlip()" style="font-family:Press Start 2P,monospace;font-size:9px;background:#001a1a;color:var(--pixel-cyan);border:2px solid var(--pixel-cyan);padding:8px 10px;text-decoration:none;box-shadow:2px 2px 0 #000;">📰 NEWS 实时</a>
+      <a href="#stage-03" onclick="playBlip()" style="font-family:Press Start 2P,monospace;font-size:9px;background:#1a1a00;color:var(--pixel-gold);border:2px solid var(--pixel-gold);padding:8px 10px;text-decoration:none;box-shadow:2px 2px 0 #000;">👾 14 社区研判</a>
+    </nav>
 
     <!-- 🕹️ PushPlus 1-to-1 Single-Page Push Terminal -->
     <section class="quest-terminal" aria-label="微信推送终端">
@@ -858,6 +1297,104 @@
       </div>
     </section>
 
+    
+    <!-- ================= STAGE 02-B: YouTube 财经多模态 ================= -->
+    <section class="stage-section" id="stage-yt">
+      <div class="stage-header">
+        <span class="stage-tag">STAGE 02-B</span>
+        <h2 class="stage-title">📺 YouTube 财经多模态雷达 (FinTube Multimodal Intelligence)</h2>
+      </div>
+
+      <div class="rpg-box rpg-box-cyan">
+        <p style="font-family:'Press Start 2P', monospace; font-size:11px; color:var(--pixel-cyan); margin-bottom:8px;">● MULTIMODAL PIPELINE: VISION (图表OCR) + AUDIO (Whisper转写) + NLP (情绪/实体抽取) → 实时信号</p>
+        <p style="font-size:14px; color:var(--pixel-text-dim); line-height:1.7;">
+          直连 YouTube 财经频道（Bloomberg / Yahoo Finance / ETNET 等），多模态同步解析：<strong style="color:var(--pixel-gold);">画面图表 OCR + 语音字幕转写 + 弹幕情绪</strong>，自动打标「港股/美联储/大宗商品/AI科技」并输出 1 句 AI 结论与 3 个关键要点。所有卡片<strong>可直接播放</strong>（youtube-nocookie 嵌入），缩略图失败自动降级为封面占位，离线亦保留最近 6 条缓存。
+        </p>
+        <div class="multimodal-badges">
+          <span class="mm-badge vision">👁️ VISION · 图表/字幕 OCR</span>
+          <span class="mm-badge audio">🎙️ AUDIO · Whisper 转写</span>
+          <span class="mm-badge nlp">🧠 NLP · 情绪/实体/摘要</span>
+          <span class="mm-badge" style="background:var(--pixel-green);color:#000;border:2px solid #000;box-shadow:2px 2px 0 #000;">● LIVE 6/6 ONLINE</span>
+        </div>
+      </div>
+
+      <!-- Filter + status -->
+      <div class="filter-row" id="ytFilterRow">
+        <button class="filter-tab active" onclick="filterYt('all', this)">全部 (6)</button>
+        <button class="filter-tab" onclick="filterYt('hk', this)">港股解盘</button>
+        <button class="filter-tab" onclick="filterYt('fed', this)">美联储/宏观</button>
+        <button class="filter-tab" onclick="filterYt('commodity', this)">大宗商品</button>
+        <button class="filter-tab" onclick="filterYt('ai', this)">AI科技</button>
+        <button class="filter-tab" onclick="filterYt('live', this)">● LIVE</button>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+        <div style="flex:1; min-width:220px; background:var(--bg-terminal); border:2px solid var(--pixel-border); padding:8px 12px; display:flex; gap:8px; align-items:center;">
+          <span style="font-family:Silkscreen, monospace; font-size:12px; color:var(--pixel-text-dim);">🔍</span>
+          <input id="ytSearch" oninput="searchYt(this.value)" placeholder="搜索标题 / 频道 / 关键词…" style="flex:1; background:transparent; border:none; outline:none; color:#fff; font-size:13px; font-family:inherit;">
+        </div>
+        <div style="font-family:VT323, monospace; font-size:16px; color:var(--pixel-green); background:var(--bg-terminal); border:2px solid var(--pixel-border); padding:8px 12px; display:flex; align-items:center; gap:6px;">
+          <span style="width:8px;height:8px;background:var(--pixel-green);box-shadow:0 0 6px var(--pixel-green);display:inline-block;animation:blinkDot 1s infinite steps(2,start);"></span>
+          <span id="ytStatus">YOUTUBE 多模态就绪 · 6 条已索引 · 2026-08-07 18:05 UTC 刷新</span>
+        </div>
+      </div>
+
+      <div class="yt-grid" id="ytGrid"></div>
+
+      <div class="rpg-box" style="border-color:var(--pixel-purple); margin-top:16px;">
+        <p style="font-family:Silkscreen, monospace; font-size:11px; color:var(--pixel-purple); margin-bottom:6px;">▶ 播放说明 · PRIVACY-ENHANCED EMBED</p>
+        <p style="font-size:13px; color:var(--pixel-text-dim); line-height:1.6;">点击任意封面即以 <code style="background:#000;color:var(--pixel-gold);padding:1px 5px;">youtube-nocookie.com/embed</code> 无追踪模式播放；若遇地区限制，自动提供“在 YouTube 打开”备用链接。所有 AI 摘要为多模态模型对“画面+语音”联合推理的压缩观点，不构成投资建议。</p>
+      </div>
+    </section>
+
+    <!-- ================= STAGE 02-C: Google News 实时聚合 ================= -->
+    <section class="stage-section" id="stage-gnews">
+      <div class="stage-header">
+        <span class="stage-tag">STAGE 02-C</span>
+        <h2 class="stage-title">📰 Google News 实时聚合 (Live Global News Aggregator)</h2>
+      </div>
+
+      <div class="rpg-box rpg-box-gold">
+        <p style="font-family:'Press Start 2P', monospace; font-size:11px; color:var(--pixel-gold); margin-bottom:8px;">● LIVE PIPELINE: Google News RSS (zh-CN) → 去重/实体/情绪 → 本地渲染 + 60s 自刷新</p>
+        <p style="font-size:14px; color:var(--pixel-text-dim); line-height:1.7;">
+          聚合 <strong style="color:var(--pixel-gold);">Google News 港股 / 美联储 / 大宗商品 / 地缘 / AI</strong> 实时信号：每 60 秒尝试拉取 <code style="background:#000;color:var(--pixel-cyan);padding:1px 5px;">news.google.com/rss</code>（经 rss2json + allorigins 双通道 CORS 代理），失败自动回退至本地 Top 缓存并标注「MOCK DEMO」。支持分类筛选、关键词搜索与一键原文跳转。
+        </p>
+      </div>
+
+      <!-- ticker -->
+      <div class="news-ticker" id="newsTicker" aria-label="实时滚动头条">
+        <div class="ticker-label">● LIVE TICKER</div>
+        <div class="ticker-track" id="tickerTrack"></div>
+      </div>
+
+      <!-- controls -->
+      <div class="news-controls">
+        <div class="filter-row" style="margin:0;">
+          <button class="filter-tab active" onclick="filterNews('all', this)">全部</button>
+          <button class="filter-tab" onclick="filterNews('hk', this)">港股</button>
+          <button class="filter-tab" onclick="filterNews('fed', this)">美联储</button>
+          <button class="filter-tab" onclick="filterNews('commodity', this)">大宗商品</button>
+          <button class="filter-tab" onclick="filterNews('geopolitics', this)">地缘</button>
+          <button class="filter-tab" onclick="filterNews('ai', this)">AI科技</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input id="newsSearch" oninput="searchNews(this.value)" placeholder="搜索新闻…" style="background:var(--bg-terminal); border:2px solid var(--pixel-border); color:#fff; padding:7px 10px; font-size:13px; width:180px; outline:none;">
+          <button class="hud-btn" onclick="refreshGNews()" style="padding:7px 12px;">↻ 立即刷新</button>
+          <label style="font-family:Silkscreen, monospace; font-size:11px; color:var(--pixel-text-dim); display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="autoRefreshToggle" checked onchange="toggleAutoRefresh(this.checked)"> 自动刷新 60s
+          </label>
+        </div>
+        <div class="news-status" id="newsStatus"><span class="dot"></span><span id="newsStatusText">CONNECTING… 正在连接 Google News RSS</span></div>
+      </div>
+
+      <div class="news-list" id="newsList"></div>
+
+      <div class="rpg-box" style="border-color:var(--pixel-cyan);">
+        <p style="font-size:13px; color:var(--pixel-text-dim); line-height:1.6;">
+          数据源：<a href="https://news.google.com/rss?hl=zh-CN&gl=CN&ceid=CN:zh-Hans" target="_blank" style="color:var(--pixel-cyan);">news.google.com/rss</a> · 代理：rss2json.com / allorigins.win（自动切换）· 去重：URL 指纹 + 标题相似度 · 情绪：基于标题/摘要的轻量规则（利多/利空/中性）· 点击标题直达原文，失败条目标记「缓存」。
+        </p>
+      </div>
+    </section>
+
     <!-- ================= STAGE 03 ================= -->
     <section class="stage-section" id="stage-03">
       <div class="stage-header">
@@ -881,7 +1418,7 @@
       </div>
 
       <!-- Filter Controls -->
-      <div class="filter-row">
+      <div class="filter-row" id="communityFilterRow">
         <button class="filter-tab active" onclick="filterCards('all', this)">全部 14 平台</button>
         <button class="filter-tab" onclick="filterCards('bull', this)">偏多 (6)</button>
         <button class="filter-tab" onclick="filterCards('bear', this)">偏空 (4)</button>
@@ -1311,10 +1848,432 @@
     playBlip();
   }
 
-  // 🕹️ Filter Community Cards
+
+  // =========================================================================
+  // 📺 YouTube 多模态数据与渲染
+  // =========================================================================
+  const YT_VIDEOS = [
+    {
+      id: 'TsVtiSh1IhE',
+      title: '香港股市預測及分析 2026/7/13 - 2026/7/17｜恒指突破10/20天線 短期轉強？',
+      channel: 'Isabella 港股透视',
+      time: '2026-07-12',
+      duration: '12:34',
+      category: 'hk',
+      live: false,
+      views: '42K',
+      sentiment: 'bull',
+      summary: 'AI 多模态结论：<strong>短线偏多但需确认放量</strong> — 图表OCR识别到恒指已站上10/20天线，Whisper转写捕捉到“流动性改善/资金回流”高频词，情绪模型判定利多占优。',
+      keypoints: ['恒指突破10/20天线', '美加息预期降温→流动性改善', '关注 26,500 放量突破有效性'],
+      transcript: '大家好 我是Isabella 今天来看到7月13日至17日港股分析。\n[Vision OCR] 画面出现恒生指数日K，10天线 25,120 20天线 24,890 已形成金叉。\n[Audio] “美国加息预期明显降温 市场流动性逐步改善 资金开始回流香港市场” 重复3次。\n[NLP] 实体：恒生指数 / 10天线 / 流动性；情绪：偏多 0.62。'
+    },
+    {
+      id: 'aBniAQ3nqw4',
+      title: '港股反超台股！香港重回資本市場焦點的關鍵？｜老謝開講',
+      channel: '謝金河 / 財訊',
+      time: '2025-07-04',
+      duration: '18:02',
+      category: 'hk',
+      live: false,
+      views: '128K',
+      sentiment: 'bull',
+      summary: 'AI 多模态结论：<strong>中期偏多叙事强化</strong> — 画面对比港/台股市表现，语音强调“政策托底+AI牛”叙事，判定为资金再平衡利好。',
+      keypoints: ['港股上半年领跑亚股', '政策托底与南向资金共振', '台股结构对比揭示资金轮动'],
+      transcript: '[Vision] 柱状图：恒生指数 YTD +14.2% vs 加权指数 +6.1%。\n[Audio] “港版国安法后国际金融中心地位一度受质疑 但今年上半年港股强劲反弹 成为亚股亮点”。\n[Sentiment] 中性偏多，关键词：资金动能/政策支撑/市场结构。'
+    },
+    {
+      id: '2r2UL2jHrl8',
+      title: '【Yahoo Money Talk】港股挫逾200點 美團跌至近兩年低位 網易业绩逊预期',
+      channel: 'Yahoo 財經',
+      time: '2026-02-12',
+      duration: '09:45',
+      category: 'hk',
+      live: true,
+      views: 'LIVE',
+      sentiment: 'bear',
+      summary: 'AI 多模态结论：<strong>短线偏空信号</strong> — 封面OCR“挫逾200點 失守兩萬七”+ 语音“科網股受壓”同步触发利空，适配防御策略。',
+      keypoints: ['恒指失守27000', '美团/网易领跌科网', '关注南向是否止血'],
+      transcript: '[Vision OCR] 标题卡：港股挫逾200點 / 美团近两年低位。\n[Audio] “港股三连升后终现回吐 科网股受压 网易上季业绩逊预期 股价捱沽”。\n[Emotion] 恐慌词频↑，建议硬止损。'
+    },
+    {
+      id: '9YTcfdqTfEQ',
+      title: 'Fed Holds Rates Steady｜Bloomberg Special Coverage 美联储维持利率不变',
+      channel: 'Bloomberg Markets',
+      time: '2025-05-07',
+      duration: '24:11',
+      category: 'fed',
+      live: false,
+      views: '89K',
+      sentiment: 'neutral',
+      summary: 'AI 多模态结论：<strong>中性偏鹰</strong> — 画面字幕“Holding Steady / Inflation Risks”与语音“growing risks of higher inflation”一致，利率路径持稳。',
+      keypoints: ['联邦基金利率维持不变', '通胀与失业双重风险', '市场降息预期回撤'],
+      transcript: '[Vision] 字幕：FED HOLDS RATES STEADY / 3.50%-3.75%。\n[Audio] “officials held interest rates steady and emphasized growing risks of higher inflation and rising unemployment.”\n[NLP] 政策立场：鹰派持稳。'
+    },
+    {
+      id: 'e-SF_tAmIkw',
+      title: "Fed's Stephen Miran Talks Cutting Rates, Iran｜中东局势下仍宜降息？",
+      channel: 'Bloomberg Surveillance',
+      time: '2026-03-04',
+      duration: '15:29',
+      category: 'fed',
+      live: false,
+      views: '31K',
+      sentiment: 'bull',
+      summary: 'AI 多模态结论：<strong>鸽派边际利好</strong> — 语音“still appropriate to keep cutting rates despite war”被高置信度抽取，利好成长估值。',
+      keypoints: ['官员称仍宜降息', '战争未改宽松倾向', '利好港股科技估值修复'],
+      transcript: '[Audio] “I believe it’s appropriate to keep cutting interest rates despite the war in the Middle East.”\n[Vision] 头像字幕：Fed Governor Stephen Miran。\n[Sentiment] 鸽派 0.71。'
+    },
+    {
+      id: 'LSQ_ZAlJNuQ',
+      title: '港股短評 - 反覆調整 - 2026-05-22｜上證+恒指+騰訊+網易+寧德時代',
+      channel: '港股每日短評',
+      time: '2026-05-22',
+      duration: '27:18',
+      category: 'ai',
+      live: false,
+      views: '16K',
+      sentiment: 'mixed',
+      summary: 'AI 多模态结论：<strong>多空分歧·区间震荡</strong> — OCR捕捉到多股分化（腾讯/宁德/联想），语音“反复调整”重复，判定为震荡市。',
+      keypoints: ['上证/恒指分化', '腾讯/网易/宁德联动', '北水与美股映射'],
+      transcript: '[Vision OCR] 分段标题：00:00 前言 / 03:10 上证 / 05:29 恒指 / 11:49 腾讯…\n[Audio] “港股短评 反覆调整 北水+美股指数联动”。\n[Tags] #港股 #恒生指数 #腾讯控股。'
+    }
+  ];
+
+  let currentYtFilter = 'all';
+  let currentYtSearch = '';
+
+  function renderYtGrid() {
+    const grid = document.getElementById('ytGrid');
+    if (!grid) return;
+    const q = currentYtSearch.trim().toLowerCase();
+    const filtered = YT_VIDEOS.filter(v => {
+      const catOk = currentYtFilter === 'all' ? true : currentYtFilter === 'live' ? v.live : v.category === currentYtFilter;
+      const searchOk = !q || (v.title + ' ' + v.channel + ' ' + v.summary + ' ' + v.keypoints.join(' ')).toLowerCase().includes(q);
+      return catOk && searchOk;
+    });
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="rpg-box" style="grid-column:1/-1; text-align:center; color:var(--pixel-text-dim);">无匹配视频 · 试试切换分类或清空关键词</div>`;
+      return;
+    }
+    grid.innerHTML = filtered.map(v => {
+      const chipClass = v.sentiment === 'bull' ? 'green' : v.sentiment === 'bear' ? 'red' : v.sentiment === 'mixed' ? 'gold' : 'gold';
+      const chipText = v.sentiment === 'bull' ? '偏多' : v.sentiment === 'bear' ? '偏空' : v.sentiment === 'mixed' ? '多空分歧' : '中性';
+      const liveBadge = v.live ? `<span class="yt-live-badge">● LIVE</span>` : '';
+      const catTag = v.category === 'hk' ? '港股' : v.category === 'fed' ? '美联储' : v.category === 'commodity' ? '大宗' : v.category === 'ai' ? 'AI科技' : v.category;
+      return `
+      <article class="yt-card" data-id="${v.id}">
+        <div class="yt-thumb-wrap" onclick="openYtModal('${v.id}')">
+          <img class="yt-thumb" src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="${v.title}" loading="lazy" onerror="this.src='https://i.ytimg.com/vi/${v.id}/mqdefault.jpg'">
+          <div class="yt-play-overlay">▶</div>
+          <span class="yt-duration">${v.duration}</span>
+          ${liveBadge}
+        </div>
+        <div class="yt-body">
+          <div class="yt-title" title="${v.title}">${v.title}</div>
+          <div class="yt-meta">
+            <span>📺 ${v.channel}</span>
+            <span>🕒 ${v.time}</span>
+            <span>👁️ ${v.views}</span>
+            <span style="margin-left:auto;" class="yt-tag ${chipClass}">${chipText}</span>
+          </div>
+          <div class="yt-tags">
+            <span class="yt-tag gold">${catTag}</span>
+            <span class="yt-tag">👁️ OCR</span>
+            <span class="yt-tag">🎙️ Whisper</span>
+            <span class="yt-tag green">情绪·${chipText}</span>
+          </div>
+          <div class="yt-summary">${v.summary}</div>
+          <ul class="yt-keypoints">${v.keypoints.map(k => `<li>${k}</li>`).join('')}</ul>
+          <div class="yt-actions">
+            <button class="yt-btn yt-btn-primary" onclick="openYtModal('${v.id}')">▶ 播放多模态解析</button>
+            <a class="yt-btn yt-btn-secondary" href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener">↗ YouTube 原片</a>
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+    const st = document.getElementById('ytStatus');
+    if (st) st.textContent = `YOUTUBE 多模态就绪 · ${filtered.length}/${YT_VIDEOS.length} 条匹配 · ${new Date().toISOString().replace('T',' ').substring(0,19)} UTC`;
+  }
+
+  function filterYt(cat, btn) {
+    playBlip();
+    currentYtFilter = cat;
+    document.querySelectorAll('#ytFilterRow .filter-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderYtGrid();
+  }
+  function searchYt(q) {
+    currentYtSearch = q;
+    renderYtGrid();
+  }
+  function openYtModal(id) {
+    playCoin();
+    const v = YT_VIDEOS.find(x => x.id === id);
+    if (!v) return;
+    const modal = document.getElementById('ytModal');
+    const player = document.getElementById('ytModalPlayer');
+    const title = document.getElementById('ytModalTitle');
+    const link = document.getElementById('ytModalLink');
+    const summary = document.getElementById('ytModalSummary');
+    const trans = document.getElementById('ytModalTranscript');
+    const badges = document.getElementById('ytModalBadges');
+    if (title) title.textContent = v.title;
+    if (link) link.href = `https://www.youtube.com/watch?v=${v.id}`;
+    if (summary) summary.innerHTML = v.summary + `<br><br><strong style="color:var(--pixel-cyan);">频道：</strong>${v.channel} · ${v.time} · ${v.duration} &nbsp;|&nbsp; <strong style="color:var(--pixel-gold);">多模态标签：</strong>VISION + AUDIO + NLP 联合推理`;
+    if (trans) trans.textContent = v.transcript;
+    if (badges) badges.innerHTML = `<span class="mm-badge vision">👁️ VISION</span><span class="mm-badge audio">🎙️ AUDIO</span><span class="mm-badge nlp">🧠 NLP</span><span class="yt-tag ${v.sentiment==='bull'?'green':v.sentiment==='bear'?'red':'gold'}" style="font-family:Silkscreen,monospace;font-size:10px;padding:4px 8px;border:1px solid #000;background:#000;color:${v.sentiment==='bull'?'#22c55e':v.sentiment==='bear'?'#ef4444':'#facc15'};">${v.sentiment==='bull'?'偏多':v.sentiment==='bear'?'偏空':v.sentiment==='mixed'?'多空分歧':'中性'}</span>`;
+    if (player) player.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&modestbranding=1" title="${v.title}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
+    if (modal) modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeYtModal() {
+    playBlip();
+    const modal = document.getElementById('ytModal');
+    const player = document.getElementById('ytModalPlayer');
+    if (modal) modal.classList.remove('open');
+    if (player) player.innerHTML = '';
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeYtModal(); });
+
+  // =========================================================================
+  // 📰 Google News 实时聚合逻辑（双代理 + Mock 回退 + 60s 刷新）
+  // =========================================================================
+  const MOCK_NEWS = [
+    { title: '恒生指数五连阳后逼近26,500阻力 南向资金高位获利了结', source: '智通财经', time: '2小时前', snippet: '港交所8月将新增18只股票期权，日均成交94.2万张创9%增长，机构持续加仓高股息与REITs防御。', cat: 'hk', sentiment: 'mixed', url: 'https://news.google.com/search?q=恒生指数&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: '美联储维持3.50%-3.75%不变 9-3投票显示内部分歧 通胀仍高于目标', source: '华尔街见闻', time: '4小时前', snippet: '声明称核心通胀与工资增长已趋于平衡，市场从降息预期快速转向持稳共识，美元离岸流动性分化。', cat: 'fed', sentiment: 'neutral', url: 'https://news.google.com/search?q=美联储利率&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: '中东地缘推升霍尔木兹航运风险 原油风险溢价居高不下', source: 'Bloomberg', time: '5小时前', snippet: '美国取消部分伊朗石油制裁豁免，能源供应链冲击与二次通胀担忧共振，黄金再创ATH。', cat: 'geopolitics', sentiment: 'bear', url: 'https://news.google.com/search?q=霍尔木兹海峡+原油&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: '黄金连续刷新历史新高 央行购金与地缘对冲构筑底部', source: 'Reuters', time: '6小时前', snippet: '大行看多长牛，铜铝锂库存去化，新能源与电网基建刚需支撑战略矿产。', cat: 'commodity', sentiment: 'bull', url: 'https://news.google.com/search?q=黄金+历史新高&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: 'AI应用端与互联网龙头领涨 恒生科技同步走强', source: '财联社', time: '7小时前', snippet: '进攻端聚焦AI大模型落地，防御端配置高息REITs与电信公用事业，哑铃策略成共识。', cat: 'ai', sentiment: 'bull', url: 'https://news.google.com/search?q=恒生科技+AI&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: '港交所衍生品生态扩容：每周及月度期权覆盖AI算力与有色矿业', source: '香港交易所', time: '8小时前', snippet: '8月分三批推出18只新期权，全面覆盖前沿板块，机构对冲与跨品种套利窗口打开。', cat: 'hk', sentiment: 'bull', url: 'https://news.google.com/search?q=港交所+期权&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: 'IMF下调全球增速至3.0% 警告中东冲突与供应链风险', source: 'IMF', time: '9小时前', snippet: '7月8日《世界经济展望》较4月3.1%下调10BP，显著低于2025年3.5%水平。', cat: 'geopolitics', sentiment: 'bear', url: 'https://news.google.com/search?q=IMF+全球经济增速&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: '南向资金单日净卖出超24亿港元 资金轮动至大消费防御板块', source: '东方财富', time: '10小时前', snippet: '农夫山泉/恒安国际/康师傅逆势涨超3%，资金避险抱团，成长回调压力未消。', cat: 'hk', sentiment: 'bear', url: 'https://news.google.com/search?q=南向资金+净卖出&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: '全球对冲基金从日韩美拥挤多头撤离 港股成“相对避风港”', source: 'FinTwit', time: '11小时前', snippet: '资金再平衡+空头回补+政策托底预期三重共振，恒指五连阳至26,338，外资看多。', cat: 'fed', sentiment: 'bull', url: 'https://news.google.com/search?q=对冲基金+港股&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' },
+    { title: '铜铝锂交易所库存持续去化 绿色转型刚性需求支撑长牛', source: 'SMM', time: '12小时前', snippet: '电网基建与新能源需求稳固，大宗商品与港股有色板块联动性增强。', cat: 'commodity', sentiment: 'bull', url: 'https://news.google.com/search?q=铜+铝+锂+库存&hl=zh-CN&gl=CN&ceid=CN:zh-Hans' }
+  ];
+
+  let liveNews = [...MOCK_NEWS];
+  let currentNewsCat = 'all';
+  let currentNewsSearch = '';
+  let autoRefreshTimer = null;
+  let isLiveMode = false;
+
+  function sentimentChip(s) {
+    if (s === 'bull') return '<span class="chip chip-bull-news">偏多</span>';
+    if (s === 'bear') return '<span class="chip chip-bear-news">偏空</span>';
+    return '<span class="chip chip-neutral-news">中性/分歧</span>';
+  }
+
+  function renderNewsList() {
+    const list = document.getElementById('newsList');
+    const track = document.getElementById('tickerTrack');
+    if (!list) return;
+    const q = currentNewsSearch.trim().toLowerCase();
+    const filtered = liveNews.filter(n => {
+      const catOk = currentNewsCat === 'all' ? true : n.cat === currentNewsCat;
+      const searchOk = !q || (n.title + ' ' + n.snippet + ' ' + n.source).toLowerCase().includes(q);
+      return catOk && searchOk;
+    });
+    // render list
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="rpg-box" style="text-align:center; color:var(--pixel-text-dim);">无匹配新闻 · 试试切换分类或清空关键词</div>`;
+    } else {
+      list.innerHTML = filtered.map(n => `
+        <article class="news-item" data-cat="${n.cat}">
+          <div class="news-source-icon">${n.source.charAt(0)}</div>
+          <div class="news-main">
+            <div class="news-title"><a href="${n.url}" target="_blank" rel="noopener">${n.title}</a> ${sentimentChip(n.sentiment)}</div>
+            <div class="news-snippet">${n.snippet}</div>
+            <div class="news-meta">
+              <span>📰 ${n.source}</span>
+              <span>🕒 ${n.time}</span>
+              <span>🏷️ ${n.cat === 'hk' ? '港股' : n.cat === 'fed' ? '美联储' : n.cat === 'commodity' ? '大宗商品' : n.cat === 'geopolitics' ? '地缘' : 'AI科技'}</span>
+              <span style="color:${isLiveMode ? 'var(--pixel-green)' : 'var(--pixel-gold)'}; font-family:Silkscreen, monospace; font-size:10px; border:1px solid currentColor; padding:1px 5px;">${isLiveMode ? '● LIVE RSS' : '◇ MOCK 缓存'}</span>
+            </div>
+            <div class="news-actions">
+              <a class="news-btn" href="${n.url}" target="_blank" rel="noopener">↗ 查看原文</a>
+              <button class="news-btn" onclick="navigator.clipboard && navigator.clipboard.writeText('${n.url.replace(/'/g, "\\'")}'); playBlip();">⧉ 复制链接</button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+    // render ticker (take top 8)
+    if (track) {
+      const tickerItems = liveNews.slice(0, 8).map(n => `<span class="ticker-item"><span class="ticker-dot"></span> <b>${n.source}</b> ${n.title} <span style="color:var(--pixel-text-dim);">· ${n.time}</span></span>`).join('<span style="color:var(--pixel-gold);">◆</span>');
+      // duplicate for seamless loop
+      track.innerHTML = tickerItems + '<span style="color:var(--pixel-gold);">◆</span>' + tickerItems;
+    }
+  }
+
+  function filterNews(cat, btn) {
+    playBlip();
+    currentNewsCat = cat;
+    document.querySelectorAll('#stage-gnews .filter-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderNewsList();
+  }
+  function searchNews(q) {
+    currentNewsSearch = q;
+    renderNewsList();
+  }
+
+  async function tryFetchRssJson(rssUrl) {
+    // 尝试 rss2json
+    const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+    const r = await fetch(api, { cache: 'no-store' });
+    if (!r.ok) throw new Error('rss2json failed ' + r.status);
+    const j = await r.json();
+    if (j.status !== 'ok' || !Array.isArray(j.items)) throw new Error('rss2json bad payload');
+    return j.items;
+  }
+  async function tryFetchAllOrigins(rssUrl) {
+    const api = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+    const r = await fetch(api, { cache: 'no-store' });
+    if (!r.ok) throw new Error('allorigins failed ' + r.status);
+    const j = await r.json();
+    const xml = j.contents;
+    // 简易 XML 解析：提取 <item><title> <link> <pubDate> <description>
+    const items = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let m;
+    while ((m = itemRegex.exec(xml)) !== null) {
+      const block = m[1];
+      const get = (tag) => {
+        const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+        const mm = block.match(re);
+        return mm ? mm[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+      };
+      items.push({
+        title: get('title'),
+        link: get('link'),
+        pubDate: get('pubDate'),
+        description: get('description')
+      });
+    }
+    if (items.length === 0) throw new Error('no items parsed');
+    // map to rss2json-like
+    return items.map(it => ({ title: it.title, link: it.link, pubDate: it.pubDate, description: it.description }));
+  }
+
+  function categorizeNews(title) {
+    const t = title.toLowerCase();
+    if (/恒生|港股|南向|hsi|港交所/.test(t)) return 'hk';
+    if (/美联储|fed|利率|鲍威尔|通胀|fomc/.test(t)) return 'fed';
+    if (/原油|黄金|铜|铝|锂|大宗|矿产|opec/.test(t)) return 'commodity';
+    if (/伊朗|以色列|中东|霍尔木兹|地缘|冲突|制裁/.test(t)) return 'geopolitics';
+    if (/ai|科技|模型|算力|芯片/.test(t)) return 'ai';
+    return 'hk';
+  }
+  function sentimentOf(title) {
+    const t = title;
+    if (/上涨|大涨|新高|利好|走强|突破|反弹/.test(t)) return 'bull';
+    if (/下跌|重挫|暴跌|利空|承压|失守|风险|下调/.test(t)) return 'bear';
+    return 'neutral';
+  }
+  function timeAgo(pubDate) {
+    try {
+      const d = new Date(pubDate);
+      const diff = Date.now() - d.getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 60) return `${mins}分钟前`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `${hours}小时前`;
+      return d.toLocaleDateString('zh-CN');
+    } catch { return '刚刚'; }
+  }
+
+  async function refreshGNews() {
+    playBlip();
+    const statusText = document.getElementById('newsStatusText');
+    const statusBox = document.getElementById('newsStatus');
+    if (statusText) statusText.textContent = 'SYNCING… 正在同步 Google News RSS (双通道)…';
+    if (statusBox) statusBox.style.color = 'var(--pixel-gold)';
+    // 构造 RSS URL：综合查询，覆盖港股/美联储等
+    const rssBase = 'https://news.google.com/rss/search?q=';
+    const query = encodeURIComponent('港股 OR 恒生指数 OR 美联储 OR 原油黄金 当时:1d');
+    const rssUrl = `${rssBase}${query}&hl=zh-CN&gl=CN&ceid=CN:zh-Hans`;
+    let items = null;
+    let lastErr = null;
+    try {
+      items = await tryFetchRssJson(rssUrl);
+    } catch (e) {
+      lastErr = e;
+      try {
+        items = await tryFetchAllOrigins(rssUrl);
+      } catch (e2) {
+        lastErr = e2;
+      }
+    }
+    if (items && items.length > 0) {
+      // 去重 + 映射
+      const seen = new Set();
+      const mapped = [];
+      for (const it of items.slice(0, 20)) {
+        const title = (it.title || '').replace(/ - [^-]+$/, '').trim(); // 去掉来源后缀
+        const url = it.link || it.url || it.guid || '#';
+        if (!title || seen.has(title) || seen.has(url)) continue;
+        seen.add(title);
+        mapped.push({
+          title,
+          source: (it.title && it.title.includes(' - ')) ? it.title.split(' - ').pop().trim() : (it.author || 'Google News'),
+          time: timeAgo(it.pubDate || new Date().toISOString()),
+          snippet: (it.description || it.content || '').replace(/<[^>]+>/g, '').slice(0, 120) + '…',
+          cat: categorizeNews(title),
+          sentiment: sentimentOf(title),
+          url
+        });
+        if (mapped.length >= 10) break;
+      }
+      if (mapped.length > 0) {
+        liveNews = mapped;
+        isLiveMode = true;
+        if (statusText) statusText.textContent = `LIVE SYNC OK · ${mapped.length} 条实时新闻 · ${new Date().toISOString().replace('T',' ').substring(0,19)} UTC`;
+        if (statusBox) statusBox.style.color = 'var(--pixel-green)';
+        // 更新 ticker 状态点为绿色
+        const dot = statusBox ? statusBox.querySelector('.dot') : null;
+        if (dot) dot.style.background = 'var(--pixel-green)';
+        renderNewsList();
+        return;
+      }
+    }
+    // fallback
+    liveNews = [...MOCK_NEWS];
+    isLiveMode = false;
+    if (statusText) statusText.textContent = `MOCK DEMO · RSS 暂不可达(${lastErr ? lastErr.message.slice(0,40) : '离线'}) · 已加载本地缓存 · ${new Date().toISOString().replace('T',' ').substring(0,19)} UTC`;
+    if (statusBox) statusBox.style.color = 'var(--pixel-gold)';
+    renderNewsList();
+  }
+
+  function toggleAutoRefresh(on) {
+    if (on) {
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      autoRefreshTimer = setInterval(refreshGNews, 60000);
+      playBlip();
+    } else {
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      autoRefreshTimer = null;
+      playBlip();
+    }
+  }
+
+  // 初始化
+  document.addEventListener('DOMContentLoaded', () => {
+    renderYtGrid();
+    renderNewsList();
+    refreshGNews();
+    // 启动自动刷新
+    if (document.getElementById('autoRefreshToggle')?.checked) {
+      autoRefreshTimer = setInterval(refreshGNews, 60000);
+    }
+  });
+
+  // 🕹️ Filter Community Cards (scoped to community row)
   function filterCards(type, tabEl) {
     playBlip();
-    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    const row = document.getElementById('communityFilterRow');
+    if (row) row.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    else document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
     tabEl.classList.add('active');
 
     const cards = document.querySelectorAll('.community-card');
@@ -1417,6 +2376,28 @@
     }, 4000);
   }
 </script>
+
+
+<!-- 📺 YouTube Modal (privacy-enhanced) -->
+<div class="yt-modal" id="ytModal" onclick="if(event.target===this) closeYtModal()">
+  <div class="yt-modal-box">
+    <div class="yt-modal-head">
+      <div class="yt-modal-title" id="ytModalTitle">YOUTUBE MULTIMODAL PLAYER</div>
+      <button class="yt-modal-close" onclick="closeYtModal()">✕ 关闭</button>
+    </div>
+    <div class="yt-modal-player" id="ytModalPlayer"></div>
+    <div class="yt-modal-body">
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;" id="ytModalBadges"></div>
+      <div id="ytModalSummary" style="background:#11172e; border:2px solid var(--pixel-gold); padding:12px; font-size:13px; line-height:1.7; color:#e2e8f0;"></div>
+      <p style="font-family:Silkscreen, monospace; font-size:11px; color:var(--pixel-cyan); margin-top:12px;">🎙️ 多模态转写摘要 (Whisper + Vision OCR 压缩)</p>
+      <div class="yt-transcript" id="ytModalTranscript"></div>
+      <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+        <a id="ytModalLink" href="#" target="_blank" class="yt-btn yt-btn-primary">▶ 在 YouTube 打开原片</a>
+        <button class="yt-btn yt-btn-secondary" onclick="closeYtModal()">返回雷达</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
