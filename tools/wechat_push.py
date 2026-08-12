@@ -43,14 +43,20 @@ MAX_PUSH_RETRIES = 3
 
 
 def build_single_wechat_html(now=None):
-    """构建单页完整的微信 HTML 推送卡片 (一对一单页直推，全板块详细 AI 深入分析)。"""
-    ts = (now or datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M UTC')
+    """构建单页完整的微信 HTML 推送卡片 (一对一单页直推，全板块详细 AI 深入分析)。
 
-    html = f'''<div style="background:#0d1124;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;font-size:14px;line-height:1.65;padding:14px 10px;">
+    推送时间协议: 每次构建/推送前先核对当前时间, 正文「生成时间 / 时间核对」
+    等全部时间戳均使用最新时间生成, 确保推送内容时间永远是最新的。
+    """
+    now = now or datetime.now(timezone.utc)
+    ts = now.strftime('%Y-%m-%d %H:%M UTC')
+    ts_full = now.strftime('%Y-%m-%d %H:%M:%S UTC')
+
+    html = f'''<div style="background:#0d1124;color:#f8fafc;font-family:'黑体','SimHei',-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;font-size:13px;line-height:1.65;padding:14px 10px;">
 
   <!-- 顶部街机专推横幅 -->
   <div style="background:#151c38;border:2px solid #facc15;padding:14px 16px;margin-bottom:16px;">
-    <div style="color:#facc15;font-size:18px;font-weight:bold;letter-spacing:1px;">🕹️ 章鱼 AI 全景分析 · 微信专推 (全景详尽版)</div>
+    <div style="color:#facc15;font-size:16px;font-weight:bold;letter-spacing:1px;">🕹️ 章鱼 AI 全景分析 · 微信专推 (全景详尽版)</div>
     <div style="color:#94a3b8;font-size:12px;margin-top:6px;line-height:1.6;">
       推送模式: <strong style="color:#22c55e;">一对一专属直推 (单页完整详尽全文)</strong><br/>
       推送作者: 章鱼 ai · 生成时间: {ts}<br/>
@@ -60,9 +66,9 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 01 底层模型与全景推理 -->
-  <div style="font-size:16px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:22px 0 10px;">01 / 底层模型与全景推理机制 (Multi-Model Alliance)</div>
-  <div style="background:#151c38;border-left:4px solid #38bdf8;padding:12px 14px;margin:10px 0;font-size:13px;line-height:1.7;">
-    <strong style="color:#38bdf8;font-size:14px;">全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。</strong><br/>
+  <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:22px 0 10px;">01 / 底层模型与全景推理机制 (Multi-Model Alliance)</div>
+  <div style="background:#151c38;border-left:4px solid #38bdf8;padding:12px 14px;margin:10px 0;font-size:12px;line-height:1.7;">
+    <strong style="color:#38bdf8;font-size:13px;">全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。</strong><br/>
     底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，根据资产管理任务进行分工协同：<br/>
     • <strong style="color:#facc15;">Claude 3.5 Sonnet</strong>：专长长文档逻辑链推理、非结构化研报语义挖掘与跨语言财报深度比对；<br/>
     • <strong style="color:#facc15;">ChatGPT-4o</strong>：专长全球宏观经济模型映射、跨资产相关性分析与海外宏观政策流动性传导；<br/>
@@ -74,23 +80,23 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 02 全球经济与财经动态 -->
-  <div style="font-size:16px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">02 / 全球经济与财经动态 (Global Macro & HK Battlefield)</div>
-  <div style="background:#151c38;padding:14px 16px;margin:10px 0;font-size:13px;color:#cbd5e1;line-height:1.75;border:1px solid #334155;">
-    <div style="color:#38bdf8;font-weight:bold;font-size:14px;margin-bottom:6px;">◆ 宏观 — IMF 与全球经济增速</div>
+  <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">02 / 全球经济与财经动态 (Global Macro & HK Battlefield)</div>
+  <div style="background:#151c38;padding:14px 16px;margin:10px 0;font-size:12px;color:#cbd5e1;line-height:1.75;border:1px solid #334155;">
+    <div style="color:#38bdf8;font-weight:bold;font-size:13px;margin-bottom:6px;">◆ 宏观 — IMF 与全球经济增速</div>
     根据 2026 年 7 月 8 日 IMF 更新的《世界经济展望》，全球经济增长预期下调至 <strong style="color:#facc15;">3.0%</strong>（4 月预测 3.1%），显著低于 2025 年的 3.5%。主要拖累因素包括：中东地缘冲突（美以与伊朗冲突）对能源供应链的持续冲击、霍尔木兹海峡航运风险加剧、以及全球通胀再度抬头。美国已于 7 月底取消部分伊朗石油制裁豁免，进一步推升能源通胀溢价。<br/><br/>
 
-    <div style="color:#38bdf8;font-weight:bold;font-size:14px;margin-bottom:6px;">◆ 美联储利率路径与离岸流动性</div>
+    <div style="color:#38bdf8;font-weight:bold;font-size:13px;margin-bottom:6px;">◆ 美联储利率路径与离岸流动性</div>
     2026 年 7 月底美联储维持联邦基金利率在 <strong style="color:#facc15;">3.50% – 3.75%</strong> 区间不变（投票结果 9-3）。官方声明指出通胀仍高于政策目标，核心通胀与工资增长已趋于平衡。市场此前一度从“降息预期”快速转向“加息担忧”，随后因 6 月通胀数据降温而回归“持稳”共识。美元指数震荡偏强，离岸美元流动性仍呈结构性分化。<br/><br/>
 
-    <div style="color:#38bdf8;font-weight:bold;font-size:14px;margin-bottom:6px;">◆ 港股市场 — 近期行情与五连阳特征</div>
+    <div style="color:#38bdf8;font-weight:bold;font-size:13px;margin-bottom:6px;">◆ 港股市场 — 近期行情与五连阳特征</div>
     截至 2026 年 8 月 1 日（周五）收盘，恒生指数（HSI）实现 <strong style="color:#22c55e;">五连涨</strong>，单周涨幅约 <strong style="color:#22c55e;">3.7%</strong>（+921 点），稳步运行于 25,200–26,000 点核心区间。科技与金融板块领跑反弹，恒生科技指数同步走强。值得注意的是，南向资金在 7 月 28 日出现单日净卖出超 24 亿港元，表明内资主力在重要整数关口存在明显的高位获利了结与仓位调优动作。<br/><br/>
 
-    <div style="color:#38bdf8;font-weight:bold;font-size:14px;margin-bottom:6px;">◆ 大宗商品与全球供应链风险矩阵</div>
+    <div style="color:#38bdf8;font-weight:bold;font-size:13px;margin-bottom:6px;">◆ 大宗商品与全球供应链风险矩阵</div>
     • <strong style="color:#f8fafc;">原油</strong>：中东地缘博弈持续，霍尔木兹海峡航运通道受限，原油风险溢价居高不下，维持高位震荡；<br/>
     • <strong style="color:#f8fafc;">黄金</strong>：多次创历史新高（ATH），全球央行购金与抗地缘对冲需求提供强劲底部支撑，大行普遍看好长牛格局；<br/>
     • <strong style="color:#f8fafc;">铜、铝、锂</strong>：全球主要交易所库存持续去化，新能源与电网基建刚性需求稳固，战略矿产供应链紧张格局未见缓解。<br/><br/>
 
-    <div style="color:#38bdf8;font-weight:bold;font-size:14px;margin-bottom:6px;">◆ 主要国际与中资大行对恒指目标价预测（2026 基准情景）</div>
+    <div style="color:#38bdf8;font-weight:bold;font-size:13px;margin-bottom:6px;">◆ 主要国际与中资大行对恒指目标价预测（2026 基准情景）</div>
     • <strong style="color:#facc15;">富途证券</strong>：基准情景 <strong style="color:#facc15;">31,000 点</strong>；乐观情景在内需政策共振下可达 <strong style="color:#22c55e;">34,000 点</strong>。<br/>
     • <strong style="color:#facc15;">星展银行 (DBS)</strong>：基本情景 <strong style="color:#facc15;">30,000 点</strong>；极乐观牛市情景 <strong style="color:#22c55e;">36,500 点</strong>，极悲观熊市底线 23,000 点。<br/>
     • <strong style="color:#facc15;">中金公司 (CICC)</strong>：基准预测区间 <strong style="color:#facc15;">28,000–29,000 点</strong>，依托盈利修复支撑估值均值回归。<br/>
@@ -98,9 +104,9 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 03 社区论坛热评 (14 大平台详尽解析) -->
-  <div style="font-size:16px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">03 / 社区论坛热评 (14 大平台详尽深入全景研判)</div>
-  <div style="background:#151c38;border-left:4px solid #facc15;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#cbd5e1;line-height:1.7;">
-    <strong style="color:#facc15;font-size:14px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>
+  <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">03 / 社区论坛热评 (14 大平台详尽深入全景研判)</div>
+  <div style="background:#151c38;border-left:4px solid #facc15;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#cbd5e1;line-height:1.7;">
+    <strong style="color:#facc15;font-size:13px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>
     <strong style="color:#22c55e;">偏多 6 家</strong> · <strong style="color:#ef4444;">偏空 4 家</strong> · <strong style="color:#38bdf8;">中性 2 家</strong> · <strong style="color:#facc15;">多空分歧 2 家</strong>。<br/>
     <strong style="color:#ffffff;">核心主线共识</strong>：短线获利了结与技术超买压力并存（26,500 关键阻力位、南向单日净卖出超 24 亿港元）；中期“估值深度折价修复 + 政策托底叙事”逻辑依然完备。跨平台一致配置答案：进攻端聚焦 AI 科技应用端与互联网龙头，防御端重仓高股息、REITs、电信服务与公用事业，并以黄金、铜、铝、锂矿对冲地缘供应链风险。
   </div>
@@ -108,8 +114,8 @@ def build_single_wechat_html(now=None):
   <!-- 14 大社区逐一详尽分析 -->
 
   <!-- 1. 富途牛牛 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #facc15;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🐮 1. 富途牛牛社区 <span style="color:#facc15;font-size:11px;border:1px solid #facc15;padding:0 5px;margin-left:6px;">多空分歧</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #facc15;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🐮 1. 富途牛牛社区 <span style="color:#facc15;font-size:11px;border:1px solid #facc15;padding:0 5px;margin-left:6px;">多空分歧</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>技术派占据讨论主导地位，指出恒指在 30 分钟级别出现低开低走、短期均线呈空头排列形态，被高频交易者视为明确的离场信号，建议重点观察次日能否高开以形成技术金叉；资金派强调分时走势图表、盘口即时大单与资金净流向是最快且最真实的盘面反馈，先看异动再做决策；中长线研判则指出：短线即使跌穿 24,400 点并下试 23,500 点支撑，但在南向资金中长期持续流入与上市企业基本面盈利改善的坚实支撑下，恒指明年上半年仍有望向上挑战 28,200 点关口。
     </div>
@@ -120,8 +126,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 2. 雪球网 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #facc15;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">❄️ 2. 雪球网 <span style="color:#facc15;font-size:11px;border:1px solid #facc15;padding:0 5px;margin-left:6px;">多空分歧</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #facc15;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">❄️ 2. 雪球网 <span style="color:#facc15;font-size:11px;border:1px solid #facc15;padding:0 5px;margin-left:6px;">多空分歧</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>美债 10 年期收益率的大幅上行持续对高估值成长股构成估值压制，市场缺乏单一明确的主线逻辑，导致存量资金在能源、有色金属等周期板块与科技硬件应用之间呈现高速轮动；前期热门科技股全线重挫（多只龙头单日跌超 17%），叠加热点日南向单日净卖出超 24 亿港元，短线需高度警惕高位获利了结引发的连环踩踏风险；基本面深度价值派观点则认为：港股整体盈利具备 3%–4% 的内生稳健增长预期，乐观情景下恒指上看 31,000 点，建议以高息红利股作为投资组合基础底仓，并重点关注新质生产力与经济结构改革主题。
     </div>
@@ -132,8 +138,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 3. 老虎社区 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🐯 3. 老虎社区 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🐯 3. 老虎社区 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>跨境投资者情绪整体低迷偏弱，普遍认为港股呈现“疲软先跌、明显弱于 A 股”的走势格局，操作上主张继续观望等待技术金叉出现，短线维持明确的离场信号；在个股与资本运作层面，经纬天地折让约 7.69% 实施“先旧后新”配股、最多净筹资约 1.88 亿港元，该类折价配售消息极大压制了短期市场追高意愿；放眼跨市场联动，美股夜盘持续走跌而亚洲时段反弹乏力，社区多数声音选择离场观望、“笑看回调”。
     </div>
@@ -144,8 +150,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 4. 东方财富港股股吧 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">💰 4. 东方财富港股股吧 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">💰 4. 东方财富港股股吧 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>散户情绪呈现典型的短线离场特征，30 分钟级别低开低走与空头均线被普遍视作减仓指标；南向资金单日净卖出超 24 亿港元被解读为内资主力资金获利撤退；多空分歧的核心在于：短线若有效跌穿 24,400 点关键支撑，或将进一步下探测试 23,500 点整数关，但情绪充分出清后明年上半年依然有望看高至 28,200 点；盘面唯一的防御亮点在于：在前期热门成长股大幅回调之际，大消费权重股（农夫山泉、恒安国际、康师傅控股）逆势走强涨超 3%，资金避险抱团防御特征极其鲜明。
     </div>
@@ -156,8 +162,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 5. 智通财经互动区 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">📈 5. 智通财经互动区 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">📈 5. 智通财经互动区 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>聚焦衍生品与机构席位动向。港交所自 8 月起分三批重磅推出 18 只每周及月度股票期权（全面覆盖 AI 算力、新能源汽车、有色矿业等前沿板块），股票期权日均成交量已突破 94.2 万张、同比大幅增长 9%，香港衍生品生态持续扩容；盘面分化剧烈：半导体板块冲高跳水，商业航天概念午后走强，全主板单日跌超 10% 的个股多达 73 只，机构对冲与套利需求显著上升；席位追踪明确显示：长线机构资金正在持续加仓高股息板块，主要流入 REITs、电信运营商、消费类红利及公用事业等现金流标的。
     </div>
@@ -168,8 +174,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 6. 华尔街见闻社区 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🌐 6. 华尔街见闻社区 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🌐 6. 华尔街见闻社区 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>宏观对冲视角解析资本流动格局。全球大型对冲基金正逐步从韩国、日本、美股等高估值、高杠杆、拥挤度极高的多头市场中撤出部分头寸，将估值极度低估的港股视作“相对避风港”；港股边际利好在于“全球资金再平衡驱动的空头回补 + 国内政策托底预期”的强力组合；美联储维持 3.50%–3.75% 利率区间不变，核心通胀虽有粘性但趋于均衡；IMF 下调全球增速至 3.0% 凸显地缘不确定性，宏观策略建议重点配置有色金属（黄金、铜、铝、锂矿）以及低贝塔高息防御资产。
     </div>
@@ -180,8 +186,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 7. 香港讨论区财经版 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #38bdf8;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🇭🇰 7. 香港讨论区财经版 <span style="color:#0d1124;background:#38bdf8;font-size:11px;padding:0 5px;margin-left:6px;">中性</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #38bdf8;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🇭🇰 7. 香港讨论区财经版 <span style="color:#0d1124;background:#38bdf8;font-size:11px;padding:0 5px;margin-left:6px;">中性</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>反映香港本土零售股民（炒鬼）真实心态。恒指盘中虽顽强收红、消费与公用板块有所支撑，但本地散户情绪依然保持高度谨慎，时刻紧盯南向资金单日净卖出超 24 亿港元后的主力动向；主流共识认为“港股弱于 A 股、往往疲软先跌”，主张严格等待技术金叉确立，绝不盲目追高；在板块选择上，高股息与本地地产蓝筹短线有股息支撑，但整体缺乏强有力的主线叙事，普遍建议以电信服务、REITs 与公用事业构建防御阵地。
     </div>
@@ -192,8 +198,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 8. LIHKG 连登财经台 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🔥 8. LIHKG 连登财经台 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🔥 8. LIHKG 连登财经台 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>年轻激进交易者迷因（Meme）情绪升温但风险警觉度同步走高。恒指连续五日上涨后，日线级别技术指标已极度逼近严重超买区域，若短期无法放量强力突破 26,500 点重压力位，则短线急跌回调风险骤增，交易员强烈主张设置严格的硬止损线；盘面个股分化极其极端（主板 73 只个股单日跌超 10%），激进交易策略全面转向期权、牛熊证等高杠杆衍生品对冲，主张“赚取波动率而非单边押注方向”；中期仍认同全球资金再平衡主题，建议紧盯 6h/12h 周期 ALMA 均线指标作为波段信号。
     </div>
@@ -204,8 +210,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 9. 韭圈儿 / 红岸社区 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🥦 9. 韭圈儿 / 红岸社区 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🥦 9. 韭圈儿 / 红岸社区 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>聚焦公募基金持仓透视与中长线机构建仓动向。数据显示，南向资金正通过港股通 ETF 持续净申购，公募基金最新调仓路径显示其对高股息红利股以及核心中资科技龙头的配置比例明显上升；多位资深公募基金经理达成共识：港股深度估值修复与核心科技行业盈利增长是 2026 年的核心收益驱动引擎，富途等机构给出的基准目标价 31,000 点、乐观情景 34,000 点具备坚实基本面支撑；但与此同时社区也提示：需对散户渠道的狂热升温保持警惕，高位已出现部分机构获利了结与调仓换股迹象。
     </div>
@@ -216,8 +222,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 10. 蚂蚁财富港股社区 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🐜 10. 蚂蚁财富港股社区 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #ef4444;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🐜 10. 蚂蚁财富港股社区 <span style="color:#fff;background:#ef4444;font-size:11px;padding:0 5px;margin-left:6px;">偏空</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>大众基民散户群体情绪极度亢奋，散户端港股相关 ETF 的申购量与搜索热度呈现爆发式增长；然而，从成熟量化投资的“反向指标”视角来看，大众市场的无序极度乐观往往与阶段性行情短线高点高度吻合；在资产配置偏好上，高息红利股与 REITs 是基民最热门的定投选择，公用事业、电信运营商及消费红利被理财顾问反复推荐为核心防御底仓；多位理财大 V 明确提醒投资者需警惕南向资金单日净流出背后的主力套现信号。
     </div>
@@ -228,8 +234,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 11. Reddit (r/ChinaStocks) -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #38bdf8;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">👾 11. Reddit (r/ChinaStocks) <span style="color:#0d1124;background:#38bdf8;font-size:11px;padding:0 5px;margin-left:6px;">中性</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #38bdf8;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">👾 11. Reddit (r/ChinaStocks) <span style="color:#0d1124;background:#38bdf8;font-size:11px;padding:0 5px;margin-left:6px;">中性</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>欧美个人投资者与英文金融分析师的西方视角。讨论高度聚焦于港股市场准入机制与跨境公司架构的合规性科普：强调港股市场对全球外资完全开放，为海外资本投资中国核心资产提供了最为便捷的离岸通道；针对阿里健康等个股采用的开曼群岛 VIE 架构及百慕大注册架构展开了详尽讨论，西方投资者普遍达成共识：在港股直接买入与在纽约以 ADR 形式买入在法律权益与企业收益上本质是“投资同一家公司”，外资视角下的“可投资性 (Investability)”不存在实质性法律障碍；整体讨论偏向合规与架构科普，暂无明确的方向性多空押注。
     </div>
@@ -240,8 +246,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 12. TradingView 香港板块 -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">📊 12. TradingView 香港板块 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">📊 12. TradingView 香港板块 <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>硬核量化技术指标全面回暖。图表派分析指出：恒生指数日线级别下降通道（Channel Down）底部精准出现买入确认信号（RSI 指标 41.28、MACD 底背离柱状图 -221.7），量化统计显示历次通道底部反弹幅度至少达到 +10.9%；量化策略给出了清晰的入场参数：买入触发价 25,256 点、硬止损位 24,697 点、第一阶段止盈目标 25,800 点；恒指五连阳强力逼近 25,000–26,000 点区间，海外机构资金基本无视内地 Q2 部分宏观数据波动持续加仓；但长线统计也发出警示：过去九年恒指年均波幅高达约 8,170 点，若以 28,056 点为 2026 年阶段高点推算，长周期均值回归下行极限目标可能指向 19,885 点，交易策略必须严格执行每段 -10% 硬止损纪律。
     </div>
@@ -252,8 +258,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 13. Value Investors Club -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">💎 13. Value Investors Club <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">💎 13. Value Investors Club <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>全球顶尖专业价值投资者私密社区。其针对港股中小盘被严重低估企业与控股股东私有化套利机会的深度报告含金量极高；核心论点指出：当前港股历史级的深度估值折价修复与科技行业内生性盈利增长是 2026 年的核心收益驱动引擎，建议重点配置高息股、中资核心科技及香港本地稳健金融集团；基准情景下恒指年底合理估值区间为 28,000–29,000 点、乐观估值情景可达 31,000 点，企业盈利增速预期维持在 3%–4%，建议以高息红利资产作为基础安全垫；同时报告坦承地缘政治与再通胀风险尚未消除，必须同步构建包含 REITs、电信运营商、必需消费及公用事业的防御性底仓组合。
     </div>
@@ -264,8 +270,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 14. Twitter / X (FinTwit) -->
-  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:13px;">
-    <div style="color:#f8fafc;font-weight:bold;font-size:14px;">🐦 14. Twitter / X (FinTwit) <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
+  <div style="background:#151c38;border:1px solid #334155;border-left:4px solid #22c55e;padding:12px 14px;margin:10px 0;font-size:12px;">
+    <div style="color:#f8fafc;font-weight:bold;font-size:13px;">🐦 14. Twitter / X (FinTwit) <span style="color:#0d1124;background:#22c55e;font-size:11px;font-weight:bold;padding:0 5px;margin-left:6px;">偏多</span></div>
     <div style="color:#cbd5e1;margin-top:6px;line-height:1.65;">
       <strong>平台热评要点：</strong>全球流动性最强的金融社群。海外宏观对冲基金经理正将港股视作“全球资本再平衡下的关键避风港”，部分头寸从韩国、日本、美股等拥挤多头市场撤离，美联储维持 3.50%–3.75% 利率政策不变，大宗商品持仓聚焦黄金、铜、锂等战略矿产；在技术面上，恒指五连阳强势拉升至 26,338 点（+2.8%），科技与金融板块领衔上涨，日线级别 1D MA50 关键均线压制已被有效化解，通道底部历次反弹幅度至少达到 +10.9%；资金主流叙事正全力押注北京宏观经济政策转向：需求端强力财政刺激 + 房地产市场企稳预期形成共振。
     </div>
@@ -276,8 +282,8 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 04 监测平台列表 -->
-  <div style="font-size:16px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">04 / 监测平台列表与雷达矩阵 (Tactical Radar List)</div>
-  <div style="background:#151c38;padding:12px 14px;font-size:13px;color:#cbd5e1;line-height:1.75;border:1px solid #334155;">
+  <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">04 / 监测平台列表与雷达矩阵 (Tactical Radar List)</div>
+  <div style="background:#151c38;padding:12px 14px;font-size:12px;color:#cbd5e1;line-height:1.75;border:1px solid #334155;">
     • <strong>富途牛牛社区</strong>：华语圈最大的港股散户大本营，实时个股讨论与资金流向反馈最快。<br/>
     • <strong>雪球网</strong>：深度价值投资社区，盛产港股财报拆解、长文分析与中长期基本面研究。<br/>
     • <strong>老虎社区</strong>：跨境华人股民集中地，聚焦美股映射、全球宏观对冲对港股的影响。<br/>
@@ -295,28 +301,30 @@ def build_single_wechat_html(now=None):
   </div>
 
   <!-- 05 数据获取与时间核对 -->
-  <div style="font-size:16px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">05 / 数据获取与时间核对 (Telemetry & Timestamps)</div>
-  <div style="background:#151c38;border-left:4px solid #38bdf8;padding:12px 14px;font-size:13px;color:#cbd5e1;line-height:1.7;">
-    <strong>时间核对：2026-08-02 09:34:00 UTC</strong> — 本报告生成时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>
+  <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">05 / 数据获取与时间核对 (Telemetry & Timestamps)</div>
+  <div style="background:#151c38;border-left:4px solid #38bdf8;padding:12px 14px;font-size:12px;color:#cbd5e1;line-height:1.7;">
+    <strong>时间核对：{ts_full}</strong> — 本次推送前已核对当前时间并实时刷新，正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>
     <strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/>
     若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。
   </div>
 
   <!-- 06 排版与推送协议规范 -->
-  <div style="font-size:16px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">06 / 排版风格与推送协议规范 (Retro Pixel Game Terminal Spec)</div>
-  <div style="background:#151c38;border-left:4px solid #facc15;padding:12px 14px;font-size:13px;color:#cbd5e1;line-height:1.7;">
+  <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">06 / 排版风格与推送协议规范 (Retro Pixel Game Terminal Spec)</div>
+  <div style="background:#151c38;border-left:4px solid #facc15;padding:12px 14px;font-size:12px;color:#cbd5e1;line-height:1.7;">
     本报告采用 <strong>复古游戏像素风格 (Retro Game Pixel Arcade / 8-Bit & 16-Bit RPG Terminal)</strong> 调色纪律：<br/>
-    暗夜街机基底 <span style="font-family:monospace; background:#000; color:#38bdf8; padding:1px 6px;">#080b14</span> + 
-    像素金 <span style="font-family:monospace; background:#000; color:#facc15; padding:1px 6px;">#facc15</span> + 
-    1-UP 绿 <span style="font-family:monospace; background:#000; color:#22c55e; padding:1px 6px;">#22c55e</span> + 
-    暴击红 <span style="font-family:monospace; background:#000; color:#ef4444; padding:1px 6px;">#ef4444</span> + 
-    法力青 <span style="font-family:monospace; background:#000; color:#06b6d4; padding:1px 6px;">#06b6d4</span>。<br/>
+    暗夜街机基底 <span style="font-family:'黑体','SimHei','Microsoft YaHei','PingFang SC',sans-serif; background:#000; color:#38bdf8; padding:1px 6px;">#080b14</span> + 
+    像素金 <span style="font-family:'黑体','SimHei','Microsoft YaHei','PingFang SC',sans-serif; background:#000; color:#facc15; padding:1px 6px;">#facc15</span> + 
+    1-UP 绿 <span style="font-family:'黑体','SimHei','Microsoft YaHei','PingFang SC',sans-serif; background:#000; color:#22c55e; padding:1px 6px;">#22c55e</span> + 
+    暴击红 <span style="font-family:'黑体','SimHei','Microsoft YaHei','PingFang SC',sans-serif; background:#000; color:#ef4444; padding:1px 6px;">#ef4444</span> + 
+    法力青 <span style="font-family:'黑体','SimHei','Microsoft YaHei','PingFang SC',sans-serif; background:#000; color:#06b6d4; padding:1px 6px;">#06b6d4</span>。<br/>
+    <strong>字体与字号规范：</strong>全文统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 / Noto Sans SC 黑体栈），正文 12px 紧凑小字号，标题加粗分级。<br/>
+    <strong>推送时间协议：</strong>每一次推送前先核对当前时间，标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong>实时刷新为最新时间</strong>后再发送。<br/>
     <strong>解除限制与一对一单页协议：</strong>PushPlus 19,000 限制已解除至 100,000 字符，微信推送采用<strong>一对一专属直发</strong>（直接推送到 Token 拥有者个人微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。
   </div>
 
   <!-- 07 核心结论与风险提示 -->
-  <div style="font-size:16px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)</div>
-  <div style="background:#151c38;padding:14px 16px;font-size:13px;color:#cbd5e1;line-height:1.8;border:1px solid #334155;">
+  <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)</div>
+  <div style="background:#151c38;padding:14px 16px;font-size:12px;color:#cbd5e1;line-height:1.8;border:1px solid #334155;">
     • <strong>全球宏观面</strong>：IMF 下调全球经济增速预期至 3.0%，美联储维持 3.50%–3.75% 利率区间不变，中东地缘能源供应链冲击仍是核心系统性风险；<br/>
     • <strong>港股市场面</strong>：恒指实现周线五连阳，单周上涨 3.7%，但南向资金出现单日净卖出超 24 亿港元，高位获利了结与短期仓位再平衡压力正在逐步显现；<br/>
     • <strong>技术指标面</strong>：恒指逼近 26,500 点关键阻力区域，短期 RSI 指标接近严重超买区间，建议严格设置硬止损线，重点关注 ALMA 均线与 30m/1h 金叉信号；<br/>
@@ -329,23 +337,26 @@ def build_single_wechat_html(now=None):
 
   <!-- 底部页脚 -->
   <div style="border-top:2px solid #facc15;padding:18px 0 8px;margin-top:22px;text-align:center;font-size:12px;color:#94a3b8;line-height:1.9;">
-    <strong style="color:#facc15;font-size:14px;">🕹️ 章鱼 AI 全景分析 · 一对一专属单页直推</strong><br/>
+    <strong style="color:#facc15;font-size:13px;">🕹️ 章鱼 AI 全景分析 · 一对一专属单页直推</strong><br/>
     全网境内外为你寻找蛛丝马迹，提供全景视野分析，由多模型协同推理决策。<br/>
     底层模型支持：Claude · ChatGPT · Gemini · Grok · Qwen · Kimi<br/>
     根据资产管理任务需求，充分发挥各个模型的独特优势提供全方位数据支持！[加油]<br/>
-    生成时间：2026-08-02 09:34:00 UTC · 24h 内最新可读取内容 · 100K 完整单页版
+    生成时间：{ts_full} · 24h 内最新可读取内容 · 100K 完整单页版
   </div>
 
 </div>'''
-    return html.strip(), ts
+    return html.strip(), ts, ts_full
 
 
 def build_articles(source_html=SOURCE_HTML, now=None):
-    """返回 (parts, ts): parts 为 [(title, content)] 包含 1 条单页完整推送。"""
-    content, ts = build_single_wechat_html(now)
+    """返回 (parts, ts, ts_full): parts 为 [(title, content)] 包含 1 条单页完整推送。
+
+    构建前先核对当前时间, 标题与正文时间戳均使用最新时间。
+    """
+    content, ts, ts_full = build_single_wechat_html(now)
     title = f'{TITLE} — {ts}'
     parts = [(title, content)]
-    return parts, ts
+    return parts, ts, ts_full
 
 
 EMBED_BEGIN = '<!-- WECHAT-EMBED:BEGIN -->'
@@ -443,7 +454,8 @@ def main():
     ap.add_argument('--dry-run', action='store_true', help='只转换, 打印字数统计与预览')
     args = ap.parse_args()
 
-    parts, ts = build_articles(args.source)
+    parts, ts, ts_full = build_articles(args.source)
+    print(f'⏰ 时间核对: {ts_full} — 已按当前最新时间生成, 正文全部时间戳已刷新')
     print(f'转换完成: 共 {len(parts)} 条消息 (单页完整版, 上限 {CONTENT_LIMIT}/条, 安全线 {CONTENT_SAFE_LIMIT})')
     for i, (t, c) in enumerate(parts, 1):
         print(f'  [{i}/{len(parts)}] {len(c)} 字符  {t}')
@@ -478,6 +490,7 @@ def main():
         topic = find_topic(args.source, args.topic)
         mode = f'一对多 (群组 {topic})' if topic else '一对一专属推送 (Token 本人)'
         print(f'推送模式: {mode} · 单页完整微信卡片 (十万字符级无压缩深度报告)')
+        print(f'⏰ 推送前时间核对: {ts_full} — 确认正文时间戳为最新时间后开始发送')
         failed = 0
         for i, (t, c) in enumerate(parts, 1):
             if i > 1:
