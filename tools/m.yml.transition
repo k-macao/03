@@ -1,0 +1,91 @@
+# =====================================================================
+# 📄 Deploy Report to Pages + 📲 WeChat Push  (整合版工作流)
+#
+# 用法:用本文件整体替换 .github/workflows/m.yml 即可
+#
+# 触发方式:
+#   1. push 到 main            → 重新抓取数据、部署 Pages + 推送完整报告到微信
+#   2. Actions 页面手动运行     → 可用 wechat_push 开关选择是否推送微信
+# =====================================================================
+name: 📄 Deploy Report to Pages + 📲 WeChat Push
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      wechat_push:
+        description: '推送完整报告到微信 (PushPlus)'
+        type: boolean
+        default: true
+        required: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  # ---------- 任务 1: 构建并部署到 GitHub Pages ----------
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 📁 准备部署目录
+        run: |
+          mkdir -p _site
+          cp report.html _site/index.html
+
+      - name: 🧩 生成微信推送内容 (wechat.json)
+        # 随 Pages 一起发布,作为"手动推送"按钮的备用数据源
+        run: python3 tools/wechat_push.py --emit _site/wechat.json
+
+      - name: ⚙️ 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 📤 上传产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 🚀 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ---------- 任务 2: 推送完整报告到微信 ----------
+  # 独立任务:Pages 部署成功后再推送;推送失败不影响网站部署状态
+  wechat:
+    needs: deploy
+    if: ${{ github.event_name == 'push' || inputs.wechat_push }}
+    runs-on: ubuntu-latest
+    env:
+      # 可选:在仓库 Settings → Secrets 配置 PUSHPLUS_TOKEN 可覆盖
+      # report.html 中的 token;不配置时自动从 report.html 读取
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - name: 📥 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 📲 推送完整报告到微信 (PushPlus)
+        run: |
+          set +e
+          OUT=$(python3 tools/wechat_push.py --push 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT"
+          {
+            echo '### 📲 微信推送结果'
+            echo '```text'
+            echo "$OUT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $CODE
