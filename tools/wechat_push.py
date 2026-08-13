@@ -9,6 +9,7 @@
 核心特点:
   • 一对一专属直推: 默认推送至 Token 所有人本人 (PUSHPLUS_TOPIC='')，零群组干扰。
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
+  • 每次推送均重新抓取: 不复用上一轮抓取结果；抓取失败时不得推送。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
   • 复古游戏像素配色: 街机夜空 + 像素金 + 1-UP 绿 + 暴击红 + 法力青。
 
@@ -40,6 +41,7 @@ TITLE = '章鱼 AI 全景分析'
 CONTENT_LIMIT = 100000
 CONTENT_SAFE_LIMIT = 95000
 MAX_PUSH_RETRIES = 3
+EXPECTED_CHANNEL_COUNT = 14
 
 
 def build_single_wechat_html(now=None):
@@ -303,7 +305,7 @@ def build_single_wechat_html(now=None):
   <!-- 05 数据获取与时间核对 -->
   <div style="font-size:15px;font-weight:bold;color:#facc15;border-left:5px solid #facc15;padding-left:10px;margin:24px 0 10px;">05 / 数据获取与时间核对 (Telemetry & Timestamps)</div>
   <div style="background:#151c38;border-left:4px solid #38bdf8;padding:12px 14px;font-size:12px;color:#cbd5e1;line-height:1.7;">
-    <strong>时间核对：{ts_full}</strong> — 本次推送前已核对当前时间并检查各平台抓取日期（不是当天则已重新抓取），正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>
+    <strong>时间核对：{ts_full}</strong> — 本次推送前已重新抓取各平台数据（不复用历史抓取结果），正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>
     <strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/>
     若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。
   </div>
@@ -354,21 +356,26 @@ def extract_fetch_dates(text):
 
 
 def assert_fetch_dates_are_today(parts, now):
-    """推送前核对抓取日期：若不是当天则拒绝推送，避免发出过期研判。"""
+    """逐条核对频道最新读取标记，缺项或非本轮日期时拒绝推送。"""
     today = now.strftime('%Y-%m-%d')
-    stale = []
+    reads = []
     for title, content in parts:
-        for d in extract_fetch_dates(content):
-            if d != today:
-                stale.append((title, d))
-    if stale:
-        uniq = sorted({d for _, d in stale})
+        reads.extend(re.findall(r'综合站内[^<]*?最新读取\s+(20\d{2}-\d{2}-\d{2})', content))
+
+    if len(reads) != EXPECTED_CHANNEL_COUNT:
         print(
-            f'错误: 抓取日期 {", ".join(uniq)} 不是当天 {today}，'
-            '请先重新抓取最新数据后再推送。',
+            f'错误: 仅找到 {len(reads)}/{EXPECTED_CHANNEL_COUNT} 条频道最新读取标记；'
+            '必须逐条完成频道最新内容检查后才能推送。',
             file=sys.stderr)
         sys.exit(5)
-    print(f'📅 抓取日期核对: 全部平台均为当天 {today}，允许推送')
+    stale = sorted({d for d in reads if d != today})
+    if stale:
+        print(
+            f'错误: 频道最新读取日期 {", ".join(stale)} 不是当天 {today}，'
+            '请重新抓取并逐条检查频道最新内容后再推送。',
+            file=sys.stderr)
+        sys.exit(5)
+    print(f'📅 频道最新内容核对: {len(reads)}/{EXPECTED_CHANNEL_COUNT} 条均已逐条检查，读取日期为 {today}，允许推送')
 
 
 def build_articles(source_html=SOURCE_HTML, now=None):
