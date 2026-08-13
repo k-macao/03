@@ -1,0 +1,856 @@
+# =====================================================================
+# 📄 Deploy Report to Pages + 🔍 A股/港股查询输入框 + 📲 WeChat Push
+#
+# 用法: 用本文件整体替换 .github/workflows/m.yml 即可 (本文件自包含,
+#       查询输入框的全部 HTML/CSS/JS 已内嵌在下方, 无需其它文件)
+#
+# 触发方式:
+#   1. push 到 main         → 部署 Pages(含查询输入框) + 推送完整报告到微信
+#   2. Actions 页面手动运行  → 可用 wechat_push 开关选择是否推送微信
+#
+# 查询输入框能力:
+#   • 一个输入框同时支持 A 股与港股, 自动识别市场
+#     - A 股: 600519 / 000001 / 300750 / sh600519 / 600519.SH
+#     - 港股: 00700 / 700 / 0700.HK / hk09988 / hkHSI / hkHSTECH
+#     - 中文名或拼音: 腾讯 / 茅台 / gzmt / 恒指 (自动联想补全)
+#   • 实时价格/涨跌/开高低/成交量额/换手/量比/市盈/市净/市值/涨跌停/52周高低
+#   • 分时图 + 60 日 K 线图, 支持 20 秒自动刷新
+#   • 纯前端 JSONP 直连腾讯行情, GitHub Pages 静态托管即可用, 无需后端
+# =====================================================================
+name: 📄 Deploy Report to Pages + 🔍 Quote Search + 📲 WeChat Push
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      wechat_push:
+        description: '推送完整报告到微信 (PushPlus)'
+        type: boolean
+        default: true
+        required: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  # ---------- 任务 1: 构建并部署到 GitHub Pages ----------
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 📁 准备部署目录
+        run: |
+          mkdir -p _site
+          cp report.html _site/index.html
+
+      - name: 🔍 注入 A股/港股 查询输入框 (自包含 · 幂等)
+        run: |
+          mkdir -p .quote_build
+          cat > .quote_build/quote_widget.html <<'QW_WIDGET_EOF'
+          <!-- ================= QUOTE SCANNER (A股 / 港股 通用查询输入框) ================= -->
+          <section class="stage-section" id="stage-quote">
+            <div class="stage-header">
+              <span class="stage-tag">SEARCH</span>
+              <h2 class="stage-title">🔍 个股查询终端 · A 股 / 港股通用输入框 (Quote Scanner)</h2>
+            </div>
+
+            <div id="quoteWidgetRoot">
+              <style>
+                #quoteWidgetRoot{
+                  --qw-gold: var(--pixel-gold, #facc15);
+                  --qw-green: var(--pixel-green, #22c55e);
+                  --qw-red: var(--pixel-red, #ef4444);
+                  --qw-cyan: var(--pixel-cyan, #06b6d4);
+                  --qw-text: var(--pixel-text, #f8fafc);
+                  --qw-dim: var(--pixel-text-dim, #94a3b8);
+                  --qw-muted: var(--pixel-text-muted, #64748b);
+                  --qw-border: var(--pixel-border, #334155);
+                  --qw-card: var(--bg-card, #141c36);
+                  --qw-term: var(--bg-terminal, #090d1a);
+                  font-family: var(--font-hei, "黑体","SimHei","Microsoft YaHei","PingFang SC",sans-serif);
+                  font-size: 12.5px;
+                  color: var(--qw-text);
+                }
+                #quoteWidgetRoot .qw-panel{
+                  background: var(--qw-card);
+                  border: 2px solid var(--qw-border);
+                  box-shadow: 4px 4px 0 #000;
+                  padding: 14px;
+                }
+                #quoteWidgetRoot .qw-hint{
+                  color: var(--qw-dim);
+                  font-size: 12px;
+                  line-height: 1.7;
+                  margin-bottom: 10px;
+                }
+                #quoteWidgetRoot .qw-form{
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 8px;
+                  align-items: stretch;
+                  position: relative;
+                }
+                #quoteWidgetRoot .qw-inputwrap{ position: relative; flex: 1 1 260px; min-width: 200px; }
+                #quoteWidgetRoot input.qw-input{
+                  width: 100%;
+                  background: var(--qw-term);
+                  border: 2px solid var(--qw-gold);
+                  color: var(--qw-text);
+                  font-family: inherit;
+                  font-size: 13.5px;
+                  letter-spacing: 0.05em;
+                  padding: 10px 12px;
+                  outline: none;
+                  box-shadow: inset 0 0 0 2px #000;
+                }
+                #quoteWidgetRoot input.qw-input::placeholder{ color: var(--qw-muted); }
+                #quoteWidgetRoot input.qw-input:focus{ border-color: var(--qw-cyan); }
+                #quoteWidgetRoot .qw-btn{
+                  background: var(--qw-gold);
+                  color: #000;
+                  border: 2px solid #000;
+                  box-shadow: 3px 3px 0 #000;
+                  font-family: inherit;
+                  font-weight: 700;
+                  font-size: 12.5px;
+                  letter-spacing: 0.06em;
+                  padding: 10px 14px;
+                  cursor: pointer;
+                  white-space: nowrap;
+                }
+                #quoteWidgetRoot .qw-btn:hover{ filter: brightness(1.12); }
+                #quoteWidgetRoot .qw-btn:active{ transform: translate(2px,2px); box-shadow: 1px 1px 0 #000; }
+                #quoteWidgetRoot .qw-btn.qw-ghost{
+                  background: transparent; color: var(--qw-dim);
+                  border: 2px solid var(--qw-border); box-shadow: none;
+                }
+                #quoteWidgetRoot .qw-btn.qw-ghost.on{ color: #000; background: var(--qw-green); border-color: #000; }
+                #quoteWidgetRoot .qw-sugg{
+                  position: absolute; z-index: 60; left: 0; right: 0; top: calc(100% + 4px);
+                  background: var(--qw-term); border: 2px solid var(--qw-cyan);
+                  box-shadow: 4px 4px 0 #000; max-height: 244px; overflow-y: auto; display: none;
+                }
+                #quoteWidgetRoot .qw-sugg.show{ display: block; }
+                #quoteWidgetRoot .qw-sugg-item{
+                  padding: 7px 10px; cursor: pointer; display: flex; gap: 8px; align-items: center;
+                  border-bottom: 1px solid rgba(148,163,184,0.16); font-size: 12px;
+                }
+                #quoteWidgetRoot .qw-sugg-item:last-child{ border-bottom: none; }
+                #quoteWidgetRoot .qw-sugg-item:hover,
+                #quoteWidgetRoot .qw-sugg-item.active{ background: rgba(6,182,212,0.18); }
+                #quoteWidgetRoot .qw-mk{
+                  font-size: 10px; font-weight: 700; padding: 1px 5px; border: 1px solid currentColor; white-space: nowrap;
+                }
+                #quoteWidgetRoot .qw-mk.hk{ color: var(--qw-cyan); }
+                #quoteWidgetRoot .qw-mk.sh, #quoteWidgetRoot .qw-mk.sz{ color: var(--qw-gold); }
+                #quoteWidgetRoot .qw-sugg-code{ color: var(--qw-muted); margin-left: auto; font-size: 11px; }
+                #quoteWidgetRoot .qw-chips{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+                #quoteWidgetRoot .qw-chip{
+                  background: transparent; border: 1px solid var(--qw-border); color: var(--qw-dim);
+                  font-family: inherit; font-size: 11.5px; padding: 4px 8px; cursor: pointer;
+                }
+                #quoteWidgetRoot .qw-chip:hover{ border-color: var(--qw-gold); color: var(--qw-gold); }
+                #quoteWidgetRoot .qw-status{
+                  margin-top: 10px; background: var(--qw-term); border-left: 4px solid var(--qw-cyan);
+                  padding: 8px 10px; font-size: 11.5px; color: var(--qw-dim); word-break: break-all;
+                }
+                #quoteWidgetRoot .qw-status.err{ border-left-color: var(--qw-red); color: #fca5a5; }
+                #quoteWidgetRoot .qw-result{ margin-top: 12px; display: none; }
+                #quoteWidgetRoot .qw-result.show{ display: block; }
+                #quoteWidgetRoot .qw-card{
+                  background: var(--qw-term); border: 2px solid var(--qw-gold); box-shadow: 4px 4px 0 #000; padding: 14px;
+                }
+                #quoteWidgetRoot .qw-head{ display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+                #quoteWidgetRoot .qw-name{ font-size: 17px; font-weight: 700; color: var(--qw-gold); letter-spacing: 0.04em; }
+                #quoteWidgetRoot .qw-code{ font-size: 12px; color: var(--qw-muted); }
+                #quoteWidgetRoot .qw-price-row{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-top: 8px; }
+                #quoteWidgetRoot .qw-price{ font-size: 30px; font-weight: 900; line-height: 1.1; }
+                #quoteWidgetRoot .qw-chg{ font-size: 14px; font-weight: 700; }
+                #quoteWidgetRoot .up{ color: var(--qw-red); }
+                #quoteWidgetRoot .down{ color: var(--qw-green); }
+                #quoteWidgetRoot .flat{ color: var(--qw-dim); }
+                #quoteWidgetRoot .qw-tabs{ display: flex; gap: 6px; margin: 12px 0 8px; }
+                #quoteWidgetRoot .qw-tab{
+                  background: transparent; border: 1px solid var(--qw-border); color: var(--qw-dim);
+                  font-family: inherit; font-size: 11.5px; padding: 4px 10px; cursor: pointer;
+                }
+                #quoteWidgetRoot .qw-tab.active{ background: var(--qw-gold); color: #000; border-color: #000; font-weight: 700; }
+                #quoteWidgetRoot .qw-chart{ width: 100%; height: 140px; display: block; background: #05070f; border: 1px solid var(--qw-border); }
+                #quoteWidgetRoot .qw-grid{
+                  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+                  gap: 1px; margin-top: 12px; background: var(--qw-border);
+                  border: 1px solid var(--qw-border);
+                }
+                #quoteWidgetRoot .qw-cell{ background: var(--qw-card); padding: 7px 9px; }
+                #quoteWidgetRoot .qw-cell .k{ display: block; color: var(--qw-muted); font-size: 11px; }
+                #quoteWidgetRoot .qw-cell .v{ display: block; color: var(--qw-text); font-size: 12.5px; font-weight: 700; margin-top: 2px; }
+                #quoteWidgetRoot .qw-foot{ margin-top: 10px; font-size: 10.5px; color: var(--qw-muted); line-height: 1.7; }
+                @media (max-width: 560px){
+                  #quoteWidgetRoot .qw-price{ font-size: 24px; }
+                  #quoteWidgetRoot .qw-btn{ flex: 1 1 auto; }
+                }
+              </style>
+
+              <div class="qw-panel">
+                <p class="qw-hint">
+                  输入框同时支持 <strong style="color:var(--qw-gold);">A 股</strong>（沪 / 深 / 创 / 科创，如 <code>600519</code>、<code>000001</code>、<code>300750</code>、<code>sh600519</code>）与
+                  <strong style="color:var(--qw-cyan);">港股</strong>（如 <code>00700</code>、<code>700</code>、<code>0700.HK</code>、<code>hk09988</code>），
+                  也可直接输入<strong>中文名称或拼音首字母</strong>（腾讯、茅台、gzmt、hsi），系统自动识别市场并联想补全。
+                </p>
+
+                <div class="qw-form">
+                  <div class="qw-inputwrap">
+                    <input id="qwInput" class="qw-input" type="text" autocomplete="off" spellcheck="false"
+                           placeholder="输入 A 股 / 港股代码或名称，例如 600519 或 00700 或 腾讯" aria-label="股票代码输入框" />
+                    <div id="qwSugg" class="qw-sugg" role="listbox"></div>
+                  </div>
+                  <button id="qwSearch" class="qw-btn" type="button">▶ 查询行情</button>
+                  <button id="qwRefresh" class="qw-btn qw-ghost" type="button">↻ 刷新</button>
+                  <button id="qwAuto" class="qw-btn qw-ghost" type="button">⏱ 自动刷新: OFF</button>
+                </div>
+
+                <div class="qw-chips" id="qwChips">
+                  <button class="qw-chip" data-code="hkHSI" type="button">恒生指数</button>
+                  <button class="qw-chip" data-code="hkHSTECH" type="button">恒生科技</button>
+                  <button class="qw-chip" data-code="hk00700" type="button">腾讯控股</button>
+                  <button class="qw-chip" data-code="hk09988" type="button">阿里巴巴-W</button>
+                  <button class="qw-chip" data-code="hk03690" type="button">美团-W</button>
+                  <button class="qw-chip" data-code="sh000001" type="button">上证指数</button>
+                  <button class="qw-chip" data-code="sh600519" type="button">贵州茅台</button>
+                  <button class="qw-chip" data-code="sz300750" type="button">宁德时代</button>
+                </div>
+
+                <div id="qwStatus" class="qw-status">STATUS &gt; 行情扫描器待命：请输入 A 股或港股代码 / 名称。</div>
+
+                <div id="qwResult" class="qw-result">
+                  <div class="qw-card">
+                    <div class="qw-head">
+                      <span class="qw-name" id="qwName">—</span>
+                      <span class="qw-code" id="qwCode"></span>
+                    </div>
+                    <div class="qw-price-row">
+                      <span class="qw-price flat" id="qwPrice">—</span>
+                      <span class="qw-chg flat" id="qwChange"></span>
+                    </div>
+
+                    <div class="qw-tabs">
+                      <button class="qw-tab active" data-view="min" type="button">分时</button>
+                      <button class="qw-tab" data-view="day" type="button">日 K (60 日)</button>
+                    </div>
+                    <canvas id="qwChart" class="qw-chart" width="900" height="280"></canvas>
+
+                    <div class="qw-grid" id="qwGrid"></div>
+
+                    <div class="qw-foot" id="qwFoot"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <script>
+          /* =========================================================================
+             🔍 QUOTE SCANNER — A 股 / 港股通用查询 (腾讯行情 JSONP · 无需后端 · 无 CORS)
+             数据源: qt.gtimg.cn / web.ifzq.gtimg.cn / smartbox.gtimg.cn
+             ========================================================================= */
+          (function () {
+            'use strict';
+            if (window.__qwInited) return;
+            window.__qwInited = true;
+
+            var $ = function (id) { return document.getElementById(id); };
+            var input = $('qwInput'), sugg = $('qwSugg'), status = $('qwStatus'), result = $('qwResult');
+            if (!input) return;
+
+            var state = { code: '', market: '', view: 'min', timer: null, auto: false, qt: null, seq: 0 };
+
+            // ---------- JSONP: 腾讯行情返回的是 "变量 = 值;" 的 JS 片段，用 script 标签直接取 ----------
+            function jsonp(url, varName, timeout) {
+              return new Promise(function (resolve, reject) {
+                var s = document.createElement('script');
+                var done = false;
+                var tid = setTimeout(function () { finish(new Error('请求超时')); }, timeout || 9000);
+                function finish(err, val) {
+                  if (done) return;
+                  done = true;
+                  clearTimeout(tid);
+                  try { delete window[varName]; } catch (e) { window[varName] = undefined; }
+                  if (s.parentNode) s.parentNode.removeChild(s);
+                  err ? reject(err) : resolve(val);
+                }
+                s.onload = function () {
+                  var v = window[varName];
+                  (v === undefined || v === null) ? finish(new Error('数据为空')) : finish(null, v);
+                };
+                s.onerror = function () { finish(new Error('网络请求失败（可能被网络环境拦截）')); };
+                s.src = url;
+                document.head.appendChild(s);
+              });
+            }
+
+            // ---------- 代码归一化：A 股 / 港股自动识别 ----------
+            var HK_INDEX = { HSI: 1, HSTECH: 1, HSCEI: 1, HSCCI: 1, HSF: 1 };
+
+            function padHK(d) { d = String(d).replace(/\D/g, ''); while (d.length < 5) d = '0' + d; return d.slice(-5); }
+
+            function aMarket(d) {
+              // 6 位 A 股：6/5/9 → 沪市；0/1/2/3 → 深市（含创业板 300/301）
+              if (/^(6|5|9|110|113|118|132)/.test(d)) return 'sh';
+              if (/^(000|001|002|003|004|300|301|30|39|15|16|18|12|20)/.test(d)) return 'sz';
+              return 'sh';
+            }
+
+            function normalize(raw) {
+              var s = String(raw || '').trim().replace(/\s+/g, '');
+              if (!s) return null;
+              var low = s.toLowerCase();
+
+              // 已带前缀: sh600519 / sz000001 / hk00700 / hkHSI
+              var m = low.match(/^(sh|sz|hk)[.\-_]?(.+)$/);
+              if (m) {
+                var body = m[2];
+                if (m[1] === 'hk') {
+                  if (/^\d+$/.test(body)) return { code: 'hk' + padHK(body), market: 'hk' };
+                  return { code: 'hk' + body.toUpperCase(), market: 'hk' };
+                }
+                if (/^\d{6}$/.test(body)) return { code: m[1] + body, market: m[1] };
+              }
+
+              // 700.HK / 0700.hk / 600519.SH / 600519.SS / 000001.SZ
+              var dot = low.match(/^(\w+)\.(hk|sh|ss|sz|sg)$/);
+              if (dot) {
+                if (dot[2] === 'hk') return { code: 'hk' + (/^\d+$/.test(dot[1]) ? padHK(dot[1]) : dot[1].toUpperCase()), market: 'hk' };
+                var mk = (dot[2] === 'sz') ? 'sz' : 'sh';
+                if (/^\d{6}$/.test(dot[1])) return { code: mk + dot[1], market: mk };
+              }
+
+              // 常见港股指数别名
+              var alias = { hsi: 'hkHSI', 恒指: 'hkHSI', 恒生指数: 'hkHSI', hstech: 'hkHSTECH', 恒生科技: 'hkHSTECH',
+                            国企指数: 'hkHSCEI', hscei: 'hkHSCEI', 上证指数: 'sh000001', 深证成指: 'sz399001',
+                            沪深300: 'sh000300', 创业板指: 'sz399006', 科创50: 'sh000688' };
+              if (alias[low] || alias[s]) {
+                var c = alias[low] || alias[s];
+                return { code: c, market: c.slice(0, 2) };
+              }
+              if (/^[a-z]{3,6}$/.test(low) && HK_INDEX[low.toUpperCase()]) return { code: 'hk' + low.toUpperCase(), market: 'hk' };
+
+              // 纯数字：6 位 → A 股；1~5 位 → 港股（补足 5 位）
+              if (/^\d{6}$/.test(s)) { var k = aMarket(s); return { code: k + s, market: k }; }
+              if (/^\d{1,5}$/.test(s)) return { code: 'hk' + padHK(s), market: 'hk' };
+
+              return null; // 交给关键词联想
+            }
+
+            // ---------- 关键词联想（中文 / 拼音）----------
+            var suggList = [], suggIdx = -1, suggSeq = 0;
+
+            function fetchSuggest(kw) {
+              var my = ++suggSeq;
+              return jsonp('https://smartbox.gtimg.cn/s3/?v=jsonp&q=' + encodeURIComponent(kw) + '&t=all&c=10&_=' + Date.now(),
+                           'v_hint', 6000).then(function (raw) {
+                if (my !== suggSeq) return [];
+                var out = [];
+                String(raw || '').split('^').forEach(function (row) {
+                  var p = row.split('~');
+                  if (p.length < 4) return;
+                  var mk = (p[0] || '').toLowerCase();
+                  if (mk !== 'sh' && mk !== 'sz' && mk !== 'hk') return;          // 只保留 A 股与港股
+                  var type = (p[4] || '').toUpperCase();
+                  if (type.indexOf('QZ') === 0) return;                            // 过滤窝轮/牛熊证
+                  var code = (mk === 'hk' && /^\d+$/.test(p[1])) ? padHK(p[1]) : p[1];
+                  out.push({ market: mk, code: mk + code, num: code, name: decodeU(p[2]), type: type });
+                });
+                return out;
+              });
+            }
+
+            function decodeU(s) {
+              try { return JSON.parse('"' + String(s).replace(/"/g, '\\"') + '"'); } catch (e) { return s; }
+            }
+
+            function renderSugg(list) {
+              suggList = list || []; suggIdx = -1;
+              if (!suggList.length) { sugg.classList.remove('show'); sugg.innerHTML = ''; return; }
+              sugg.innerHTML = suggList.map(function (it, i) {
+                var label = it.market === 'hk' ? '港股' : (it.market === 'sh' ? '沪' : '深');
+                return '<div class="qw-sugg-item" data-i="' + i + '" role="option">' +
+                       '<span class="qw-mk ' + it.market + '">' + label + '</span>' +
+                       '<span>' + esc(it.name) + '</span>' +
+                       '<span class="qw-sugg-code">' + esc(it.num) + '</span></div>';
+              }).join('');
+              sugg.classList.add('show');
+            }
+
+            function esc(s) {
+              return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+              });
+            }
+
+            function hideSugg() { sugg.classList.remove('show'); suggIdx = -1; }
+
+            // ---------- 数字格式化 ----------
+            function num(v) { var n = parseFloat(v); return isFinite(n) ? n : null; }
+            function fx(v, d) { return v == null ? '—' : v.toFixed(d == null ? 2 : d); }
+
+            function fmtShares(v) {
+              if (v == null || !isFinite(v) || v <= 0) return null;
+              if (v >= 1e8) return (v / 1e8).toFixed(2) + ' 亿股';
+              if (v >= 1e4) return (v / 1e4).toFixed(2) + ' 万股';
+              return Math.round(v) + ' 股';
+            }
+
+            function fmtMoney(v, unit) {
+              if (v == null || !isFinite(v) || v <= 0) return null;
+              if (v >= 1e8) return (v / 1e8).toFixed(2) + ' 亿' + unit;
+              if (v >= 1e4) return (v / 1e4).toFixed(2) + ' 万' + unit;
+              return v.toFixed(0) + ' ' + unit;
+            }
+
+            // ---------- 行情解析（A 股与港股字段位不同，分开映射）----------
+            function parseQuote(arr, code, market) {
+              var isHK = market === 'hk';
+              var unit = isHK ? '港元' : '元';
+              var price = num(arr[3]), prev = num(arr[4]), open = num(arr[5]);
+              var chg = num(arr[31]), pct = num(arr[32]);
+              if (chg == null && price != null && prev != null) { chg = price - prev; pct = prev ? chg / prev * 100 : 0; }
+
+              var volShares, amount;
+              if (isHK) {
+                volShares = num(arr[6]);                    // 港股: 股
+                amount = num(arr[37]);                      // 港股: 元
+              } else {
+                volShares = num(arr[6]) != null ? num(arr[6]) * 100 : null;  // A 股: 手 → 股
+                var seg = String(arr[35] || '').split('/');
+                amount = seg.length === 3 ? num(seg[2]) : (num(arr[37]) != null ? num(arr[37]) * 1e4 : null);
+              }
+
+              var q = {
+                name: arr[1] || code, num: arr[2] || '', code: code, market: market, unit: unit,
+                price: price, prev: prev, open: open, high: num(arr[33]), low: num(arr[34]),
+                chg: chg, pct: pct, time: String(arr[30] || ''),
+                vol: volShares, amount: amount, amp: num(arr[43]),
+                pe: num(arr[39]), floatCap: num(arr[44]), totalCap: num(arr[45]),
+                turnover: isHK ? null : num(arr[38]),
+                pb: isHK ? num(arr[58]) : num(arr[46]),
+                volRatio: isHK ? null : num(arr[49]),
+                up: isHK ? null : num(arr[47]), down: isHK ? null : num(arr[48]),
+                high52: isHK ? num(arr[48]) : null, low52: isHK ? num(arr[49]) : null,
+                lot: isHK ? num(arr[60]) : null, avg: isHK ? num(arr[73]) : null,
+                cur: isHK ? (arr[75] || 'HKD') : 'CNY'
+              };
+              return q;
+            }
+
+            function fmtTime(t) {
+              if (!t) return '';
+              if (/^\d{14}$/.test(t)) return t.slice(0, 4) + '-' + t.slice(4, 6) + '-' + t.slice(6, 8) + ' ' + t.slice(8, 10) + ':' + t.slice(10, 12) + ':' + t.slice(12, 14);
+              return t.replace(/\//g, '-');
+            }
+
+            function cls(v) { return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat'); }
+
+            function render(q, minutes) {
+              $('qwName').textContent = q.name;
+              $('qwCode').textContent = (q.market === 'hk' ? 'HK' : q.market.toUpperCase()) + ' · ' + q.num + ' · ' + q.cur;
+
+              var pEl = $('qwPrice'), cEl = $('qwChange');
+              pEl.textContent = q.price == null ? '—' : q.price.toFixed(q.market === 'hk' ? 3 : 2);
+              pEl.className = 'qw-price ' + cls(q.chg);
+              cEl.textContent = (q.chg == null ? '' : (q.chg >= 0 ? '+' : '') + q.chg.toFixed(q.market === 'hk' ? 3 : 2)) +
+                                (q.pct == null ? '' : '  (' + (q.pct >= 0 ? '+' : '') + q.pct.toFixed(2) + '%)');
+              cEl.className = 'qw-chg ' + cls(q.chg);
+
+              var rows = [
+                ['今开', fx(q.open, q.market === 'hk' ? 3 : 2)],
+                ['昨收', fx(q.prev, q.market === 'hk' ? 3 : 2)],
+                ['最高', fx(q.high, q.market === 'hk' ? 3 : 2)],
+                ['最低', fx(q.low, q.market === 'hk' ? 3 : 2)],
+                ['振幅', q.amp != null ? q.amp.toFixed(2) + '%' : null],
+                ['成交量', fmtShares(q.vol)],
+                ['成交额', fmtMoney(q.amount, q.unit)],
+                ['换手率', q.turnover != null && q.turnover > 0 ? q.turnover.toFixed(2) + '%' : null],
+                ['量比', q.volRatio != null && q.volRatio > 0 ? q.volRatio.toFixed(2) : null],
+                ['市盈率 TTM', q.pe != null && q.pe !== 0 ? q.pe.toFixed(2) : null],
+                ['市净率', q.pb != null && q.pb > 0 ? q.pb.toFixed(2) : null],
+                ['总市值', q.totalCap != null && q.totalCap > 0 ? q.totalCap.toFixed(2) + ' 亿' + q.unit : null],
+                ['流通市值', q.floatCap != null && q.floatCap > 0 && q.floatCap !== q.totalCap ? q.floatCap.toFixed(2) + ' 亿' + q.unit : null],
+                ['涨停 / 跌停', (q.up && q.down) ? q.up.toFixed(2) + ' / ' + q.down.toFixed(2) : null],
+                ['52 周高 / 低', (q.high52 && q.low52) ? q.high52.toFixed(2) + ' / ' + q.low52.toFixed(2) : null],
+                ['每手股数', q.lot ? String(q.lot) : null],
+                ['均价', q.avg ? q.avg.toFixed(3) : null]
+              ].filter(function (r) { return r[1] != null && r[1] !== '—'; });
+
+              $('qwGrid').innerHTML = rows.map(function (r) {
+                return '<div class="qw-cell"><span class="k">' + esc(r[0]) + '</span><span class="v">' + esc(r[1]) + '</span></div>';
+              }).join('');
+
+              $('qwFoot').innerHTML = '行情时间：' + esc(fmtTime(q.time)) +
+                ' · 数据源：腾讯财经 (qt.gtimg.cn)' +
+                (q.market === 'hk' ? ' · 港股行情可能延迟 15 分钟' : ' · A 股行情可能延迟') +
+                '<br/>仅供参考，不构成任何投资建议。';
+
+              result.classList.add('show');
+              drawChart(q, minutes);
+            }
+
+            // ---------- 图表 ----------
+            var chartCache = { min: null, day: null };
+
+            function drawChart(q, minutes) {
+              var cv = $('qwChart');
+              if (!cv) return;
+              var dpr = window.devicePixelRatio || 1;
+              var w = cv.clientWidth || 900, h = cv.clientHeight || 140;
+              cv.width = w * dpr; cv.height = h * dpr;
+              var ctx = cv.getContext('2d');
+              ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+              ctx.clearRect(0, 0, w, h);
+
+              var series = [], base = null, label = '';
+              if (state.view === 'min') {
+                series = (minutes || chartCache.min || []).map(function (p) { return p.price; });
+                base = q.prev; label = '分时';
+              } else {
+                var d = chartCache.day || [];
+                series = d.map(function (p) { return p.close; });
+                base = d.length ? d[0].close : null; label = '日 K 收盘 (60 日)';
+              }
+              if (series.length < 2) {
+                ctx.fillStyle = '#64748b'; ctx.font = '12px sans-serif';
+                ctx.fillText('图表数据加载中或暂不可用…', 12, h / 2);
+                return;
+              }
+
+              var pad = { l: 6, r: 52, t: 10, b: 10 };
+              var min = Math.min.apply(null, series), max = Math.max.apply(null, series);
+              if (base != null) { min = Math.min(min, base); max = Math.max(max, base); }
+              if (max === min) { max += 1; min -= 1; }
+              var span = max - min;
+              min -= span * 0.08; max += span * 0.08; span = max - min;
+
+              var W = w - pad.l - pad.r, H = h - pad.t - pad.b;
+              var X = function (i) { return pad.l + W * i / (series.length - 1); };
+              var Y = function (v) { return pad.t + H * (1 - (v - min) / span); };
+
+              // 网格
+              ctx.strokeStyle = 'rgba(148,163,184,0.14)'; ctx.lineWidth = 1;
+              for (var g = 0; g <= 4; g++) {
+                var y = pad.t + H * g / 4;
+                ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + W, y); ctx.stroke();
+              }
+              // 基准线
+              if (base != null) {
+                ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(250,204,21,0.55)';
+                ctx.beginPath(); ctx.moveTo(pad.l, Y(base)); ctx.lineTo(pad.l + W, Y(base)); ctx.stroke(); ctx.restore();
+              }
+
+              var last = series[series.length - 1];
+              var up = base == null ? true : last >= base;
+              var line = up ? '#ef4444' : '#22c55e';
+
+              // 面积
+              var grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + H);
+              grad.addColorStop(0, up ? 'rgba(239,68,68,0.30)' : 'rgba(34,197,94,0.30)');
+              grad.addColorStop(1, 'rgba(0,0,0,0)');
+              ctx.beginPath(); ctx.moveTo(X(0), Y(series[0]));
+              for (var i = 1; i < series.length; i++) ctx.lineTo(X(i), Y(series[i]));
+              ctx.lineTo(X(series.length - 1), pad.t + H); ctx.lineTo(X(0), pad.t + H); ctx.closePath();
+              ctx.fillStyle = grad; ctx.fill();
+
+              // 折线
+              ctx.beginPath(); ctx.moveTo(X(0), Y(series[0]));
+              for (var j = 1; j < series.length; j++) ctx.lineTo(X(j), Y(series[j]));
+              ctx.strokeStyle = line; ctx.lineWidth = 1.6; ctx.stroke();
+
+              // 右侧刻度
+              ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+              ctx.fillText(max.toFixed(2), pad.l + W + 6, pad.t + 8);
+              ctx.fillText(min.toFixed(2), pad.l + W + 6, pad.t + H);
+              if (base != null) { ctx.fillStyle = '#facc15'; ctx.fillText(base.toFixed(2), pad.l + W + 6, Y(base) + 3); }
+              ctx.fillStyle = line; ctx.fillText(last.toFixed(2), pad.l + W + 6, Y(last) + 3);
+              ctx.fillStyle = '#64748b'; ctx.textAlign = 'left';
+              ctx.fillText(label, pad.l + 4, pad.t + H - 2);
+            }
+
+            // ---------- 拉取行情 ----------
+            function setStatus(msg, isErr) {
+              status.innerHTML = msg;
+              status.className = 'qw-status' + (isErr ? ' err' : '');
+            }
+
+            function loadQuote(code, market, silent) {
+              var my = ++state.seq;
+              state.code = code; state.market = market;
+              if (!silent) setStatus('SCANNING &gt; 正在读取 <strong>' + esc(code) + '</strong> 的实时行情…');
+
+              var vn = 'qw_min_' + Math.random().toString(36).slice(2);
+              var url = 'https://web.ifzq.gtimg.cn/appstock/app/minute/query?_var=' + vn +
+                        '&code=' + code + '&r=' + Math.random();
+
+              return jsonp(url, vn, 9000).then(function (res) {
+                if (my !== state.seq) return;
+                var d = res && res.data && res.data[code];
+                if (!d) throw new Error('未找到该代码，请检查输入（A 股 6 位 / 港股 5 位）');
+                var qtArr = d.qt && d.qt[code];
+                var minutes = [];
+                var raw = (d.data && (d.data.data || d.data)) || [];
+                if (Array.isArray(raw)) {
+                  raw.forEach(function (row) {
+                    var p = String(row).split(/\s+/);
+                    if (p.length >= 2) {
+                      var v = parseFloat(p[1]);
+                      if (isFinite(v) && v > 0) minutes.push({ t: p[0], price: v });
+                    }
+                  });
+                }
+                if (!qtArr) return fallbackQt(code, market, minutes, my);
+                finishQuote(qtArr, code, market, minutes, my);
+              }).catch(function (err) {
+                if (my !== state.seq) return;
+                // 退回到 qt.gtimg.cn 基础快照
+                return fallbackQt(code, market, [], my).catch(function () {
+                  setStatus('ERROR &gt; ' + esc(err.message || '查询失败') + '。请确认代码是否正确，或稍后重试。', true);
+                });
+              });
+            }
+
+            function fallbackQt(code, market, minutes, my) {
+              var vn = 'v_' + code;
+              return jsonp('https://qt.gtimg.cn/q=' + code + '&r=' + Math.random(), vn, 9000).then(function (txt) {
+                if (my !== state.seq) return;
+                var arr = String(txt).split('~');
+                if (arr.length < 35) throw new Error('未找到该代码');
+                finishQuote(arr, code, market, minutes, my);
+              });
+            }
+
+            function finishQuote(qtArr, code, market, minutes, my) {
+              if (my !== state.seq) return;
+              var q = parseQuote(qtArr, code, market);
+              if (q.price == null) { setStatus('ERROR &gt; 未查询到有效行情，请检查代码。', true); return; }
+              state.qt = q;
+              chartCache.min = minutes && minutes.length ? minutes : chartCache.min;
+              render(q, minutes);
+              setStatus('OK &gt; <strong style="color:var(--qw-gold);">' + esc(q.name) + ' (' + esc(code) + ')</strong> 行情已更新 · ' +
+                        esc(fmtTime(q.time)) + (state.auto ? ' · 自动刷新中 (20s)' : ''));
+              if (state.view === 'day') loadDaily(code, market);
+            }
+
+            function loadDaily(code, market) {
+              var vn = 'qw_k_' + Math.random().toString(36).slice(2);
+              var api = market === 'hk' ? 'hkfqkline' : 'fqkline';
+              var url = 'https://web.ifzq.gtimg.cn/appstock/app/' + api + '/get?_var=' + vn +
+                        '&param=' + code + ',day,,,60,qfq&r=' + Math.random();
+              jsonp(url, vn, 9000).then(function (res) {
+                var d = res && res.data && res.data[code];
+                if (!d) return;
+                var rows = d.qfqday || d.day || [];
+                chartCache.day = rows.map(function (r) {
+                  return { date: r[0], open: parseFloat(r[1]), close: parseFloat(r[2]), high: parseFloat(r[3]), low: parseFloat(r[4]) };
+                }).filter(function (r) { return isFinite(r.close); });
+                if (state.view === 'day' && state.qt) drawChart(state.qt, null);
+              }).catch(function () { /* 静默失败 */ });
+            }
+
+            // ---------- 查询入口 ----------
+            function go(raw) {
+              var text = raw == null ? input.value : raw;
+              hideSugg();
+              var n = normalize(text);
+              if (n) { input.value = n.code; chartCache = { min: null, day: null }; return loadQuote(n.code, n.market); }
+              if (!String(text || '').trim()) { setStatus('提示 &gt; 请输入 A 股 6 位代码、港股 5 位代码或股票名称。', true); return; }
+              setStatus('SEARCHING &gt; 正在按名称检索「' + esc(text) + '」…');
+              fetchSuggest(text).then(function (list) {
+                if (!list.length) { setStatus('ERROR &gt; 未找到匹配的 A 股 / 港股标的：' + esc(text), true); return; }
+                renderSugg(list);
+                var first = list[0];
+                input.value = first.code;
+                chartCache = { min: null, day: null };
+                hideSugg();
+                loadQuote(first.code, first.market);
+              }).catch(function (e) {
+                setStatus('ERROR &gt; 检索失败：' + esc(e.message || '网络异常'), true);
+              });
+            }
+
+            // ---------- 事件 ----------
+            var suggTimer = null;
+            input.addEventListener('input', function () {
+              var v = input.value.trim();
+              clearTimeout(suggTimer);
+              if (v.length < 1 || /^(sh|sz|hk)?\d{5,6}$/i.test(v)) { hideSugg(); return; }
+              suggTimer = setTimeout(function () {
+                fetchSuggest(v).then(renderSugg).catch(function () { hideSugg(); });
+              }, 220);
+            });
+
+            input.addEventListener('keydown', function (e) {
+              if (sugg.classList.contains('show') && suggList.length) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  suggIdx = (suggIdx + (e.key === 'ArrowDown' ? 1 : -1) + suggList.length) % suggList.length;
+                  Array.prototype.forEach.call(sugg.children, function (el, i) { el.classList.toggle('active', i === suggIdx); });
+                  return;
+                }
+                if (e.key === 'Enter' && suggIdx >= 0) {
+                  e.preventDefault();
+                  var it = suggList[suggIdx];
+                  input.value = it.code; hideSugg(); chartCache = { min: null, day: null };
+                  loadQuote(it.code, it.market); return;
+                }
+                if (e.key === 'Escape') { hideSugg(); return; }
+              }
+              if (e.key === 'Enter') { e.preventDefault(); go(); }
+            });
+
+            sugg.addEventListener('click', function (e) {
+              var item = e.target.closest ? e.target.closest('.qw-sugg-item') : null;
+              if (!item) return;
+              var it = suggList[parseInt(item.getAttribute('data-i'), 10)];
+              if (!it) return;
+              input.value = it.code; hideSugg(); chartCache = { min: null, day: null };
+              loadQuote(it.code, it.market);
+            });
+
+            document.addEventListener('click', function (e) {
+              if (!sugg.contains(e.target) && e.target !== input) hideSugg();
+            });
+
+            $('qwSearch').addEventListener('click', function () { go(); });
+            $('qwRefresh').addEventListener('click', function () {
+              if (state.code) loadQuote(state.code, state.market); else go();
+            });
+
+            $('qwAuto').addEventListener('click', function () {
+              state.auto = !state.auto;
+              this.textContent = '⏱ 自动刷新: ' + (state.auto ? 'ON' : 'OFF');
+              this.classList.toggle('on', state.auto);
+              clearInterval(state.timer);
+              if (state.auto) {
+                state.timer = setInterval(function () { if (state.code) loadQuote(state.code, state.market, true); }, 20000);
+                if (state.code) loadQuote(state.code, state.market, true);
+              }
+            });
+
+            $('qwChips').addEventListener('click', function (e) {
+              var b = e.target.closest ? e.target.closest('.qw-chip') : null;
+              if (!b) return;
+              input.value = b.getAttribute('data-code');
+              go(b.getAttribute('data-code'));
+            });
+
+            Array.prototype.forEach.call(document.querySelectorAll('#quoteWidgetRoot .qw-tab'), function (tab) {
+              tab.addEventListener('click', function () {
+                Array.prototype.forEach.call(document.querySelectorAll('#quoteWidgetRoot .qw-tab'), function (t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                state.view = tab.getAttribute('data-view');
+                if (state.view === 'day' && !chartCache.day && state.code) loadDaily(state.code, state.market);
+                if (state.qt) drawChart(state.qt, chartCache.min);
+              });
+            });
+
+            window.addEventListener('resize', function () { if (state.qt) drawChart(state.qt, chartCache.min); });
+
+            // 默认展示恒生指数
+            setTimeout(function () { input.value = 'hkHSI'; go('hkHSI'); }, 400);
+          })();
+          </script>
+          <!-- ================= /QUOTE SCANNER ================= -->
+          QW_WIDGET_EOF
+
+          python3 - <<'PY_EOF'
+          import io, os, sys
+
+          TARGET = '_site/index.html'
+          WIDGET = '.quote_build/quote_widget.html'
+          MARK = 'id="quoteWidgetRoot"'
+
+          html = io.open(TARGET, encoding='utf-8').read()
+          if MARK in html:
+              print('[skip] 查询输入框已存在, 无需重复注入')
+              sys.exit(0)
+
+          widget = io.open(WIDGET, encoding='utf-8').read().rstrip() + '\n\n'
+
+          anchors = [
+              '    <!-- ================= STAGE 01 ================= -->',
+              '<!-- ================= STAGE 01 ================= -->',
+              '<section class="stage-section" id="stage-01">',
+          ]
+          for a in anchors:
+              if a in html:
+                  html = html.replace(a, widget + a, 1)
+                  break
+          else:
+              # 兜底: 插到 </main> 之前, 再兜底插到 </body> 之前
+              if '</main>' in html:
+                  html = html.replace('</main>', widget + '</main>', 1)
+              elif '</body>' in html:
+                  html = html.replace('</body>', widget + '</body>', 1)
+              else:
+                  html += widget
+
+          io.open(TARGET, 'w', encoding='utf-8').write(html)
+          print('[ok] 查询输入框已注入 %s (%d bytes)' % (TARGET, len(html)))
+          PY_EOF
+
+          rm -rf .quote_build
+          grep -c 'quoteWidgetRoot' _site/index.html
+
+      - name: 🧩 生成微信推送内容 (wechat.json)
+        # 随 Pages 一起发布,作为"手动推送"按钮的备用数据源
+        run: python3 tools/wechat_push.py --emit _site/wechat.json
+
+      - name: ⚙️ 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 📤 上传产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 🚀 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ---------- 任务 2: 推送完整报告到微信 ----------
+  # 独立任务:Pages 部署成功后再推送;推送失败不影响网站部署状态
+  wechat:
+    needs: deploy
+    if: ${{ github.event_name == 'push' || inputs.wechat_push }}
+    runs-on: ubuntu-latest
+    env:
+      # 可选:在仓库 Settings → Secrets 配置 PUSHPLUS_TOKEN 可覆盖
+      # report.html 中的 token;不配置时自动从 report.html 读取
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - name: 📥 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 📲 推送完整报告到微信 (PushPlus)
+        run: |
+          set +e
+          OUT=$(python3 tools/wechat_push.py --push 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT"
+          {
+            echo '### 📲 微信推送结果'
+            echo '```text'
+            echo "$OUT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $CODE
