@@ -4,7 +4,7 @@
 # 用法:用本文件整体替换 .github/workflows/m.yml 即可
 #
 # 触发方式:
-#   1. push 到 main            → 部署 Pages + 推送完整报告到微信
+#   1. push 到 main            → 重新抓取数据、部署 Pages + 推送完整报告到微信
 #   2. Actions 页面手动运行     → 可用 wechat_push 开关选择是否推送微信
 # =====================================================================
 name: 📄 Deploy Report to Pages + 📲 WeChat Push
