@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 _site/
 index.html
+market_data.json

@@ -13,6 +13,11 @@
   • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 荧光绿标题；
     重点字体为荧光绿(置于黑色背景)，其余均为荧光绿与黑色配搭，全部字号偏小，适合微信竖版长页面阅读。
 
+动态抓取管线 (动态抓取真正上线):
+  python3 market_data.py && python3 build_site.py            # ① 抓行情 → ② 建站 (report.html)
+  python3 tools/wechat_push.py --embed                       # ③ 把最新内容内嵌进 report.html
+  python3 tools/wechat_push.py --push --scheduled            # ④ 推送 (正文自动注入最新行情/抓取日期)
+
 用法:
   python3 tools/wechat_push.py --emit _site/wechat.json     # 只生成微信版 JSON
   python3 tools/wechat_push.py --embed                       # 把推送内容内嵌进 report.html
@@ -43,12 +48,36 @@ CONTENT_LIMIT = 100000
 CONTENT_SAFE_LIMIT = 95000
 MAX_PUSH_RETRIES = 3
 
+MINUS = '\u2212'  # U+2212 真正的减号，与全文风格一致
+
+
+def load_market_data():
+    """读取 market_data.py 生成的 market_data.json（构建时动态抓取的最新行情）。
+
+    路径可用环境变量 MARKET_DATA 覆盖；文件缺失/损坏时返回 {}，
+    此时正文使用内置兜底数字，保证离线也能正常推送。
+    """
+    path = os.environ.get('MARKET_DATA', os.path.join(REPO_ROOT, 'market_data.json'))
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        print(f'⚠️ 警告: market_data.json 读取失败，使用内置兜底数据: {e}', file=sys.stderr)
+        return {}
+
+
 def build_single_wechat_html(now=None):
     """构建单页完整的微信 HTML 推送卡片。
 
     风格: 「电子杂志 × 电子墨水」(Guizang PPT Skill · Style A)，改造为适合微信阅读的
     竖版长页面。配色: 浅灰底 + 正文纯黑 + 荧光绿标题；重点字体为荧光绿(且置于黑色背景)，
     其余均为荧光绿与黑色配搭。全部字号偏小。
+
+    动态数据: 若存在 market_data.json（由 market_data.py 构建时自动抓取），
+    正文行情数字、行情快照与 14 大社区「最新读取」日期全部注入最新值；
+    文件缺失时回退到内置兜底数字，保证离线可推送。
     """
     now = now or datetime.now(timezone.utc)
     ts = now.strftime('%Y-%m-%d %H:%M UTC')
@@ -56,6 +85,61 @@ def build_single_wechat_html(now=None):
 
     GR = '#00e05c'   # 荧光绿 (浅灰底上的标题/强调)
     NEON = '#39ff14' # 霓虹绿 (黑底上的重点)
+
+    # ---------- 动态行情注入 (market_data.json) ----------
+    _md = load_market_data()
+    _quotes = _md.get('quotes') or {}
+    _fetch_date = _md.get('fetch_date') or now.strftime('%Y-%m-%d')
+
+    def qq(key, fb='\u2014'):
+        """最新价，缺失用兜底值。现货黄金 >=1000 时取整数千分位。"""
+        q = _quotes.get(key)
+        if not q or q.get('last') is None:
+            return fb
+        v = float(q['last'])
+        nd = int(q.get('decimals') or 2)
+        if q.get('name') == '现货黄金' and v >= 1000:
+            nd = 0
+        return f'{v:,.{nd}f}'
+
+    def pct(key, fb='\u2014'):
+        """涨跌幅，如 '−0.83%' / '+0.25%'。"""
+        q = _quotes.get(key)
+        if not q or q.get('pct') is None:
+            return fb
+        v = float(q['pct'])
+        sign = MINUS if v < 0 else '+'
+        return f'{sign}{abs(v):,.2f}%'
+
+    def chg_desc(fb='跌 212.65 点'):
+        """恒指涨跌描述，如 '跌 212.65 点' / '涨 15.20 点'。"""
+        q = _quotes.get('HSI')
+        if not q or q.get('chg') is None:
+            return fb
+        v = float(q['chg'])
+        verb = '跌' if v < 0 else '涨'
+        return f'{verb} {abs(v):,.2f} 点'
+
+    def dq(fb='8 月 12 日'):
+        """恒指行情日期，如 '8 月 28 日'。"""
+        a = (_quotes.get('HSI') or {}).get('as_of') or ''
+        m = re.match(r'20\d{2}-(\d{2})-(\d{2})', a)
+        return fb if not m else f'{int(m.group(1))} 月 {int(m.group(2))} 日'
+
+    def asof(key, fb='\u2014'):
+        """行情日期 YYYY-MM-DD。"""
+        return (_quotes.get(key) or {}).get('as_of') or fb
+
+    def fetch_status():
+        """数据源同步状态文案。"""
+        s = _md.get('summary') or {}
+        ok, total, failed = s.get('ok'), s.get('total'), s.get('failed') or []
+        gen = _md.get('generated_at') or ''
+        if ok is None:
+            return f'抓取于 {gen}'
+        if total == ok:
+            return f'{ok}/{total} 项行情同步成功'
+        return f'{ok}/{total} 项同步成功（{", ".join(failed)} 降级为 —）'
 
     def key(t):
         return f'<strong style="background:#000;color:{NEON};padding:1px 5px;">{t}</strong>'
@@ -197,10 +281,15 @@ def build_single_wechat_html(now=None):
     sub('◆ 美联储利率路径与离岸流动性') +
     '7 月 29 日 FOMC 以 9-3 维持联邦基金利率 ' + key('3.50% – 3.75%') + '（克利夫兰、明尼阿波利斯、达拉斯三位主席主张加 25BP）。8 月 12 日公布的 7 月 CPI 同比 ' + key('3.4%') + '（前值 3.5%）、核心 2.5%，叠加 7 月非农录得净减 2.3 万人，市场显著下调 9 月加息概率。下一观察点：8 月 19 日纪要、8 月 27–28 日杰克逊霍尔、9 月议息。<br/><br/>' +
     sub('◆ 港股市场 — 26,000 受阻后的箱体消化') +
-    '8 月 12 日恒生指数收报 ' + key('25,440.17') + ' 点，跌 212.65 点（' + key('−0.83%') + '），恒生科技指数跌 0.99% 报 4,776.44。8 月初五连阳冲击 26,000–26,200 后连续受阻，近两周锁定 25,400–26,200 箱体。科网普跌（网易跌超 5%、阿里跌超 3%），光通信与内房午后走强（中际旭创涨超 8%、中国金茂涨超 13%）。南向 7 月净买入 ' + key('628.69 亿港元') + '，8 月延续净流入（8 月 4 日单日 +25.70 亿）。<br/><br/>' +
+    dq() + '恒生指数收报 ' + key(qq('HSI', '25,440.17')) + ' 点，' + chg_desc() + '（' + key(pct('HSI', '−0.83%')) + '），恒生科技指数 ' + pct('HSTECH', '−0.99%') + ' 报 ' + qq('HSTECH', '4,776.44') + '。8 月初五连阳冲击 26,000–26,200 后连续受阻，近两周锁定 25,400–26,200 箱体。科网普跌（网易跌超 5%、阿里跌超 3%），光通信与内房午后走强（中际旭创涨超 8%、中国金茂涨超 13%）。南向 7 月净买入 ' + key('628.69 亿港元') + '，8 月延续净流入（8 月 4 日单日 +25.70 亿）。<br/><br/>' +
+    sub('◆ 行情快照 (Live Quotes · 构建时自动抓取)') +
+    '恒指 <b>' + qq('HSI') + '</b>（' + pct('HSI') + '）· 恒科 <b>' + qq('HSTECH') + '</b>（' + pct('HSTECH') + '）· 恒生国企 ' + qq('HSCE') + '<br/>' +
+    '标普 ' + qq('SPX') + '（' + pct('SPX') + '）· 纳指 ' + qq('NDQ') + '（' + pct('NDQ') + '）· 道指 ' + qq('DJI') + '（' + pct('DJI') + '）<br/>' +
+    '黄金 <b>' + qq('GOLD') + '</b> 美元/盎司 · WTI ' + qq('WTI') + ' · 布伦特 ' + qq('BRENT') + ' · 美元/离岸人民币 ' + qq('USDCNH') + '<br/>' +
+    '<span style="color:#7d838b;font-size:10px;">行情日期 ' + asof('HSI') + ' · Yahoo Finance / Stooq 多源回退 · ' + fetch_status() + '</span><br/><br/>' +
     sub('◆ 大宗商品与全球供应链风险矩阵') +
-    '• <strong>原油</strong>：WTI 约 82.7、布伦特约 89 美元，霍尔木兹和解预期降温推升一周高位；<br/>' +
-    '• <strong>黄金</strong>：8 月 12 日现货约 ' + key('4,400 美元/盎司') + '，月涨近 10%、同比 +31%，继续刷新历史高位；<br/>' +
+    '• <strong>原油</strong>：WTI 约 ' + qq('WTI', '82.7') + '、布伦特约 ' + qq('BRENT', '89') + ' 美元，霍尔木兹和解预期降温推升一周高位；<br/>' +
+    '• <strong>黄金</strong>：' + dq() + '现货约 ' + key(qq('GOLD', '4,400') + ' 美元/盎司') + '，月涨近 10%、同比 +31%，继续刷新历史高位；<br/>' +
     '• <strong>铜、铝、锂</strong>：铜约 6.59 美元/磅（同比 +47%），锂碳酸盐约 14.8 万元/吨，战略矿产仍是对冲地缘与再通胀的核心底仓。<br/><br/>' +
     sub('◆ 主要国际与中资大行对恒指目标价预测（2026 基准情景）') +
     '• <strong>富途证券</strong>：基准情景 ' + key('31,000 点') + '；乐观情景在内需政策共振下可达 ' + key('34,000 点') + '。<br/>' +
@@ -212,7 +301,7 @@ def build_single_wechat_html(now=None):
   {box(
     '<strong style="color:' + GR + ';font-size:13px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>' +
     key('偏多 6 家') + ' · <strong style="background:#000;color:#cfcfcf;padding:1px 5px;">偏空 3 家</strong> · <strong style="background:#000;color:#cfcfcf;padding:1px 5px;">中性 3 家</strong> · ' + key('多空分歧 2 家') + '。<br/>' +
-    '<strong style="color:#141414;">核心主线共识</strong>：8 月初五连阳冲击 26,000–26,200 后连续受阻，短线进入箱体消化（8 月 12 日收 25,440，−0.83%）；南向 7 月净买入 628.69 亿、8 月仍净流入，中期“估值修复 + 政策托底”未被证伪。跨平台配置答案：进攻端切向光通信 / AI 硬科技与内房政策博弈，互联网龙头高位兑现；防御端继续重仓高息、REITs、电信与公用事业，并以黄金（约 4,400 美元）与铜锂对冲霍尔木兹溢价。')}
+    '<strong style="color:#141414;">核心主线共识</strong>：8 月初五连阳冲击 26,000–26,200 后连续受阻，短线进入箱体消化（' + dq() + '收 ' + qq('HSI', '25,440') + '，' + pct('HSI', '−0.83%') + '）；南向 7 月净买入 628.69 亿、8 月仍净流入，中期“估值修复 + 政策托底”未被证伪。跨平台配置答案：进攻端切向光通信 / AI 硬科技与内房政策博弈，互联网龙头高位兑现；防御端继续重仓高息、REITs、电信与公用事业，并以黄金（约 ' + qq('GOLD', '4,400') + ' 美元）与铜锂对冲霍尔木兹溢价。')}
 
   {community_html}
 
@@ -223,7 +312,8 @@ def build_single_wechat_html(now=None):
   {box(
     '<strong>时间核对：' + ts_full + '</strong> — 本次推送前已核对当前时间并检查各平台抓取日期（不是当天则已重新抓取），正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>' +
     '<strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/>' +
-    '若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。')}
+    '若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。<br/>' +
+    '市场行情由 <strong>market_data.py</strong> 每次构建/推送前自动抓取（Yahoo Finance / Stooq 多源回退），行情快照与正文数字同步刷新；单品抓取失败自动降级显示 "—"，不阻断推送。')}
 
   {h('06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)')}
   {box(
@@ -235,9 +325,9 @@ def build_single_wechat_html(now=None):
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
   {box(
     '• <strong>全球宏观面</strong>：IMF 维持全球增速 3.0%；美联储 3.50%–3.75% 按兵不动，7 月 CPI 同比 3.4%、就业意外净减，9 月加息概率下降；霍尔木兹和解预期降温、油价一周高位仍是核心系统性风险；<br/>' +
-    '• <strong>港股市场面</strong>：8 月 12 日恒指收 25,440.17（−0.83%），8 月初五连阳冲击 26,000–26,200 后进入箱体；南向 7 月净买入 628.69 亿、8 月仍净流入，资金面并未转空；<br/>' +
+    '• <strong>港股市场面</strong>：' + dq() + '恒指收 ' + qq('HSI', '25,440.17') + '（' + pct('HSI', '−0.83%') + '），8 月初五连阳冲击 26,000–26,200 后进入箱体；南向 7 月净买入 628.69 亿、8 月仍净流入，资金面并未转空；<br/>' +
     '• <strong>技术指标面</strong>：RSI 曾在 26,000 见 72.58 超买，现回踩 EMA9/21（约 25,978 / 25,471）；守住 25,200–25,400 视为健康回撤，失守 25,124 则箱体下破，重点盯 ALMA 与 30m/1h 金叉；<br/>' +
-    '• <strong>板块战术策略</strong>：进攻端从互联网贝塔切向光通信 / AI 硬科技与政策博弈内房；防御底仓仍是高息、REITs、电信与公用事业；黄金约 4,400 美元 + 铜铝锂对冲地缘与再通胀；<br/>' +
+    '• <strong>板块战术策略</strong>：进攻端从互联网贝塔切向光通信 / AI 硬科技与政策博弈内房；防御底仓仍是高息、REITs、电信与公用事业；黄金约 ' + qq('GOLD', '4,400') + ' 美元 + 铜铝锂对冲地缘与再通胀；<br/>' +
     '• <strong>情绪指标</strong>：散户 FOMO 随 26,000 失败明显降温，反向见顶警报部分解除；短线切忌在箱体上沿追高，宜在 25,400 附近分批承接。')}
   <div style="background:#eceef0;border-left:3px solid #141414;border-radius:4px;padding:10px 14px;margin-top:10px;font-size:12px;color:#333;line-height:1.8;">
     <strong style="color:#0a0a0a;">⚠️ 风险提示与免责声明：</strong>本报告所有内容仅供信息交流与学习参考，不构成任何形式的投资建议或操作指引。资本市场有风险，投资决策需谨慎。数据来源于公开网络信息，可能存在延迟或统计误差，实际投资操作前请务必核实最新实时市场数据。
@@ -253,6 +343,9 @@ def build_single_wechat_html(now=None):
   </div>
 
 </div>'''
+    # 14 大社区「最新读取」日期统一刷新为当日抓取日期（动态抓取真正上线）
+    html = re.sub(r'(最新读取\s+)(20\d{2}-\d{2}-\d{2})',
+                  lambda m: m.group(1) + _fetch_date, html)
     return html.strip(), ts, ts_full
 
 def extract_fetch_dates(text):
