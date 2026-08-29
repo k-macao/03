@@ -65,6 +65,8 @@ jobs:
 
   # ---------- 任务 2: 推送完整报告到微信 (push / 手动触发) ----------
   # 独立任务:Pages 部署成功后再推送;推送失败不影响网站部署状态
+  # 使用 --scheduled 宽松校验: 抓取日期非当天仅警告, 不阻断推送,
+  # 避免"数据抓取日期与当天不符"导致 push 触发即失败 (如需严格校验请手动改回 --push)。
   wechat:
     needs: deploy
     if: ${{ github.event_name == 'push' || inputs.wechat_push }}
@@ -80,7 +82,7 @@ jobs:
       - name: 📲 推送完整报告到微信 (PushPlus)
         run: |
           set +e
-          OUT=$(python3 tools/wechat_push.py --push 2>&1)
+          OUT=$(python3 tools/wechat_push.py --push --scheduled 2>&1)
           CODE=$?
           set -e
           echo "$OUT"
@@ -115,4 +117,5 @@ jobs:
             echo '```text'
             echo "$OUT"
             echo '```'
-          } >> 
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $CODE
