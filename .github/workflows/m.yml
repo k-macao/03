@@ -1,10 +1,17 @@
 # =====================================================================
-# 📄 Deploy Report to Pages + 📲 WeChat Push  (整合版工作流)
+# 📄 Deploy Report to Pages + 📲 WeChat Push  (整合版工作流 · 动态抓取)
 #
 # 触发方式:
-#   1. push 到 main            → 重新抓取数据、部署 Pages + 推送完整报告到微信
-#   2. Actions 页面手动运行     → 可用 wechat_push 开关选择是否推送微信
-#   3. 每天北京时间 09:00 定时   → 自动推送完整报告到微信 (无需手动操作)
+#   1. push 到 main            → 动态抓取行情 → 动态建站 → 部署 Pages + 推送完整报告到微信
+#   2. Actions 页面手动运行     → 同上, 可用 wechat_push 开关选择是否推送微信
+#   3. 每天北京时间 09:00 定时   → 自动重建站点 + 推送完整报告到微信 (无需手动操作)
+#
+# 动态抓取管线 (每次运行均执行, 真正上线):
+#   market_data.py  → market_data.json   (Yahoo Finance / Stooq 多源回退抓取最新行情)
+#   build_site.py   → report.html        (把行情/抓取日期注入页面与推送内容)
+#   wechat_push.py --embed               (把最新推送负载内嵌进 report.html)
+#   wechat_push.py --emit _site/wechat.json
+#   wechat_push.py --push --scheduled    (推送前日期宽松校验, 单品行情失败不阻断)
 # =====================================================================
 name: 📄 Deploy Report to Pages + 📲 WeChat Push
 
@@ -32,7 +39,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ---------- 任务 1: 构建并部署到 GitHub Pages ----------
+  # ---------- 任务 1: 动态抓取 + 动态构建 + 部署到 GitHub Pages ----------
   deploy:
     environment:
       name: github-pages
@@ -42,13 +49,22 @@ jobs:
       - name: 📥 检出仓库
         uses: actions/checkout@v4
 
+      - name: 🌐 动态抓取行情 (market_data.py → market_data.json)
+        run: python3 market_data.py
+
+      - name: 🏗️ 动态构建报告 (build_site.py → report.html)
+        run: python3 build_site.py
+
+      - name: 🧩 内嵌微信推送负载 (wechat-parts → report.html)
+        run: python3 tools/wechat_push.py --embed
+
       - name: 📁 准备部署目录
         run: |
           mkdir -p _site
           cp report.html _site/index.html
+          cp market_data.json _site/market_data.json
 
       - name: 🧩 生成微信推送内容 (wechat.json)
-        # 随 Pages 一起发布,作为"手动推送"按钮的备用数据源
         run: python3 tools/wechat_push.py --emit _site/wechat.json
 
       - name: ⚙️ 配置 Pages
@@ -63,10 +79,10 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # ---------- 任务 2: 推送完整报告到微信 (push / 手动触发) ----------
+  # ---------- 任务 2: 动态抓取 + 推送完整报告到微信 (push / 手动触发) ----------
   # 独立任务:Pages 部署成功后再推送;推送失败不影响网站部署状态
-  # 使用 --scheduled 宽松校验: 抓取日期非当天仅警告, 不阻断推送,
-  # 避免"数据抓取日期与当天不符"导致 push 触发即失败 (如需严格校验请手动改回 --push)。
+  # 每次运行先重新抓取行情并重建报告, 确保推送内容永远是最新动态数据;
+  # --scheduled 宽松校验: 抓取日期非当天仅警告不阻断, 单品行情失败也不阻断推送。
   wechat:
     needs: deploy
     if: ${{ github.event_name == 'push' || inputs.wechat_push }}
@@ -78,6 +94,15 @@ jobs:
     steps:
       - name: 📥 检出仓库
         uses: actions/checkout@v4
+
+      - name: 🌐 动态抓取行情 (market_data.py)
+        run: python3 market_data.py
+
+      - name: 🏗️ 动态构建报告 (build_site.py)
+        run: python3 build_site.py
+
+      - name: 🧩 内嵌微信推送负载
+        run: python3 tools/wechat_push.py --embed
 
       - name: 📲 推送完整报告到微信 (PushPlus)
         run: |
@@ -94,16 +119,25 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit $CODE
 
-  # ---------- 任务 3: 每天北京时间 09:00 定时自动推送 ----------
-  # 定时任务使用 --scheduled 宽松校验:抓取日期非当天仅警告,不阻断推送,
-  # 确保每天 09:00 无需人工干预即可定时送达。
+  # ---------- 任务 3: 每天北京时间 09:00 定时自动抓取 + 重建 + 推送 ----------
+  # 仅 schedule 触发时运行, 避免 push/手动触发时与 wechat 任务重复推送
   daily:
+    if: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     env:
       PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - name: 📥 检出仓库
         uses: actions/checkout@v4
+
+      - name: 🌐 动态抓取行情 (market_data.py)
+        run: python3 market_data.py
+
+      - name: 🏗️ 动态构建报告 (build_site.py)
+        run: python3 build_site.py
+
+      - name: 🧩 内嵌微信推送负载
+        run: python3 tools/wechat_push.py --embed
 
       - name: 🕘 每天 09:00 (北京时间) 定时推送完整报告到微信
         run: |
