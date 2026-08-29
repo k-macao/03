@@ -83,8 +83,8 @@ def build_single_wechat_html(now=None):
     ts = now.strftime('%Y-%m-%d %H:%M UTC')
     ts_full = now.strftime('%Y-%m-%d %H:%M:%S UTC')
 
-    GR = '#00e05c'   # 荧光绿 (浅灰底上的标题/强调)
-    NEON = '#39ff14' # 霓虹绿 (黑底上的重点)
+    GR = '#ccff08'   # 荧光绿 (浅灰底上的标题/强调)
+    NEON = '#ccff08' # 霓虹绿 (黑底上的重点)
 
     # ---------- 动态行情注入 (market_data.json) ----------
     _md = load_market_data()
