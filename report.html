@@ -45,7 +45,7 @@ body {
 }
 .masthead h1 {
   font-family:var(--serif);
-  color:var(--green);
+  color:var(--ink);
   font-size:clamp(26px,4vw,40px);
   font-weight:700;
   letter-spacing:1px;
@@ -59,10 +59,10 @@ body {
 .main { padding:10px 30px 26px; }
 .pub-heading {
   font-family:var(--serif);
-  color:var(--green);
+  color:var(--ink);
   font-size:19px;
   font-weight:700;
-  border-left:4px solid var(--green);
+  border-left:4px solid var(--ink);
   padding-left:12px;
   margin:34px 0 14px;
 }
@@ -76,10 +76,10 @@ body {
   line-height:1.85;
 }
 .pub-box .lead {
-  background:#000;color:var(--neon);padding:2px 7px;font-size:12.5px;
+  background:transparent;color:var(--ink);padding:2px 7px;font-size:12.5px;
 }
 .pub-sub {
-  color:var(--green); font-weight:700; font-size:13.5px; margin-bottom:6px;
+  color:var(--ink); font-weight:700; font-size:13.5px; margin-bottom:6px;
 }
 .model-grid {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:14px 0;
@@ -88,7 +88,7 @@ body {
   background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
 }
 .model-icon { font-size:22px; }
-.model-name { color:var(--green); font-weight:700; font-size:13px; margin-top:6px; }
+.model-name { color:var(--ink); font-weight:700; font-size:13px; margin-top:6px; }
 .model-desc { color:var(--ink); font-size:11.5px; margin-top:4px; }
 .stat-grid {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:14px 0;
@@ -97,23 +97,23 @@ body {
   background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px;
 }
 .stat-title { color:var(--muted); font-size:11px; font-weight:700; margin-bottom:6px; }
-.stat-val { color:var(--green); font-size:18px; font-weight:700; margin-bottom:8px; line-height:1.3; }
+.stat-val { color:var(--ink); font-size:18px; font-weight:700; margin-bottom:8px; line-height:1.3; }
 .stat-desc { font-size:12px; color:var(--ink); line-height:1.7; }
 .filter-row { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 16px; }
 .filter-tab {
   background:#fff; border:1px solid var(--border); color:var(--ink); font-family:var(--hei);
   font-size:11px; padding:7px 13px; border-radius:999px; cursor:pointer;
 }
-.filter-tab:hover { border-color:var(--green); color:var(--green); }
+.filter-tab:hover { border-color:var(--green); color:var(--ink); }
 .filter-tab.active { background:var(--green); color:#000; border-color:var(--green); font-weight:700; }
 .pub-card {
   background:var(--card); border:1px solid var(--border); border-left:3px solid var(--green);
   border-radius:8px; padding:14px 16px; margin:10px 0; font-size:12.5px;
 }
 .pub-card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.pub-name { color:var(--green); font-weight:700; font-size:13px; }
+.pub-name { color:var(--ink); font-weight:700; font-size:13px; }
 .pub-chip {
-  background:#000; font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
+  background:var(--ink); font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; color:#fff;
 }
 .pub-quote { color:var(--ink); line-height:1.8; }
 .pub-verdict {
@@ -123,12 +123,12 @@ body {
 .pub-meta { color:var(--muted); font-size:10.5px; margin-top:8px; }
 .pixel-list { list-style:none; margin:12px 0; }
 .pixel-list li { position:relative; padding-left:22px; margin-bottom:10px; line-height:1.75; }
-.pixel-list li::before { content:"◆"; position:absolute; left:0; color:var(--green); }
+.pixel-list li::before { content:"◆"; position:absolute; left:0; color:var(--ink); }
 .push-wrap {
   background:var(--card); border:1px solid var(--border); border-radius:8px;
   padding:16px 18px; margin:26px 0 8px;
 }
-.push-title { font-family:var(--serif); color:var(--green); font-size:17px; font-weight:700; margin-bottom:6px; }
+.push-title { font-family:var(--serif); color:var(--ink); font-size:17px; font-weight:700; margin-bottom:6px; }
 .push-tip { color:var(--ink); font-size:12px; margin-bottom:12px; }
 .pixel-push-btn {
   appearance:none; background:var(--green); color:#000; font-family:var(--hei);
@@ -143,7 +143,7 @@ body {
 .footer {
   border-top:2px solid var(--ink); padding:20px 30px 30px;
 }
-.footer .author { color:var(--green); font-weight:700; font-size:14px; }
+.footer .author { color:var(--ink); font-weight:700; font-size:14px; }
 .footer p { color:var(--ink); font-size:12px; margin-top:6px; }
 .footer .models { color:var(--muted); font-size:11px; margin-top:10px; }
 .start { color:#141414; border-left:3px solid #141414; }
@@ -154,7 +154,7 @@ body {
 }
 .quote-table td { padding:4px 8px; border-bottom:1px dashed var(--border); }
 .quote-table tr:last-child td { border-bottom:none; }
-.quote-table .q-pct { color:var(--green); font-weight:700; }
+.quote-table .q-pct { color:var(--ink); font-weight:700; }
 .quote-table .q-off { color:var(--muted); }
 @media (max-width:640px) {
   body { padding:12px 6px 32px; }
@@ -188,12 +188,12 @@ body {
     <div class="pub-box">
       <strong class="lead">全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。</strong><br/>
       底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，根据资产管理任务进行分工协同：<br/>
-      • <strong style="background:#000;color:#ccff00;padding:1px 5px;">Claude 3.5 Sonnet</strong>：专长长文档逻辑链推理、非结构化研报语义挖掘与跨语言财报深度比对；<br/>
-      • <strong style="background:#000;color:#ccff00;padding:1px 5px;">ChatGPT-4o</strong>：专长全球宏观经济模型映射、跨资产相关性分析与海外宏观政策流动性传导；<br/>
-      • <strong style="background:#000;color:#ccff00;padding:1px 5px;">Gemini 1.5 Pro</strong>：专长超长上下文跨论坛时间线对照、期权席位异动与海量历史数据检索；<br/>
-      • <strong style="background:#000;color:#ccff00;padding:1px 5px;">Grok-2</strong>：专长全球社媒与 FinTwit 突发地缘舆情穿透、海外宏观对冲基金实时持仓追踪；<br/>
-      • <strong style="background:#000;color:#ccff00;padding:1px 5px;">Qwen Max</strong>：专长中文财报与港股通南向资金语义解析、国内宏观政策措辞与公募 ETF 动向研判；<br/>
-      • <strong style="background:#000;color:#ccff00;padding:1px 5px;">Kimi Moonshot</strong>：专长长篇公告与港交所披露易权益披露、回购注销与私有化套利条款拆解。<br/>
+      • <strong style="color:#000;font-weight:700;">Claude 3.5 Sonnet</strong>：专长长文档逻辑链推理、非结构化研报语义挖掘与跨语言财报深度比对；<br/>
+      • <strong style="color:#000;font-weight:700;">ChatGPT-4o</strong>：专长全球宏观经济模型映射、跨资产相关性分析与海外宏观政策流动性传导；<br/>
+      • <strong style="color:#000;font-weight:700;">Gemini 1.5 Pro</strong>：专长超长上下文跨论坛时间线对照、期权席位异动与海量历史数据检索；<br/>
+      • <strong style="color:#000;font-weight:700;">Grok-2</strong>：专长全球社媒与 FinTwit 突发地缘舆情穿透、海外宏观对冲基金实时持仓追踪；<br/>
+      • <strong style="color:#000;font-weight:700;">Qwen Max</strong>：专长中文财报与港股通南向资金语义解析、国内宏观政策措辞与公募 ETF 动向研判；<br/>
+      • <strong style="color:#000;font-weight:700;">Kimi Moonshot</strong>：专长长篇公告与港交所披露易权益披露、回购注销与私有化套利条款拆解。<br/>
       根据不同的资产管理任务需求，发挥各个模型的优势来提供全方位数据支持！[加油]
     </div>
     <div class="model-grid"><div class="model-card"><div class="model-icon">🧠</div><div class="model-name">Claude 3.5</div><div class="model-desc">长文档逻辑链推理 · 非结构化研报语义挖掘 · 跨语言财报深度比对</div></div>
@@ -232,18 +232,18 @@ body {
     <div class="pub-box">
       <div class="pub-sub">◆ 主要国际与中资大行对恒指目标价预测（2026 基准情景）</div>
       <ul class="pixel-list">
-        <li><strong>富途证券</strong>：基准情景 <strong style="background:#000;color:#ccff00;padding:1px 5px;">31,000 点</strong>；乐观情景在内需政策共振下可达 <strong style="background:#000;color:#ccff00;padding:1px 5px;">34,000 点</strong>。</li>
-        <li><strong>星展银行 (DBS)</strong>：基本情景 <strong style="background:#000;color:#ccff00;padding:1px 5px;">30,000 点</strong>；极乐观牛市情景 <strong style="background:#000;color:#ccff00;padding:1px 5px;">36,500 点</strong>，极悲观熊市底线 23,000 点。</li>
-        <li><strong>中金公司 (CICC)</strong>：基准预测区间 <strong style="background:#000;color:#ccff00;padding:1px 5px;">28,000–29,000 点</strong>，依托盈利修复支撑估值均值回归。</li>
-        <li><strong>渣打银行 (StanChart)</strong>：核心区间 <strong style="background:#000;color:#ccff00;padding:1px 5px;">28,000–30,000 点</strong>，看好高股息底仓与中资科技龙头的双轮驱动。</li>
+        <li><strong>富途证券</strong>：基准情景 <strong style="color:#000;font-weight:700;">31,000 点</strong>；乐观情景在内需政策共振下可达 <strong style="color:#000;font-weight:700;">34,000 点</strong>。</li>
+        <li><strong>星展银行 (DBS)</strong>：基本情景 <strong style="color:#000;font-weight:700;">30,000 点</strong>；极乐观牛市情景 <strong style="color:#000;font-weight:700;">36,500 点</strong>，极悲观熊市底线 23,000 点。</li>
+        <li><strong>中金公司 (CICC)</strong>：基准预测区间 <strong style="color:#000;font-weight:700;">28,000–29,000 点</strong>，依托盈利修复支撑估值均值回归。</li>
+        <li><strong>渣打银行 (StanChart)</strong>：核心区间 <strong style="color:#000;font-weight:700;">28,000–30,000 点</strong>，看好高股息底仓与中资科技龙头的双轮驱动。</li>
       </ul>
     </div>
 
     <!-- 03 -->
     <h2 class="pub-heading">03 / 社区论坛热评 (14 大平台详尽深入全景研判)</h2>
     <div class="pub-box">
-      <strong style="color:#ccff00; font-size:13.5px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>
-      <strong style="background:#000;color:#ccff00;padding:1px 5px;">偏多 6 家</strong> · <strong style="background:#000;color:#cfcfcf;padding:1px 5px;">偏空 3 家</strong> · <strong style="background:#000;color:#cfcfcf;padding:1px 5px;">中性 3 家</strong> · <strong style="background:#000;color:#ccff00;padding:1px 5px;">多空分歧 2 家</strong>。<br/>
+      <strong style="color:#000; font-size:13.5px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>
+      <strong style="color:#000;font-weight:700;">偏多 6 家</strong> · <strong style="color:#333;font-weight:700;">偏空 3 家</strong> · <strong style="color:#333;font-weight:700;">中性 3 家</strong> · <strong style="color:#000;font-weight:700;">多空分歧 2 家</strong>。<br/>
       <strong style="color:#141414;">核心主线共识</strong>：8 月初五连阳冲击 26,000–26,200 后连续受阻，短线进入箱体消化（{{QUOTE_DATE_CN}}收 {{HSI_LAST}}，{{HSI_PCT}}）；南向 7 月净买入 628.69 亿、8 月仍净流入，中期“估值修复 + 政策托底”未被证伪。跨平台配置答案：进攻端切向光通信 / AI 硬科技与内房政策博弈，互联网龙头高位兑现；防御端继续重仓高息、REITs、电信与公用事业，并以黄金（约 {{GOLD_LAST}} 美元）与铜锂对冲霍尔木兹溢价。
     </div>
 
@@ -256,87 +256,87 @@ body {
     </div>
     <div id="communityList">
 <article class="pub-card" data-verdict="mixed">
-  <div class="pub-card-head"><span class="pub-name">🐮 1. 富途牛牛社区</span><span class="pub-chip" style="color:#ccff00;">多空分歧</span></div>
+  <div class="pub-card-head"><span class="pub-name">🐮 1. 富途牛牛社区</span><span class="pub-chip" style="color:#000;">多空分歧</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>8 月 12 日恒指低开低走收跌 0.83%，技术派指出 26,000 整数关连续受阻后 30 分钟级别再度空头排列，短线视为明确离场信号，需等待次日高开金叉才重新进场；资金派紧盯分时大单与南向净流向，强调“先看异动再做决策”——当日科网普跌、光通信与内房午后突变，盘口反馈远快于叙事；中长线声音则认为：即便回踩 25,200–25,400 箱体下沿，南向 7 月净买入 628.69 亿、8 月仍净流入，叠加盈利修复，明年上半年挑战 28,200 点的路径未被破坏。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>短线偏空 · 中期偏多。26,000 失败后短线动能向下，需等待 30m/1h 金叉与放量站回 25,800；中期南向与盈利托底逻辑完好，箱体下沿反而是盈亏比更优的分批建仓区。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空 · 中期偏多。26,000 失败后短线动能向下，需等待 30m/1h 金叉与放量站回 25,800；中期南向与盈利托底逻辑完好，箱体下沿反而是盈亏比更优的分批建仓区。</div>
   <div class="pub-meta">综合站内 3 条热门长帖与讨论 · 最新读取 {{CD_01}}</div>
 </article>
 <article class="pub-card" data-verdict="mixed">
-  <div class="pub-card-head"><span class="pub-name">❄️ 2. 雪球网</span><span class="pub-chip" style="color:#ccff00;">多空分歧</span></div>
+  <div class="pub-card-head"><span class="pub-name">❄️ 2. 雪球网</span><span class="pub-chip" style="color:#000;">多空分歧</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>热帖直指“恒指 26,000 关口压力重重，本轮是反弹还是反转”。8 月 6 日恒指跌 1.49% 报 25,530、恒科跌 2.28% 报 4,820 后，球友对半导体“空头撤退股价仍跌”解读为被动出清而非新一轮做空；美债 10 年期约 4.67% 仍压制高估值成长，资金在光通信 / 芯片与红利、内房之间高速轮动。价值派强调：南向 7 月净买入 628.69 亿、今年除 5 月外持续流入，盈利 3%–4% 内生增长与 31,000 点基准目标仍成立，主张高息底仓 + 新质生产力，拒绝在 26,000 附近追高。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>短线偏空 · 中期偏多。26,000 失败与成长股出清尚未结束；但南向月度级回流与低估值高息底仓，为中期提供足够安全边际。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空 · 中期偏多。26,000 失败与成长股出清尚未结束；但南向月度级回流与低估值高息底仓，为中期提供足够安全边际。</div>
   <div class="pub-meta">综合站内 3 条深度研报与讨论 · 最新读取 {{CD_02}}</div>
 </article>
 <article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">🐯 3. 老虎社区</span><span class="pub-chip" style="color:#cfcfcf;">偏空</span></div>
+  <div class="pub-card-head"><span class="pub-name">🐯 3. 老虎社区</span><span class="pub-chip" style="color:#fff;">偏空</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>跨境账户情绪仍偏弱：8 月 11–12 日港股跌幅明显大于上证（恒指 −1.1%、−0.83% vs 沪指相对抗跌），被解读为外资 trim China exposure 快于内资；美伊和解预期降温、霍尔木兹推升油价，叠加华尔街隔夜科技股回撤，亚洲时段反弹乏力。社区对折价配售、H 股大额募资（中际旭创等）仍敏感，认为股权稀释压制追高意愿；操作共识是继续观望，等待金叉与 25,800 放量收复，短线维持离场信号。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>偏空观望。外资定价的离岸市场对地缘与美股映射更敏感，港股“先跌于 A 股”格局未改；在缺乏右侧信号前不宜抄底。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏空观望。外资定价的离岸市场对地缘与美股映射更敏感，港股“先跌于 A 股”格局未改；在缺乏右侧信号前不宜抄底。</div>
   <div class="pub-meta">综合站内 3 条热门跨境讨论 · 最新读取 {{CD_03}}</div>
 </article>
 <article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">💰 4. 东方财富港股股吧</span><span class="pub-chip" style="color:#cfcfcf;">偏空</span></div>
+  <div class="pub-card-head"><span class="pub-name">💰 4. 东方财富港股股吧</span><span class="pub-chip" style="color:#fff;">偏空</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>股吧情绪从 8 月初追高迅速切到“迷茫期”：8 月 12 日恒指低开 0.6%、全天低开低走，科网股普跌被视作减仓信号；讨论焦点从“五连阳还能不能追”转为“26,000 失败后会不会回踩 25,200”。内房午后突然拉升（中国金茂涨超 13%、越秀地产涨近 10%）被解读为政策博弈炒作而非趋势反转；消费防御（康师傅、龙湖、华润置地）相对抗跌。多数声音主张先看 25,400 箱体下沿能否守住，跌破再看 24,400 / 23,500。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>短线偏空。散户从狂热切换到观望，低开低走与科网兑现共振；内房脉冲难改大盘箱体下修的短线基调。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空。散户从狂热切换到观望，低开低走与科网兑现共振；内房脉冲难改大盘箱体下修的短线基调。</div>
   <div class="pub-meta">综合站内 3 条高互动主题帖 · 最新读取 {{CD_04}}</div>
 </article>
 <article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">📈 5. 智通财经互动区</span><span class="pub-chip" style="color:#ccff00;">偏多</span></div>
+  <div class="pub-card-head"><span class="pub-name">📈 5. 智通财经互动区</span><span class="pub-chip" style="color:#000;">偏多</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>席位与衍生品视角：8 月 8 日恒指牛熊街货比约 49:51，熊证重货区落在 26,200–26,299、牛证重货区在 25,200–25,299，与现货箱体高度吻合；8 月 11 日街货比约 49.5:50.5，多空几乎打平。盘面结构上，光通信获摩根大通一周内多次加仓中际旭创 H 股（持股升至 15.60%），芯片股 8 月 12 日逆市（中芯 +3%、华虹 +7%）；长线席位继续流向高息、REITs、电信与公用事业。8 月扩容的每周/月度股票期权为对冲 26,000 失败后的波动率提供了工具。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>偏多 (结构性机遇)。街货比中性、机构在光通信与高息两端同时加仓，箱体内更适合用期权做结构，而不是裸空指数。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (结构性机遇)。街货比中性、机构在光通信与高息两端同时加仓，箱体内更适合用期权做结构，而不是裸空指数。</div>
   <div class="pub-meta">综合站内 3 条专业席位跟踪分析 · 最新读取 {{CD_05}}</div>
 </article>
 <article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">🌐 6. 华尔街见闻社区</span><span class="pub-chip" style="color:#ccff00;">偏多</span></div>
+  <div class="pub-card-head"><span class="pub-name">🌐 6. 华尔街见闻社区</span><span class="pub-chip" style="color:#000;">偏多</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>宏观对冲盘聚焦两则新数据：8 月 12 日美国 7 月 CPI 同比 3.4%、核心 2.5%，叠加 7 月非农净减 2.3 万人，显著压低 9 月加息概率，离岸成长估值压力边际缓解；另一面是美伊和解预期降温、油价升至一周高位，霍尔木兹溢价重新定价。社区主流叙事仍是“全球资金从韩日美股拥挤多头再平衡至低估港股 + 国内政策托底”，但强调 26,000 失败后应以防守姿态做多：黄金约 4,400 美元、铜铝锂与高息低贝塔，而不是追互联网贝塔。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>中性偏多 (防御姿态做多)。CPI 降温打开估值修复窗口，霍尔木兹与油价则封住上行斜率；适合用高息 + 贵金属底仓承接再平衡资金。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性偏多 (防御姿态做多)。CPI 降温打开估值修复窗口，霍尔木兹与油价则封住上行斜率；适合用高息 + 贵金属底仓承接再平衡资金。</div>
   <div class="pub-meta">综合站内 3 条宏观深度长文 · 最新读取 {{CD_06}}</div>
 </article>
 <article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">🇭🇰 7. 香港讨论区财经版</span><span class="pub-chip" style="color:#cfcfcf;">中性</span></div>
+  <div class="pub-card-head"><span class="pub-name">🇭🇰 7. 香港讨论区财经版</span><span class="pub-chip" style="color:#fff;">中性</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>本地炒鬼对 8 月 12 日低开低走并不意外——“又係 26,000 附近派货”。内房午后突然炒作（中国金茂、越秀、绿城）被当成政策消息博弈，多数人表示“睇得、唔好追”。共识仍是港股弱于 A 股、先跌后上，必须等金叉同南向持续净流入先至加仓；配置上继续揽住高息、本地电信、REITs 同公用，地产蓝筹只当短线股息工具。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>中性。本土零售维持防守观望，内房脉冲难改仓位结构；右侧金叉出现前不宜激进加仓。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性。本土零售维持防守观望，内房脉冲难改仓位结构；右侧金叉出现前不宜激进加仓。</div>
   <div class="pub-meta">综合站内 3 条粤语热门讨论贴 · 最新读取 {{CD_07}}</div>
 </article>
 <article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">🔥 8. LIHKG 连登财经台</span><span class="pub-chip" style="color:#cfcfcf;">偏空</span></div>
+  <div class="pub-card-head"><span class="pub-name">🔥 8. LIHKG 连登财经台</span><span class="pub-chip" style="color:#fff;">偏空</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>连登交易员认为 8 月初 RSI 逼近 72、三周涨 8.5% 后未能放量突破 26,200–26,500，超买回调已经兑现：8 月 6 日 −1.49%、11 日 −1.1%、12 日 −0.83%。主流策略从“追五连阳”全面切到期权 / 牛熊证做波动率，街货比 49:51 被解读为多空打平、适合两边开仓；硬止损纪律被反复强调。中期仍认资金再平衡，但短线要紧盯 6h/12h ALMA 与 25,200 牛证重货区，失守再减。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>短线偏空 (超买回调兑现中)。26,000 失败后波动率交易优于方向单；未站回 25,800–26,000 前，杠杆多头盈亏比不佳。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空 (超买回调兑现中)。26,000 失败后波动率交易优于方向单；未站回 25,800–26,000 前，杠杆多头盈亏比不佳。</div>
   <div class="pub-meta">综合站内 3 条高频交易讨论链 · 最新读取 {{CD_08}}</div>
 </article>
 <article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">🥦 9. 韭圈儿 / 红岸社区</span><span class="pub-chip" style="color:#ccff00;">偏多</span></div>
+  <div class="pub-card-head"><span class="pub-name">🥦 9. 韭圈儿 / 红岸社区</span><span class="pub-chip" style="color:#000;">偏多</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>公募与港股通持仓透视：7 月南向净买入 628.69 亿、6 月 271.11 亿，8 月延续净流入；近一月主力流向资讯科技（+295 亿）、原材料（+224 亿）、医疗保健（+156 亿）。截至 8 月 3 日南向持股市值前十仍是腾讯、建行、工行、中海油、汇丰、中国移动、阿里、中行、中芯、小米。中信海外策略指出外资二季度已由净流出转为净流入，是本轮上行的边际增量。机构共识未改：估值修复 + 科技盈利是 2026 主引擎，31,000 / 34,000 目标仍在；但 26,000 附近已见部分调仓换股，散户狂热降温后更利于机构吸筹。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>偏多 (中期基本面驱动)。月度级南向与外资回流比单日指数涨跌更有信息量；箱体震荡是机构完成高低切换的窗口。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (中期基本面驱动)。月度级南向与外资回流比单日指数涨跌更有信息量；箱体震荡是机构完成高低切换的窗口。</div>
   <div class="pub-meta">综合站内 3 篇机构仓位拆解报告 · 最新读取 {{CD_09}}</div>
 </article>
 <article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">🐜 10. 蚂蚁财富港股社区</span><span class="pub-chip" style="color:#cfcfcf;">中性</span></div>
+  <div class="pub-card-head"><span class="pub-name">🐜 10. 蚂蚁财富港股社区</span><span class="pub-chip" style="color:#fff;">中性</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>8 月初五连阳时散户港股 ETF 申购与搜索热度冲高，被视作反向指标；经过 26,000 失败与连续回调后，社区狂热明显降温，讨论从“还能不能追”转为“定投要不要暂停”。理财顾问仍主推高息红利、REITs、电信与公用事业作为底仓，提醒不要在箱体上沿加杠杆。反向指标警报部分解除，但基民定投惯性仍在，情绪从极度乐观回到中性偏防守。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>中性 (狂热降温)。散户 FOMO 消退降低了短线见顶压力，但尚未出现恐慌性申赎；适合把仓位从追涨切换回定投式防御底仓。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性 (狂热降温)。散户 FOMO 消退降低了短线见顶压力，但尚未出现恐慌性申赎；适合把仓位从追涨切换回定投式防御底仓。</div>
   <div class="pub-meta">综合站内 3 条基民热评与定投贴 · 最新读取 {{CD_10}}</div>
 </article>
 <article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">👾 11. Reddit (r/ChinaStocks)</span><span class="pub-chip" style="color:#cfcfcf;">中性</span></div>
+  <div class="pub-card-head"><span class="pub-name">👾 11. Reddit (r/ChinaStocks)</span><span class="pub-chip" style="color:#fff;">中性</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>英文社区仍把港股当作投资中国核心资产最便利的离岸通道，VIE / ADR 等价性讨论未停。增量话题切到宏观：8 月 12 日美国 CPI 符合预期降温、7 月就业意外净减，降低了美联储 9 月加息的紧迫性；同时霍尔木兹和解预期反复、油价走高，被视作持有中国风险资产的主要外部扰动。阿里巴巴将于 8 月 20 日公布业绩，成为个股层面的观察点。整体仍偏“可投资性 + 事件驱动”，缺少一致的指数多空押注。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>中性。外资认可通道与估值，但在地缘与政策细节落地前维持审慎评估，等待 CPI 后续路径与中概业绩季。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性。外资认可通道与估值，但在地缘与政策细节落地前维持审慎评估，等待 CPI 后续路径与中概业绩季。</div>
   <div class="pub-meta">综合站内 3 篇外文热门深度分析 · 最新读取 {{CD_11}}</div>
 </article>
 <article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">📊 12. TradingView 香港板块</span><span class="pub-chip" style="color:#ccff00;">偏多</span></div>
+  <div class="pub-card-head"><span class="pub-name">📊 12. TradingView 香港板块</span><span class="pub-chip" style="color:#000;">偏多</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>图表派更新：三周反弹 8.5% 后于 26,000 录得 RSI 72.58 的全程最高读数，成为本轮首个真正超买警报；EMA9/21 交叉约 25,978 / 25,471 仍托住整段升势，MACD 柱状图在高位出现减速。8 月 12 日收 25,440，恰好回踩 9/21 均线带下沿附近。新交易计划：方向仍偏多、原目标已兑现，新作战目标 26,500 / 延伸 27,044，移动止损上移至 25,124；若失守 25,200 牛证重货区则视为箱体下破。长线仍提示：以 28,056 为 2026 高点的均值回归下沿可指向 19,885，每段必须执行 −10% 硬止损。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>偏多 (结构完好、战术回调)。超买在 26,000 消化是健康的，均线带未坏；回踩 25,400–25,470 是加仓带，失守 25,124 才改方向。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (结构完好、战术回调)。超买在 26,000 消化是健康的，均线带未坏；回踩 25,400–25,470 是加仓带，失守 25,124 才改方向。</div>
   <div class="pub-meta">综合站内 3 套专业技术分析图表与指标 · 最新读取 {{CD_12}}</div>
 </article>
 <article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">💎 13. Value Investors Club</span><span class="pub-chip" style="color:#ccff00;">偏多</span></div>
+  <div class="pub-card-head"><span class="pub-name">💎 13. Value Investors Club</span><span class="pub-chip" style="color:#000;">偏多</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>价投私密社区并不把 26,000 失败当成逻辑破坏：港股相对欧美的估值折价、中小盘私有化套利与控股股东折价仍是 2026 主引擎。基准情景维持恒指年底 28,000–29,000、乐观 31,000，盈利增速 3%–4%；8 月国泰君安国际遭母公司约 286 亿港元私有化要约，被当作“折价收窄仍在发生”的活样本。配置不变：高息 + 中资科技 + 本地金融为底仓，REITs / 电信 / 必需消费 / 公用对冲霍尔木兹与再通胀。短线指数位置反而提供更好的安全边际。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>偏多 (价投标尺确立)。箱体回撤不改变折价修复路径；私有化与回购仍是中小盘的确定性事件驱动。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (价投标尺确立)。箱体回撤不改变折价修复路径；私有化与回购仍是中小盘的确定性事件驱动。</div>
   <div class="pub-meta">综合站内 3 篇顶尖私密价值分析研报 · 最新读取 {{CD_13}}</div>
 </article>
 <article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">🐦 14. Twitter / X (FinTwit)</span><span class="pub-chip" style="color:#ccff00;">偏多</span></div>
+  <div class="pub-card-head"><span class="pub-name">🐦 14. Twitter / X (FinTwit)</span><span class="pub-chip" style="color:#000;">偏多</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>FinTwit 宏观账户仍把港股标成“再平衡避风港”，但语气从 8 月初的右侧突破转为“26,000 失败后的健康回撤”。7 月 CPI 3.4% + 就业意外疲弱压低加息赔率，被视作离岸中资的估值利好；黄金约 4,400、铜锂继续作为地缘对冲。政策叙事切到北京“及时实施积极政策”表态与一线城市放松限购 / 公积金（8 月 12 日内房脉冲），但批评声音指出政治局只给方向未给细则。技术上 MA50 已站上，关键是守住 25,200–25,470 均线带，再挑战 26,000。</p>
-  <div class="pub-verdict"><strong style="color:#ccff00;">▶ AI 深度战术研判：</strong>偏多 (国际资本仍在场)。再平衡 + CPI 降温仍是多头底盘；缺的是政策细则与放量收复 26,000，短线应降低进攻斜率。</div>
+  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (国际资本仍在场)。再平衡 + CPI 降温仍是多头底盘；缺的是政策细则与放量收复 26,000，短线应降低进攻斜率。</div>
   <div class="pub-meta">综合站内 3 条海外基金经理核心观点 · 最新读取 {{CD_14}}</div>
 </article>
     </div>
@@ -348,7 +348,7 @@ body {
     <!-- 05 -->
     <h2 class="pub-heading">05 / 数据获取与时间核对 (Telemetry & Timestamps)</h2>
     <div class="pub-box">
-      <strong id="pageTimeCheck">时间核对：{{TS_FULL}}</strong> — 报告时间精确到秒，页面打开时自动校准为最新时间；<strong style="color:#ccff00;">每次推送前均会重新抓取，并逐条检查 14 个频道内容是否为频道最新；不复用上一次推送的抓取结果</strong>。所有引用内容均严格标注读取时间戳。<br/><br/>
+      <strong id="pageTimeCheck">时间核对：{{TS_FULL}}</strong> — 报告时间精确到秒，页面打开时自动校准为最新时间；<strong style="color:#000;">每次推送前均会重新抓取，并逐条检查 14 个频道内容是否为频道最新；不复用上一次推送的抓取结果</strong>。所有引用内容均严格标注读取时间戳。<br/><br/>
       <strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/><br/>
       若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。<br/><br/>
       <strong>市场行情动态抓取：</strong>每次构建/推送前由 <strong>market_data.py</strong> 自动抓取最新行情（Yahoo Finance → Stooq 多源回退），生成 market_data.json 并注入本页「行情快照」与微信推送内容；单品抓取失败自动降级显示 "—"，不阻断发布。
@@ -357,9 +357,9 @@ body {
     <!-- 06 -->
     <h2 class="pub-heading">06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)</h2>
     <div class="pub-box">
-      本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 荧光绿标题，重点字体为荧光绿文字配黑色背景，其余均为荧光绿与黑色配搭。<br/><br/>
+      本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 黑色标题，重点文字加粗纯黑，装饰线保留荧光绿点缀，其余均为黑色与灰色配搭。<br/><br/>
       <strong>字体与字号规范：</strong>全站统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 PingFang SC / Noto Sans SC 黑体栈），标题使用<strong>衬线宋体</strong>（Noto Serif SC），正文 12px 紧凑小字号，标题加粗分级。<br/><br/>
-      <strong>推送时间协议：</strong>每一次推送前先核对当前时间，将标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong style="color:#ccff00;">实时刷新为最新时间</strong>后再发送，确保收到的内容时间永远是最新的。<br/><br/>
+      <strong>推送时间协议：</strong>每一次推送前先核对当前时间，将标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong style="color:#000;">实时刷新为最新时间</strong>后再发送，确保收到的内容时间永远是最新的。<br/><br/>
       <strong>单页协议：</strong>微信推送采用<strong>一对一专属直发</strong>（直接推送到 Token 拥有者个人微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。
     </div>
 
@@ -450,7 +450,7 @@ body {
       if (PUSHPLUS_TOPIC) body.append('topic', PUSHPLUS_TOPIC);
       await fetch('https://www.pushplus.plus/send', { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body.toString() });
       btn.textContent = '✔ 已成功推送';
-      status.innerHTML = '<span style="color:' + '#ccff00' + ';">SUCCESS &gt; 单页完整详尽报告已成功推送！(一对一专属直推 · 本次已重新抓取数据 · 时间戳已刷新至 ' + tsFull + ') 请在微信查收。</span><span>▌</span>';
+      status.innerHTML = '<span style="color:' + '#000' + ';">SUCCESS &gt; 单页完整详尽报告已成功推送！(一对一专属直推 · 本次已重新抓取数据 · 时间戳已刷新至 ' + tsFull + ') 请在微信查收。</span><span>▌</span>';
     } catch (err) {
       console.error('推送失败', err);
       btn.textContent = '✖ 推送失败';
