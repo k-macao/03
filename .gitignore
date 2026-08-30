@@ -3,3 +3,4 @@ __pycache__/
 _site/
 index.html
 market_data.json
+community_data.json

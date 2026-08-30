@@ -236,9 +236,10 @@ def main():
     }
     with open(args.json, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    failed_str = ", ".join(failed)
     print(f'📦 行情已写入 {args.json} '
           f'({data["summary"]["ok"]}/{data["summary"]["total"]} 成功'
-          + (f', 失败: {", ".join(failed)}' if failed else '')
+          + (f', 失败: {failed_str}' if failed else '')
           + f' · 抓取日期 {fetch_date} · {now_full})')
 
 
