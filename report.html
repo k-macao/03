@@ -348,7 +348,7 @@ body {
     <!-- 05 -->
     <h2 class="pub-heading">05 / 数据获取与时间核对 (Telemetry & Timestamps)</h2>
     <div class="pub-box">
-      <strong id="pageTimeCheck">时间核对：{{TS_FULL}}</strong> — 报告时间精确到秒，页面打开时自动校准为最新时间；<strong style="color:#ccff00;">每次推送前会先核对当前时间，并检查各平台抓取日期，若不是当天则重新抓取最新数据后再发送</strong>。所有引用内容均严格标注读取时间戳。<br/><br/>
+      <strong id="pageTimeCheck">时间核对：{{TS_FULL}}</strong> — 报告时间精确到秒，页面打开时自动校准为最新时间；<strong style="color:#ccff00;">每次推送前均会重新抓取，并逐条检查 14 个频道内容是否为频道最新；不复用上一次推送的抓取结果</strong>。所有引用内容均严格标注读取时间戳。<br/><br/>
       <strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/><br/>
       若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。<br/><br/>
       <strong>市场行情动态抓取：</strong>每次构建/推送前由 <strong>market_data.py</strong> 自动抓取最新行情（Yahoo Finance → Stooq 多源回退），生成 market_data.json 并注入本页「行情快照」与微信推送内容；单品抓取失败自动降级显示 "—"，不阻断发布。
@@ -430,7 +430,7 @@ body {
     const tsFull = utcStampFull(now);
     btn.disabled = true;
     btn.textContent = '⏳ 推送中…';
-    status.innerHTML = 'TIME CHECK &gt; 推送前时间核对：' + tsFull + ' — 正在刷新时间戳…<span>▌</span>';
+    status.innerHTML = 'TIME CHECK &gt; 推送前时间核对：' + tsFull + ' — 正在重新抓取并逐条核对频道最新内容，随后刷新正文时间戳…<span>▌</span>';
     try {
       let part = null;
       try {
@@ -441,7 +441,7 @@ body {
       if (!part) { part = { title: '章鱼 AI 全景分析', content: '<div style="background:#eef0f2;color:#141414;padding:16px;"><strong>章鱼 AI 全景分析</strong><br/>推送时间：' + tsFull + '</div>' }; }
       part.content = refreshContentTimestamps(part.content, tsFull);
       const pushTitle = '章鱼 AI 全景分析';
-      status.innerHTML = 'TRANSMITTING &gt; 时间戳已刷新至 ' + tsFull + '，正在发送到微信…<span>▌</span>';
+      status.innerHTML = 'TRANSMITTING &gt; 已重新抓取数据，时间戳已刷新至 ' + tsFull + '，正在发送单页详尽完整报告到微信…<span>▌</span>';
       const body = new URLSearchParams();
       body.append('token', PUSHPLUS_TOKEN);
       body.append('title', pushTitle);
@@ -450,7 +450,7 @@ body {
       if (PUSHPLUS_TOPIC) body.append('topic', PUSHPLUS_TOPIC);
       await fetch('https://www.pushplus.plus/send', { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body.toString() });
       btn.textContent = '✔ 已成功推送';
-      status.innerHTML = '<span style="color:' + '#ccff00' + ';">SUCCESS &gt; 单页完整详尽报告已成功推送！(一对一专属直推 · 时间戳已刷新至 ' + tsFull + ') 请在微信查收。</span><span>▌</span>';
+      status.innerHTML = '<span style="color:' + '#ccff00' + ';">SUCCESS &gt; 单页完整详尽报告已成功推送！(一对一专属直推 · 本次已重新抓取数据 · 时间戳已刷新至 ' + tsFull + ') 请在微信查收。</span><span>▌</span>';
     } catch (err) {
       console.error('推送失败', err);
       btn.textContent = '✖ 推送失败';
