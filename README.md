@@ -38,7 +38,7 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 参考 [Guizang PPT Skill](https://github.com/op7418/guizang-ppt-skill) 的 **Style A「电子杂志 × 电子墨水」**，改造成适合微信阅读的竖版长页面。
 
 - **视觉基调**：电子杂志 × 电子墨水 (Editorial Magazine × E-Ink)，像 *Monocle* 杂志贴上了代码。
-- **字体系统**：标题用衬线宋体 **Noto Serif SC**，正文用黑体栈（SimHei / 微软雅黑 / 苹方 PingFang SC / Noto Sans SC），**全部字号偏小**（正文 12px 紧凑小字号）。
+- **字体系统**：全站使用黑体栈（SimHei / 微软雅黑 / 苹方 PingFang SC / Noto Sans SC），章节标题加粗纯黑，**全部字号偏小**（正文 12px 紧凑小字号）。
 - **调色系统**：
   - 整体**浅灰色背景** `#eef0f2`
   - **正文纯黑** `#141414`
