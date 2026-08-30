@@ -179,6 +179,23 @@ def build_single_wechat_html(now=None):
             f'<div style="color:#7d838b;font-size:10px;margin-top:6px;">{meta}</div>'
             f'</div>')
 
+    # 01 节量化策略说明块（与 report.html 的 .quant-box 对应，微信端全内联样式）
+    quant_block = (
+        f'<div style="background:#f8f9fa;border:1px solid #d9dce0;border-left:3px solid {GR};'
+        f'border-radius:6px;padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;'
+        f'color:{INK};">'
+        f'<div><strong style="background:#000;color:{NEON};font-weight:700;padding:4px 9px;'
+        f'font-size:13px;line-height:1.6;">多量化策略 + 一百多因子 + 多模型 AI 智能分析</strong></div>'
+        f'<div style="margin-top:10px;line-height:1.8;">'
+        f'<span style="color:{GR};font-weight:700;">◆</span> 监控几百个指标，分析公司利润、成交。<br/>'
+        f'<span style="color:{GR};font-weight:700;">◆</span> 动量、新闻情绪、热度等。<br/>'
+        f'<span style="color:{GR};font-weight:700;">◆</span> 由规则驱动，纪律执行，不受情绪干扰。'
+        f'</div>'
+        f'<div style="margin-top:10px;padding-top:9px;border-top:1px dashed #d9dce0;'
+        f'font-weight:700;font-size:12px;color:{INK};">— 每日 章鱼 AI 提高理性分析</div>'
+        f'</div>'
+    )
+
     communities = [
         ('🐮', '1', '富途牛牛社区', '多空分歧', 'mixed',
          '8 月 12 日恒指低开低走收跌 0.83%，技术派指出 26,000 整数关连续受阻后 30 分钟级别再度空头排列，短线视为明确离场信号，需等待次日高开金叉才重新进场；资金派紧盯分时大单与南向净流向，强调“先看异动再做决策”——当日科网普跌、光通信与内房午后突变，盘口反馈远快于叙事；中长线声音则认为：即便回踩 25,200–25,400 箱体下沿，南向 7 月净买入 628.69 亿、8 月仍净流入，叠加盈利修复，明年上半年挑战 28,200 点的路径未被破坏。',
@@ -279,6 +296,8 @@ def build_single_wechat_html(now=None):
     '• ' + key('Qwen Max') + '：专长中文财报与港股通南向资金语义解析、国内宏观政策措辞与公募 ETF 动向研判；<br/>' +
     '• ' + key('Kimi Moonshot') + '：专长长篇公告与港交所披露易权益披露、回购注销与私有化套利条款拆解。<br/>' +
     '根据不同的资产管理任务需求，发挥各个模型的优势来提供全方位数据支持！[加油]')}
+
+  {quant_block}
 
   {h('02 / 全球经济与财经动态 (Global Macro & HK Battlefield)')}
   {box(
