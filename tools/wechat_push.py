@@ -11,8 +11,8 @@
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
   • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 14 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
-  • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 荧光绿标题；
-    重点字体为荧光绿(置于黑色背景)，其余均为荧光绿与黑色配搭，全部字号偏小，适合微信竖版长页面阅读。
+  • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 黑色标题；
+    重点文字加粗纯黑，装饰线保留荧光绿点缀，其余均为黑色与灰色配搭，全部字号偏小，适合微信竖版长页面阅读。
 
 动态抓取管线 (动态抓取真正上线):
   python3 market_data.py && python3 build_site.py            # ① 抓行情 → ② 建站 (report.html)
@@ -77,8 +77,8 @@ def build_single_wechat_html(now=None):
     """构建单页完整的微信 HTML 推送卡片。
 
     风格: 「电子杂志 × 电子墨水」(Guizang PPT Skill · Style A)，改造为适合微信阅读的
-    竖版长页面。配色: 浅灰底 + 正文纯黑 + 荧光绿标题；重点字体为荧光绿(且置于黑色背景)，
-    其余均为荧光绿与黑色配搭。全部字号偏小。
+    竖版长页面。配色: 浅灰底 + 正文纯黑 + 黑色标题；重点文字加粗纯黑，
+    装饰线保留荧光绿点缀，其余均为黑色与灰色配搭。全部字号偏小。
 
     动态数据: 若存在 market_data.json（由 market_data.py 构建时自动抓取），
     正文行情数字、行情快照与 14 大社区「最新读取」日期全部注入最新值；
@@ -88,8 +88,9 @@ def build_single_wechat_html(now=None):
     ts = now.strftime('%Y-%m-%d %H:%M UTC')
     ts_full = now.strftime('%Y-%m-%d %H:%M:%S UTC')
 
-    GR = '#ccff00'   # 荧光绿 (浅灰底上的标题/强调)
-    NEON = '#ccff00' # 霓虹绿 (黑底上的重点)
+    GR = '#ccff00'   # 荧光绿 (仅装饰: 卡片/研判框左边条，与网站版一致)
+    NEON = '#ccff00' # 霓虹绿 (仅用于黑底状态徽章上的文字, 黑底上可读)
+    INK = '#141414'  # 纯黑 (标题/重点文字 — 浅灰底上的可读文字一律用黑)
 
     # ---------- 动态行情注入 (market_data.json) ----------
     _md = load_market_data()
@@ -147,15 +148,15 @@ def build_single_wechat_html(now=None):
         return f'{ok}/{total} 项同步成功（{", ".join(failed)} 降级为 —）'
 
     def key(t):
-        return f'<strong style="background:#000;color:{NEON};padding:1px 5px;">{t}</strong>'
+        return f'<strong style="color:#000;font-weight:700;">{t}</strong>'
 
     def h(t):
-        return (f'<div style="color:{GR};font-family:\'Noto Serif SC\',serif;font-size:15px;'
-                f'font-weight:700;border-left:4px solid {GR};padding-left:9px;'
+        return (f'<div style="color:{INK};font-family:\'Noto Serif SC\',serif;font-size:15px;'
+                f'font-weight:700;border-left:4px solid {INK};padding-left:9px;'
                 f'margin:24px 0 10px;">{t}</div>')
 
     def sub(t):
-        return f'<div style="color:{GR};font-weight:700;font-size:13px;margin-bottom:6px;">{t}</div>'
+        return f'<div style="color:{INK};font-weight:700;font-size:13px;margin-bottom:6px;">{t}</div>'
 
     def box(inner):
         return (f'<div style="background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;'
@@ -169,12 +170,12 @@ def build_single_wechat_html(now=None):
         return (
             f'<div style="background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid {edge};'
             f'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;">'
-            f'<div style="color:{GR};font-weight:700;font-size:13px;">{icon} {no}. {name} '
+            f'<div style="color:{INK};font-weight:700;font-size:13px;">{icon} {no}. {name} '
             f'<span style="background:#000;color:{chip};font-size:10px;padding:1px 6px;margin-left:4px;">{label}</span></div>'
             f'<div style="margin-top:6px;line-height:1.8;"><strong>平台深度热评：</strong>{quote}</div>'
             f'<div style="background:#eceef0;border-left:3px solid {GR};border-radius:4px;padding:8px 10px;'
             f'margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;">'
-            f'<strong style="color:{GR};">▶ AI 深度战术研判：</strong>{verdict}</div>'
+            f'<strong style="color:#0a0a0a;">▶ AI 深度战术研判：</strong>{verdict}</div>'
             f'<div style="color:#7d838b;font-size:10px;margin-top:6px;">{meta}</div>'
             f'</div>')
 
@@ -263,7 +264,7 @@ def build_single_wechat_html(now=None):
 
   <!-- 顶部标题 -->
   <div style="border-bottom:2px solid #141414;padding-bottom:14px;margin-bottom:16px;">
-    <div style="color:{GR};font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;">章鱼 AI 全景分析</div>
+    <div style="color:{INK};font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;">章鱼 AI 全景分析</div>
     <div style="color:#141414;font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
   </div>
 
@@ -304,8 +305,8 @@ def build_single_wechat_html(now=None):
 
   {h('03 / 社区论坛热评 (14 大平台详尽深入全景研判)')}
   {box(
-    '<strong style="color:' + GR + ';font-size:13px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>' +
-    key('偏多 6 家') + ' · <strong style="background:#000;color:#cfcfcf;padding:1px 5px;">偏空 3 家</strong> · <strong style="background:#000;color:#cfcfcf;padding:1px 5px;">中性 3 家</strong> · ' + key('多空分歧 2 家') + '。<br/>' +
+    '<strong style="color:#000;font-size:13px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>' +
+    key('偏多 6 家') + ' · <strong style="color:#333;font-weight:700;">偏空 3 家</strong> · <strong style="color:#333;font-weight:700;">中性 3 家</strong> · ' + key('多空分歧 2 家') + '。<br/>' +
     '<strong style="color:#141414;">核心主线共识</strong>：8 月初五连阳冲击 26,000–26,200 后连续受阻，短线进入箱体消化（' + dq() + '收 ' + qq('HSI', '25,440') + '，' + pct('HSI', '−0.83%') + '）；南向 7 月净买入 628.69 亿、8 月仍净流入，中期“估值修复 + 政策托底”未被证伪。跨平台配置答案：进攻端切向光通信 / AI 硬科技与内房政策博弈，互联网龙头高位兑现；防御端继续重仓高息、REITs、电信与公用事业，并以黄金（约 ' + qq('GOLD', '4,400') + ' 美元）与铜锂对冲霍尔木兹溢价。')}
 
   {community_html}
@@ -322,7 +323,7 @@ def build_single_wechat_html(now=None):
 
   {h('06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)')}
   {box(
-    '本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 荧光绿标题，重点字体为荧光绿文字配黑色背景，其余均为荧光绿与黑色配搭。<br/>' +
+    '本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 黑色标题，重点文字加粗纯黑，装饰线保留荧光绿点缀，其余均为黑色与灰色配搭。<br/>' +
     '<strong>字体与字号规范：</strong>全文统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 / Noto Sans SC 黑体栈），正文 12px 紧凑小字号，标题加粗分级。<br/>' +
     '<strong>推送时间协议：</strong>每一次推送前先核对当前时间，标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong>实时刷新为最新时间</strong>后再发送。<br/>' +
     '<strong>单页协议：</strong>微信推送采用<strong>一对一专属直发</strong>（直接推送到 Token 拥有者个人微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
@@ -340,7 +341,7 @@ def build_single_wechat_html(now=None):
 
   <!-- 底部作者与结语 -->
   <div style="border-top:2px solid #141414;padding:16px 0 6px;margin-top:20px;font-size:12px;color:#141414;line-height:1.9;">
-    <strong style="color:{GR};font-size:13px;">作者：章鱼 ai&nbsp;&nbsp;仅供参考，分析研究</strong><br/>
+    <strong style="color:{INK};font-size:13px;">作者：章鱼 ai&nbsp;&nbsp;仅供参考，分析研究</strong><br/>
     全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。<br/>
     底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。<br/>
     根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]<br/>
