@@ -9,6 +9,7 @@
 核心特点:
   • 一对一专属直推: 默认推送至 Token 所有人本人 (PUSHPLUS_TOPIC='')，零群组干扰。
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
+  • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 14 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
   • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 荧光绿标题；
     重点字体为荧光绿(置于黑色背景)，其余均为荧光绿与黑色配搭，全部字号偏小，适合微信竖版长页面阅读。
@@ -47,8 +48,12 @@ TITLE = '章鱼 AI 全景分析'
 CONTENT_LIMIT = 100000
 CONTENT_SAFE_LIMIT = 95000
 MAX_PUSH_RETRIES = 3
+EXPECTED_CHANNEL_COUNT = 14
 
 MINUS = '\u2212'  # U+2212 真正的减号，与全文风格一致
+
+# 14 大社区「综合站内 … 最新读取 YYYY-MM-DD」逐频道标记 (用于推送前逐条核对)
+CHANNEL_READ_RE = re.compile(r'综合站内[^<]*?最新读取\s+(20\d{2}-\d{2}-\d{2})')
 
 
 def load_market_data():
@@ -310,7 +315,7 @@ def build_single_wechat_html(now=None):
 
   {h('05 / 数据获取与时间核对 (Telemetry & Timestamps)')}
   {box(
-    '<strong>时间核对：' + ts_full + '</strong> — 本次推送前已核对当前时间并检查各平台抓取日期（不是当天则已重新抓取），正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>' +
+    '<strong>时间核对：' + ts_full + '</strong> — 本次推送前已重新抓取各平台数据（不复用历史抓取结果），并逐条核对 14 个频道的「最新读取」标记，正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>' +
     '<strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/>' +
     '若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。<br/>' +
     '市场行情由 <strong>market_data.py</strong> 每次构建/推送前自动抓取（Yahoo Finance / Stooq 多源回退），行情快照与正文数字同步刷新；单品抓取失败自动降级显示 "—"，不阻断推送。')}
@@ -353,27 +358,41 @@ def extract_fetch_dates(text):
     return sorted(set(re.findall(r'最新读取\s+(20\d{2}-\d{2}-\d{2})', text)))
 
 def assert_fetch_dates_are_today(parts, now, strict=True):
-    """推送前核对抓取日期：若不是当天则拒绝推送，避免发出过期研判。
+    """推送前逐条核对 14 个频道「最新读取」标记，缺项或非当天时拒绝推送。
 
-    strict=True(默认, 手动 --push): 一旦发现非当天抓取日期立即拒绝退出。
+    核对两项:
+      1) 「综合站内 … 最新读取」标记条数必须等于 EXPECTED_CHANNEL_COUNT (14)，
+         防止频道缺项/检查未完成被静默放过 (不因当天已抓取过而复用历史结果)；
+      2) 每条标记日期必须是当天 (本轮抓取日期)，避免发出过期研判。
+
+    strict=True(默认, 手动 --push): 标记缺项/不足或发现非当天日期时立即拒绝退出。
     strict=False(定时自动推送, --scheduled): 仅打印警告不阻断推送，保证每天 09:00 定时任务可运行。
     """
     today = now.strftime('%Y-%m-%d')
-    stale = []
-    labeled = []
+    reads = []
     for title, content in parts:
-        for d in extract_fetch_dates(content):
-            labeled.append((title, d))
-            if d != today:
-                stale.append((title, d))
-    if stale:
-        uniq = sorted({d for _, d in stale})
-        msg = f'抓取日期 {", ".join(uniq)} 不是当天 {today}'
+        reads.extend(CHANNEL_READ_RE.findall(content))
+    failed = False
+    if len(reads) != EXPECTED_CHANNEL_COUNT:
+        failed = True
+        msg = (f'仅找到 {len(reads)}/{EXPECTED_CHANNEL_COUNT} 条频道「最新读取」标记，'
+               '必须逐条完成频道最新内容检查后才能推送')
         if strict:
-            print(f'错误: {msg}，请先重新抓取最新数据后再推送。', file=sys.stderr)
+            print(f'错误: {msg}。', file=sys.stderr)
             sys.exit(5)
         print(f'⚠️ 警告: {msg}，定时自动推送继续执行(如需严格校验请改用 --push)。')
-    print(f'📅 抓取日期核对: 共 {len(labeled)} 处标注，允许推送')
+    stale = sorted({d for d in reads if d != today})
+    if stale:
+        failed = True
+        msg = f'频道最新读取日期 {", ".join(stale)} 不是当天 {today}'
+        if strict:
+            print(f'错误: {msg}，请重新抓取并逐条检查频道最新内容后再推送。', file=sys.stderr)
+            sys.exit(5)
+        print(f'⚠️ 警告: {msg}，定时自动推送继续执行(如需严格校验请改用 --push)。')
+    if failed:
+        print(f'📅 频道最新内容核对: {len(reads)}/{EXPECTED_CHANNEL_COUNT} 条标记，未全部核对为当天，不建议推送')
+    else:
+        print(f'📅 频道最新内容核对: {len(reads)}/{EXPECTED_CHANNEL_COUNT} 条均已逐条检查，读取日期为 {today}，允许推送')
 
 def build_articles(source_html=SOURCE_HTML, now=None):
     """返回 (parts, ts, ts_full): parts 为 [(title, content)] 包含 1 条单页完整推送。
