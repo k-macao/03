@@ -14,8 +14,8 @@
   --card:#f8f9fa;
   --border:#d9dce0;
   --muted:#7d838b;
-  --green:#ccff00;
-  --neon:#ccff00;
+  --green:#00e05c;
+  --neon:#39ff14;
   --serif:'Noto Serif SC',serif;
   --hei:'黑体','SimHei','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;
 }
@@ -40,29 +40,31 @@ body {
   box-shadow:0 10px 30px rgba(20,20,20,0.06);
 }
 .masthead {
-  padding:34px 30px 20px;
-  border-bottom:2px solid var(--ink);
+  padding:34px 30px 22px;
+  background:#000;
+  border-bottom:4px solid var(--neon);
 }
 .masthead h1 {
   font-family:var(--serif);
-  color:var(--ink);
+  color:var(--neon);
   font-size:clamp(26px,4vw,40px);
-  font-weight:700;
+  font-weight:900;
   letter-spacing:1px;
   line-height:1.3;
+  text-shadow:0 0 18px rgba(57,255,20,0.45);
 }
 .masthead .sub {
-  color:var(--ink);
+  color:var(--green);
   font-size:15px;
   margin-top:8px;
 }
 .main { padding:10px 30px 26px; }
 .pub-heading {
   font-family:var(--serif);
-  color:var(--ink);
+  color:var(--green);
   font-size:19px;
   font-weight:700;
-  border-left:4px solid var(--ink);
+  border-left:4px solid var(--neon);
   padding-left:12px;
   margin:34px 0 14px;
 }
@@ -76,10 +78,10 @@ body {
   line-height:1.85;
 }
 .pub-box .lead {
-  background:transparent;color:var(--ink);padding:2px 7px;font-size:12.5px;
+  background:#000;color:var(--neon);padding:3px 8px;font-size:12.5px;
 }
 .pub-sub {
-  color:var(--ink); font-weight:700; font-size:13.5px; margin-bottom:6px;
+  color:var(--green); font-weight:700; font-size:13.5px; margin-bottom:6px;
 }
 .model-grid {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:14px 0;
@@ -88,7 +90,7 @@ body {
   background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
 }
 .model-icon { font-size:22px; }
-.model-name { color:var(--ink); font-weight:700; font-size:13px; margin-top:6px; }
+.model-name { color:var(--green); font-weight:700; font-size:13px; margin-top:6px; }
 .model-desc { color:var(--ink); font-size:11.5px; margin-top:4px; }
 .stat-grid {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:14px 0;
@@ -97,7 +99,7 @@ body {
   background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px;
 }
 .stat-title { color:var(--muted); font-size:11px; font-weight:700; margin-bottom:6px; }
-.stat-val { color:var(--ink); font-size:18px; font-weight:700; margin-bottom:8px; line-height:1.3; }
+.stat-val { color:var(--green); font-size:18px; font-weight:700; margin-bottom:8px; line-height:1.3; }
 .stat-desc { font-size:12px; color:var(--ink); line-height:1.7; }
 .filter-row { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 16px; }
 .filter-tab {
@@ -111,9 +113,9 @@ body {
   border-radius:8px; padding:14px 16px; margin:10px 0; font-size:12.5px;
 }
 .pub-card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.pub-name { color:var(--ink); font-weight:700; font-size:13px; }
+.pub-name { color:var(--green); font-weight:700; font-size:13px; }
 .pub-chip {
-  background:var(--ink); font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; color:#fff;
+  background:#000; font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; color:var(--neon);
 }
 .pub-quote { color:var(--ink); line-height:1.8; }
 .pub-verdict {
@@ -123,12 +125,12 @@ body {
 .pub-meta { color:var(--muted); font-size:10.5px; margin-top:8px; }
 .pixel-list { list-style:none; margin:12px 0; }
 .pixel-list li { position:relative; padding-left:22px; margin-bottom:10px; line-height:1.75; }
-.pixel-list li::before { content:"◆"; position:absolute; left:0; color:var(--ink); }
+.pixel-list li::before { content:"◆"; position:absolute; left:0; color:var(--green); }
 .push-wrap {
   background:var(--card); border:1px solid var(--border); border-radius:8px;
   padding:16px 18px; margin:26px 0 8px;
 }
-.push-title { font-family:var(--serif); color:var(--ink); font-size:17px; font-weight:700; margin-bottom:6px; }
+.push-title { font-family:var(--serif); color:var(--green); font-size:17px; font-weight:700; margin-bottom:6px; }
 .push-tip { color:var(--ink); font-size:12px; margin-bottom:12px; }
 .pixel-push-btn {
   appearance:none; background:var(--green); color:#000; font-family:var(--hei);
@@ -141,11 +143,11 @@ body {
   border-radius:6px; padding:10px 12px; margin-top:12px; line-height:1.6;
 }
 .footer {
-  border-top:2px solid var(--ink); padding:20px 30px 30px;
+  border-top:4px solid var(--neon); padding:20px 30px 30px; background:#000;
 }
-.footer .author { color:var(--ink); font-weight:700; font-size:14px; }
-.footer p { color:var(--ink); font-size:12px; margin-top:6px; }
-.footer .models { color:var(--muted); font-size:11px; margin-top:10px; }
+.footer .author { color:var(--neon); font-weight:700; font-size:14px; }
+.footer p { color:#c8c8c8; font-size:12px; margin-top:6px; }
+.footer .models { color:#8a8a8a; font-size:11px; margin-top:10px; }
 .start { color:#141414; border-left:3px solid #141414; }
 .quote-table { width:100%; border-collapse:collapse; margin:8px 0 4px; font-size:11.5px; }
 .quote-table th {
@@ -268,13 +270,13 @@ body {
   <div class="pub-meta">综合站内 3 条深度研报与讨论 · 最新读取 {{CD_02}}</div>
 </article>
 <article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">🐯 3. 老虎社区</span><span class="pub-chip" style="color:#fff;">偏空</span></div>
+  <div class="pub-card-head"><span class="pub-name">🐯 3. 老虎社区</span><span class="pub-chip">偏空</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>跨境账户情绪仍偏弱：8 月 11–12 日港股跌幅明显大于上证（恒指 −1.1%、−0.83% vs 沪指相对抗跌），被解读为外资 trim China exposure 快于内资；美伊和解预期降温、霍尔木兹推升油价，叠加华尔街隔夜科技股回撤，亚洲时段反弹乏力。社区对折价配售、H 股大额募资（中际旭创等）仍敏感，认为股权稀释压制追高意愿；操作共识是继续观望，等待金叉与 25,800 放量收复，短线维持离场信号。</p>
   <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏空观望。外资定价的离岸市场对地缘与美股映射更敏感，港股“先跌于 A 股”格局未改；在缺乏右侧信号前不宜抄底。</div>
   <div class="pub-meta">综合站内 3 条热门跨境讨论 · 最新读取 {{CD_03}}</div>
 </article>
 <article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">💰 4. 东方财富港股股吧</span><span class="pub-chip" style="color:#fff;">偏空</span></div>
+  <div class="pub-card-head"><span class="pub-name">💰 4. 东方财富港股股吧</span><span class="pub-chip">偏空</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>股吧情绪从 8 月初追高迅速切到“迷茫期”：8 月 12 日恒指低开 0.6%、全天低开低走，科网股普跌被视作减仓信号；讨论焦点从“五连阳还能不能追”转为“26,000 失败后会不会回踩 25,200”。内房午后突然拉升（中国金茂涨超 13%、越秀地产涨近 10%）被解读为政策博弈炒作而非趋势反转；消费防御（康师傅、龙湖、华润置地）相对抗跌。多数声音主张先看 25,400 箱体下沿能否守住，跌破再看 24,400 / 23,500。</p>
   <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空。散户从狂热切换到观望，低开低走与科网兑现共振；内房脉冲难改大盘箱体下修的短线基调。</div>
   <div class="pub-meta">综合站内 3 条高互动主题帖 · 最新读取 {{CD_04}}</div>
@@ -292,13 +294,13 @@ body {
   <div class="pub-meta">综合站内 3 条宏观深度长文 · 最新读取 {{CD_06}}</div>
 </article>
 <article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">🇭🇰 7. 香港讨论区财经版</span><span class="pub-chip" style="color:#fff;">中性</span></div>
+  <div class="pub-card-head"><span class="pub-name">🇭🇰 7. 香港讨论区财经版</span><span class="pub-chip">中性</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>本地炒鬼对 8 月 12 日低开低走并不意外——“又係 26,000 附近派货”。内房午后突然炒作（中国金茂、越秀、绿城）被当成政策消息博弈，多数人表示“睇得、唔好追”。共识仍是港股弱于 A 股、先跌后上，必须等金叉同南向持续净流入先至加仓；配置上继续揽住高息、本地电信、REITs 同公用，地产蓝筹只当短线股息工具。</p>
   <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性。本土零售维持防守观望，内房脉冲难改仓位结构；右侧金叉出现前不宜激进加仓。</div>
   <div class="pub-meta">综合站内 3 条粤语热门讨论贴 · 最新读取 {{CD_07}}</div>
 </article>
 <article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">🔥 8. LIHKG 连登财经台</span><span class="pub-chip" style="color:#fff;">偏空</span></div>
+  <div class="pub-card-head"><span class="pub-name">🔥 8. LIHKG 连登财经台</span><span class="pub-chip">偏空</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>连登交易员认为 8 月初 RSI 逼近 72、三周涨 8.5% 后未能放量突破 26,200–26,500，超买回调已经兑现：8 月 6 日 −1.49%、11 日 −1.1%、12 日 −0.83%。主流策略从“追五连阳”全面切到期权 / 牛熊证做波动率，街货比 49:51 被解读为多空打平、适合两边开仓；硬止损纪律被反复强调。中期仍认资金再平衡，但短线要紧盯 6h/12h ALMA 与 25,200 牛证重货区，失守再减。</p>
   <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空 (超买回调兑现中)。26,000 失败后波动率交易优于方向单；未站回 25,800–26,000 前，杠杆多头盈亏比不佳。</div>
   <div class="pub-meta">综合站内 3 条高频交易讨论链 · 最新读取 {{CD_08}}</div>
@@ -310,13 +312,13 @@ body {
   <div class="pub-meta">综合站内 3 篇机构仓位拆解报告 · 最新读取 {{CD_09}}</div>
 </article>
 <article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">🐜 10. 蚂蚁财富港股社区</span><span class="pub-chip" style="color:#fff;">中性</span></div>
+  <div class="pub-card-head"><span class="pub-name">🐜 10. 蚂蚁财富港股社区</span><span class="pub-chip">中性</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>8 月初五连阳时散户港股 ETF 申购与搜索热度冲高，被视作反向指标；经过 26,000 失败与连续回调后，社区狂热明显降温，讨论从“还能不能追”转为“定投要不要暂停”。理财顾问仍主推高息红利、REITs、电信与公用事业作为底仓，提醒不要在箱体上沿加杠杆。反向指标警报部分解除，但基民定投惯性仍在，情绪从极度乐观回到中性偏防守。</p>
   <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性 (狂热降温)。散户 FOMO 消退降低了短线见顶压力，但尚未出现恐慌性申赎；适合把仓位从追涨切换回定投式防御底仓。</div>
   <div class="pub-meta">综合站内 3 条基民热评与定投贴 · 最新读取 {{CD_10}}</div>
 </article>
 <article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">👾 11. Reddit (r/ChinaStocks)</span><span class="pub-chip" style="color:#fff;">中性</span></div>
+  <div class="pub-card-head"><span class="pub-name">👾 11. Reddit (r/ChinaStocks)</span><span class="pub-chip">中性</span></div>
   <p class="pub-quote"><strong>平台深度热评：</strong>英文社区仍把港股当作投资中国核心资产最便利的离岸通道，VIE / ADR 等价性讨论未停。增量话题切到宏观：8 月 12 日美国 CPI 符合预期降温、7 月就业意外净减，降低了美联储 9 月加息的紧迫性；同时霍尔木兹和解预期反复、油价走高，被视作持有中国风险资产的主要外部扰动。阿里巴巴将于 8 月 20 日公布业绩，成为个股层面的观察点。整体仍偏“可投资性 + 事件驱动”，缺少一致的指数多空押注。</p>
   <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性。外资认可通道与估值，但在地缘与政策细节落地前维持审慎评估，等待 CPI 后续路径与中概业绩季。</div>
   <div class="pub-meta">综合站内 3 篇外文热门深度分析 · 最新读取 {{CD_11}}</div>
@@ -357,7 +359,7 @@ body {
     <!-- 06 -->
     <h2 class="pub-heading">06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)</h2>
     <div class="pub-box">
-      本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 黑色标题，重点文字加粗纯黑，装饰线保留荧光绿点缀，其余均为黑色与灰色配搭。<br/><br/>
+      本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 荧光绿标题，重点文字为荧光绿字 + 黑色底，装饰线荧光绿。<br/><br/>
       <strong>字体与字号规范：</strong>全站统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 PingFang SC / Noto Sans SC 黑体栈），标题使用<strong>衬线宋体</strong>（Noto Serif SC），正文 12px 紧凑小字号，标题加粗分级。<br/><br/>
       <strong>推送时间协议：</strong>每一次推送前先核对当前时间，将标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong style="color:#000;">实时刷新为最新时间</strong>后再发送，确保收到的内容时间永远是最新的。<br/><br/>
       <strong>单页协议：</strong>微信推送采用<strong>一对一专属直发</strong>（直接推送到 Token 拥有者个人微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。
