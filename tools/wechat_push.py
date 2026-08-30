@@ -358,15 +358,7 @@ def build_single_wechat_html(now=None):
 
   {h('01 / 底层模型与全景推理机制 (Multi-Model Alliance)')}
   {box(
-    key('全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。') + '<br/>' +
-    '底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，根据资产管理任务进行分工协同：<br/>' +
-    '• ' + key('Claude 3.5 Sonnet') + '：专长长文档逻辑链推理、非结构化研报语义挖掘与跨语言财报深度比对；<br/>' +
-    '• ' + key('ChatGPT-4o') + '：专长全球宏观经济模型映射、跨资产相关性分析与海外宏观政策流动性传导；<br/>' +
-    '• ' + key('Gemini 1.5 Pro') + '：专长超长上下文跨论坛时间线对照、期权席位异动与海量历史数据检索；<br/>' +
-    '• ' + key('Grok-2') + '：专长全球社媒与 FinTwit 突发地缘舆情穿透、海外宏观对冲基金实时持仓追踪；<br/>' +
-    '• ' + key('Qwen Max') + '：专长中文财报与港股通南向资金语义解析、国内宏观政策措辞与公募 ETF 动向研判；<br/>' +
-    '• ' + key('Kimi Moonshot') + '：专长长篇公告与港交所披露易权益披露、回购注销与私有化套利条款拆解。<br/>' +
-    '根据不同的资产管理任务需求，发挥各个模型的优势来提供全方位数据支持！[加油]')}
+    key('全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。'))}
 
   {quant_block}
 
@@ -435,8 +427,6 @@ def build_single_wechat_html(now=None):
   <div style="background:#000;border-top:4px solid {NEON};padding:16px 12px 10px;margin:20px -12px 0;font-size:12px;color:#c8c8c8;line-height:1.9;">
     <strong style="color:{NEON};font-size:13px;">作者：章鱼 ai&nbsp;&nbsp;仅供参考，分析研究</strong><br/>
     全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。<br/>
-    底层所使用的大语言模型（LLM）多模式背后结合使用了多种不同的先进模型，包括但不限于 Claude、ChatGPT、Gemini、Grok、Qwen 以及 Kimi。<br/>
-    根据不同的资产管理任务需求，更好地发挥各个模型的优势来提供数据支持！[加油]<br/>
     <span style="color:#7d838b;font-size:10px;">生成时间：{ts_full} · 24h 内最新可读取内容 · 100K 完整单页版 · 社区 {len(communities)} 源动态抓取</span>
   </div>
 
