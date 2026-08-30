@@ -83,15 +83,20 @@ body {
 .pub-sub {
   color:var(--green); font-weight:700; font-size:13.5px; margin-bottom:6px;
 }
-.model-grid {
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:14px 0;
+.quant-box {
+  background:var(--card); border:1px solid var(--border); border-left:3px solid var(--green);
+  border-radius:8px; padding:16px 18px; margin:14px 0;
 }
-.model-card {
-  background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
+.quant-headline {
+  display:inline-block; background:#000; color:var(--neon);
+  font-size:13px; font-weight:700; padding:5px 10px; border-radius:4px; line-height:1.6;
 }
-.model-icon { font-size:22px; }
-.model-name { color:var(--green); font-weight:700; font-size:13px; margin-top:6px; }
-.model-desc { color:var(--ink); font-size:11.5px; margin-top:4px; }
+.quant-box .pixel-list { margin:12px 0 0; }
+.quant-box .pixel-list li { margin-bottom:8px; }
+.quant-sign {
+  margin-top:12px; padding-top:10px; border-top:1px dashed var(--border);
+  color:var(--ink); font-size:12px; font-weight:700;
+}
 .stat-grid {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:14px 0;
 }
@@ -198,12 +203,15 @@ body {
       • <strong style="color:#000;font-weight:700;">Kimi Moonshot</strong>：专长长篇公告与港交所披露易权益披露、回购注销与私有化套利条款拆解。<br/>
       根据不同的资产管理任务需求，发挥各个模型的优势来提供全方位数据支持！[加油]
     </div>
-    <div class="model-grid"><div class="model-card"><div class="model-icon">🧠</div><div class="model-name">Claude 3.5</div><div class="model-desc">长文档逻辑链推理 · 非结构化研报语义挖掘 · 跨语言财报深度比对</div></div>
-<div class="model-card"><div class="model-icon">⚡</div><div class="model-name">ChatGPT-4o</div><div class="model-desc">全球宏观经济模型映射 · 跨资产相关性 · 海外宏观政策流动性传导</div></div>
-<div class="model-card"><div class="model-icon">🌌</div><div class="model-name">Gemini 1.5</div><div class="model-desc">超长上下文跨论坛时间线对照 · 期权席位异动 · 海量历史数据检索</div></div>
-<div class="model-card"><div class="model-icon">🚀</div><div class="model-name">Grok-2</div><div class="model-desc">全球社媒与 FinTwit 地缘舆情穿透 · 海外对冲基金实时持仓追踪</div></div>
-<div class="model-card"><div class="model-icon">🐉</div><div class="model-name">Qwen Max</div><div class="model-desc">中文财报与港股通南向资金语义解析 · 国内宏观政策措辞 · 公募 ETF 动向</div></div>
-<div class="model-card"><div class="model-icon">🌙</div><div class="model-name">Kimi</div><div class="model-desc">长篇公告与港交所披露易权益披露 · 回购注销与私有化套利条款拆解</div></div></div>
+    <div class="quant-box">
+      <span class="quant-headline">多量化策略 + 一百多因子 + 多模型 AI 智能分析</span>
+      <ul class="pixel-list">
+        <li>监控几百个指标，分析公司利润、成交。</li>
+        <li>动量、新闻情绪、热度等。</li>
+        <li>由规则驱动，纪律执行，不受情绪干扰。</li>
+      </ul>
+      <div class="quant-sign">— 每日 章鱼 AI 提高理性分析</div>
+    </div>
 
     <!-- 02 -->
     <h2 class="pub-heading">02 / 全球经济与财经动态 (Global Macro & HK Battlefield)</h2>
