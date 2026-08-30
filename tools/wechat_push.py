@@ -182,7 +182,7 @@ def build_single_wechat_html(now=None):
         return f'<strong style="background:#000;color:{NEON};font-weight:700;padding:1px 5px;">{t}</strong>'
 
     def h(t):
-        return (f'<div style="color:{GR};font-family:\'Noto Serif SC\',serif;font-size:15px;'
+        return (f'<div style="color:#000;font-family:\'黑体\',\'SimHei\',\'PingFang SC\',\'Hiragino Sans GB\',\'Microsoft YaHei\',\'Noto Sans SC\',sans-serif;font-size:15px;'
                 f'font-weight:700;border-left:4px solid {NEON};padding-left:9px;'
                 f'margin:24px 0 10px;">{t}</div>')
 
