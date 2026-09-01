@@ -11,8 +11,8 @@
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
   • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 14 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
-  • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 荧光绿标题；
-    重点文字为荧光绿字 + 黑色底，装饰线荧光绿，全部字号偏小，适合微信竖版长页面阅读。
+  • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14）；
+    重点文字为荧光绿字 + 黑色底，装饰线深绿，全部字号偏小，适合微信竖版长页面阅读。
 
 动态抓取管线 (动态抓取真正上线 — 行情+社区双动态):
   python3 market_data.py && python3 community_data.py && python3 build_site.py   # ① 抓行情+社区 → ② 建站 (report.html)
@@ -98,8 +98,8 @@ def build_single_wechat_html(now=None):
     ts = now.strftime('%Y-%m-%d %H:%M UTC')
     ts_full = now.strftime('%Y-%m-%d %H:%M:%S UTC')
 
-    GR = '#00e05c'   # 荧光绿标题
-    NEON = '#39ff14' # 霓虹绿 (黑底高亮)
+    GR = '#007a35'   # 深绿标题 (浅底文字高对比, 对 #f8f9fa 约 5.2:1, 达 WCAG AA)
+    NEON = '#39ff14' # 霓虹绿 (黑底高亮, 对 #000 约 15.5:1)
     INK = '#141414'  # 正文纯黑
 
     # ---------- 动态行情注入 (market_data.json) ----------
@@ -355,7 +355,7 @@ def build_single_wechat_html(now=None):
   <!-- 顶部标题 -->
   <div style="background:#000;border-bottom:4px solid {NEON};padding:16px 12px 14px;margin:0 -12px 16px;">
     <div style="color:{NEON};font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;">章鱼 AI 全景分析</div>
-    <div style="color:{GR};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
+    <div style="color:{NEON};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
   </div>
 
   {h('01 / 底层模型与全景推理机制 (Multi-Model Alliance)')}
@@ -409,7 +409,7 @@ def build_single_wechat_html(now=None):
 
   {h('06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)')}
   {box(
-    '本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 荧光绿标题，重点文字为荧光绿字 + 黑色底，装饰线荧光绿。<br/>' +
+    '本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14），重点文字为荧光绿字 + 黑色底，装饰线深绿。<br/>' +
     '<strong>字体与字号规范：</strong>全文统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 / Noto Sans SC 黑体栈），正文 12px 紧凑小字号，标题加粗分级。<br/>' +
     '<strong>推送时间协议：</strong>每一次推送前先核对当前时间，标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong>实时刷新为最新时间</strong>后再发送。<br/>' +
     '<strong>单页协议：</strong>微信推送采用<strong>一对一专属直发</strong>（直接推送到 Token 拥有者个人微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
