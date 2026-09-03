@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI 全景分析 — 14 大社区动态抓取 (community_data.py)
+章鱼 AI 量化策略日报 — 14 大社区动态抓取 (community_data.py)
 
 每次构建/推送前自动抓取 14 大社区最新研判，生成 community_data.json，
 供 build_site.py 与 tools/wechat_push.py 动态注入，实现「14 源动态抓取真正上线」：

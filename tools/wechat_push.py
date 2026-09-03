@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI 全景分析 — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 14 源动态抓取)
+章鱼 AI 量化策略日报 — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 14 源动态抓取)
 
 将 report.html 转换为微信 (PushPlus HTML 模板) 兼容的内联样式 HTML，
 生成 wechat.json 供网页按钮使用，并可直接推送至 PushPlus。
@@ -43,7 +43,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE_HTML = os.path.join(REPO_ROOT, 'report.html')
 PAGES_URL = 'https://k-macao.github.io/03/'
 PUSH_URL = 'https://www.pushplus.plus/send'
-TITLE = '章鱼 AI 全景分析'
+TITLE = '章鱼 AI 量化策略日报'
 # 解除限制，支持 100,000 字符
 CONTENT_LIMIT = 100000
 CONTENT_SAFE_LIMIT = 95000
@@ -354,7 +354,7 @@ def build_single_wechat_html(now=None):
 
   <!-- 顶部标题 -->
   <div style="background:#000;border-bottom:4px solid {NEON};padding:16px 12px 14px;margin:0 -12px 16px;">
-    <div style="color:{NEON};font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;">章鱼 AI 全景分析</div>
+    <div style="color:{NEON};font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;">章鱼 AI 量化策略日报</div>
     <div style="color:{NEON};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
   </div>
 
