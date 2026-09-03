@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI 全景分析 — 微信推送工具 (一对一 · 单页详尽完整版 · 14 源动态抓取)
+章鱼 AI 全景分析 — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 14 源动态抓取)
 
 将 report.html 转换为微信 (PushPlus HTML 模板) 兼容的内联样式 HTML，
 生成 wechat.json 供网页按钮使用，并可直接推送至 PushPlus。
 
 核心特点:
-  • 一对一专属直推: 默认推送至 Token 所有人本人 (PUSHPLUS_TOPIC='')，零群组干扰。
+  • 一对多群组推送: 默认推送至 oai.1 群组 (PUSHPLUS_TOPIC='oai.1')，群内所有关注成员同步接收。
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
   • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 14 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
@@ -22,12 +22,12 @@
 用法:
   python3 tools/wechat_push.py --emit _site/wechat.json     # 只生成微信版 JSON
   python3 tools/wechat_push.py --embed                       # 把推送内容内嵌进 report.html
-  python3 tools/wechat_push.py --push                        # 直接推送到微信 (一对一, 严格日期校验)
+  python3 tools/wechat_push.py --push                        # 直接推送到微信 (一对多群组, 严格日期校验)
   python3 tools/wechat_push.py --push --scheduled            # 每天 09:00 (北京时间) 定时推送 (宽松日期校验)
   python3 tools/wechat_push.py --dry-run                     # 验证转换效果与字数统计
 
 Token 解析顺序: --token 参数 > 环境变量 PUSHPLUS_TOKEN > report.html 内的 PUSHPLUS_TOKEN 常量
-群组编码解析顺序: --topic 参数 > 环境变量 PUSHPLUS_TOPIC > report.html 内的 PUSHPLUS_TOPIC 常量 (默认留空即为一对一)
+群组编码解析顺序: --topic 参数 > 环境变量 PUSHPLUS_TOPIC > report.html 内的 PUSHPLUS_TOPIC 常量 (默认 'oai.1' 即一对多群组推送)
 """
 import argparse
 import json
@@ -412,7 +412,7 @@ def build_single_wechat_html(now=None):
     '本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14），重点文字为荧光绿字 + 黑色底，装饰线深绿。<br/>' +
     '<strong>字体与字号规范：</strong>全文统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 / Noto Sans SC 黑体栈），正文 12px 紧凑小字号，标题加粗分级。<br/>' +
     '<strong>推送时间协议：</strong>每一次推送前先核对当前时间，标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong>实时刷新为最新时间</strong>后再发送。<br/>' +
-    '<strong>单页协议：</strong>微信推送采用<strong>一对一专属直发</strong>（直接推送到 Token 拥有者个人微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
+    '<strong>单页协议：</strong>微信推送采用<strong>一对多群组推送</strong>（群组编码 oai.1，推送到群内全部关注成员微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
 
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
   {box(
@@ -513,7 +513,7 @@ def find_token(source_html, arg_token=None):
     return ''
 
 def find_topic(source_html, arg_topic=None):
-    """群组编码: 默认一对一推送为空 ''。"""
+    """群组编码: 默认取 report.html 的 PUSHPLUS_TOPIC 常量 (当前 'oai.1', 一对多群组推送)。"""
     if arg_topic:
         return arg_topic
     env_topic = os.environ.get('PUSHPLUS_TOPIC', '').strip()
@@ -557,16 +557,16 @@ def push_to_wechat(title, content, token, topic='', retries=MAX_PUSH_RETRIES):
     return {'code': -1, 'msg': '网络错误'}
 
 def main():
-    ap = argparse.ArgumentParser(description='章鱼 AI — 微信推送工具 (一对一 · 单页详尽完整版 · 14 源动态)')
+    ap = argparse.ArgumentParser(description='章鱼 AI — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 14 源动态)')
     ap.add_argument('--source', default=SOURCE_HTML, help='报告 HTML 文件路径')
     ap.add_argument('--emit', metavar='PATH', help='写出 wechat.json 的路径')
     ap.add_argument('--embed', action='store_true',
                     help='把单页推送负载内嵌进 report.html (供页面按钮直接读取)')
-    ap.add_argument('--push', action='store_true', help='推送到 PushPlus (一对一单页)')
+    ap.add_argument('--push', action='store_true', help='推送到 PushPlus (一对多群组单页)')
     ap.add_argument('--scheduled', action='store_true',
                     help='定时自动推送模式: 抓取日期非当天仅警告不阻断 (供每天 09:00 定时任务使用)')
     ap.add_argument('--token', default='', help='PushPlus token (可选)')
-    ap.add_argument('--topic', default='', help='PushPlus 群组编码 (可选, 留空即一对一)')
+    ap.add_argument('--topic', default='', help='PushPlus 群组编码 (可选, 默认取 report.html 的 PUSHPLUS_TOPIC, 当前 oai.1; 留空则回退一对一)')
     ap.add_argument('--dry-run', action='store_true', help='只转换, 打印字数统计与预览')
     args = ap.parse_args()
 
@@ -590,7 +590,7 @@ def main():
         'parts': [{'title': t, 'content': c} for t, c in parts],
         'pages_url': PAGES_URL,
         'generated_at': ts,
-        'mode': 'one-to-one',
+        'mode': 'one-to-many',
     }
 
     if args.emit:

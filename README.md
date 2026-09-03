@@ -30,7 +30,7 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 | `community_data.py` | **动态社区抓取**：14 大社区 HTTP GET + 动态模板回退，生成 `community_data.json`（构建产物，不入库），每次刷新当天日期与研判正文 |
 | `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，并把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记 |
 | `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 `<!-- COMMUNITY_LIST:BEGIN/END -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
-| `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `community_data.json` 双动态数据，转为微信兼容的单页完整内联样式 HTML，经 PushPlus **一对一**推送到微信 |
+| `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `community_data.json` 双动态数据，转为微信兼容的单页完整内联样式 HTML，经 PushPlus **一对多**群组推送（群组编码 `oai.1`）到微信 |
 | `.github/workflows/m.yml` | CI：动态抓取行情+社区 → 动态建站（双注入） → 部署 Pages + 一键触发微信单页推送 + **每天北京时间 09:00 定时自动推送** |
 
 ## 页面风格系统 (Style A · 电子杂志 × 电子墨水)
@@ -48,9 +48,9 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 - **标题与署名**：标题为「章鱼 AI 全景分析」，副标题「全网 AI 调研境内境外数据，由多个大模型混合部署」，**标题去除 pushplus 与时间戳**。正文末尾署名：**作者：章鱼 ai · 仅供参考，分析研究**，并附多模型协同说明。
 - **01 节量化策略说明**：替换为章鱼 AI 量化策略说明块（`.quant-box`）——包含量化交易优势说明及「章鱼 AI 量化策略六大打造步骤」（数据收集、数据清洗、建立因子、选股优化、历史回测、实盘运作）。**网页与微信推送两端同步呈现**（`report.html` 与 `tools/wechat_push.py` 的 `quant_block`）。
 
-## 微信推送 (PushPlus · 一对一单页完整版 · 14 源动态)
+## 微信推送 (PushPlus · 一对多群组单页完整版 · 14 源动态)
 
-- **一对一专属推送**：默认直接推送给 Token 拥有者本人，零群组干扰。
+- **一对多群组推送**：默认推送到 **`oai.1` 群组**，群内所有关注该群组的微信成员同步接收；需先在 PushPlus 后台「一对多推送」中创建群组编码 `oai.1`，成员扫码关注该群组后即可收推送。
 - **页面只推一个微信页**：点击"手动推送"立即发送**单页完整微信卡片**，全篇 7 大章节与 14 大社区论坛研判一次性送达，无需拆条分发与 15s 等待。
 - **⏰ 推送前时间核对**：每一次推送前均重新抓取行情+社区数据，并读取当前时间；标题与正文中的"生成时间 / 时间核对"等全部时间戳**实时刷新为最新时间**后再发送（网页按钮与命令行推送均已内置）。
 - **📅 推送前频道最新内容核对**：**每一次推送都重新抓取并逐条检查** 14 个频道内容是否为频道最新（`community_data.py` 每次生成当天日期），不因当天已抓取过而复用历史结果；任一频道缺少「最新读取」标记、检查失败或结果非当天，**手动推送**拒绝推送；**定时推送** (`--scheduled`) 则仅警告不阻断，确保每天 09:00 定时任务可运行。
@@ -59,7 +59,7 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 - **验证转换效果**：`python3 tools/wechat_push.py --dry-run`
 - **重新内嵌内容**：报告更新后，运行 `python3 tools/wechat_push.py --embed`（幂等）。
 
-Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中，网页按钮与推送工具共用。群组编码 `PUSHPLUS_TOPIC` 保持留空 `''` 即为一对一推送。
+Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中，网页按钮与推送工具共用。群组编码 `PUSHPLUS_TOPIC` 默认为 `'oai.1'`（一对多群组推送，网页按钮与命令行工具共用该常量）；如需改回一对一专属推送，将其留空 `''` 即可。
 
 ## ⏰ 每天北京时间早上九点自动推送
 
