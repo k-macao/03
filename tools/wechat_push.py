@@ -235,7 +235,7 @@ def build_single_wechat_html(now=None):
         # 使用 community_data.json 的 14 条动态数据
         for c in _communities_raw:
             # 确保日期是最新的 fetch_date
-            meta = c.get('meta') or f"{c.get('meta_tpl','综合站内 3 条讨论')} · 最新读取 {_community_fetch_date}"
+            meta = c.get('meta') or f"{c.get('meta_tpl','综合站内 10 条讨论')} · 最新读取 {_community_fetch_date}"
             # 强制刷新 meta 中的日期为最新
             meta = re.sub(r'最新读取\s+20\d{2}-\d{2}-\d{2}', f'最新读取 {_community_fetch_date}', meta)
             if '最新读取' not in meta:
@@ -306,20 +306,20 @@ def build_single_wechat_html(now=None):
             ('🐦', '14', 'Twitter / X (FinTwit)', '偏多', 'bull'),
         ]
         metas = [
-            '综合站内 3 条热门长帖与讨论',
-            '综合站内 3 条深度研报与讨论',
-            '综合站内 3 条热门跨境讨论',
-            '综合站内 3 条高互动主题帖',
-            '综合站内 3 条专业席位跟踪分析',
-            '综合站内 3 条宏观深度长文',
-            '综合站内 3 条粤语热门讨论贴',
-            '综合站内 3 条高频交易讨论链',
-            '综合站内 3 篇机构仓位拆解报告',
-            '综合站内 3 条基民热评与定投贴',
-            '综合站内 3 篇外文热门深度分析',
-            '综合站内 3 套专业技术分析图表与指标',
-            '综合站内 3 篇顶尖私密价值分析研报',
-            '综合站内 3 条海外基金经理核心观点',
+            '综合站内 10 条热门长帖与讨论',
+            '综合站内 10 条深度研报与讨论',
+            '综合站内 10 条热门跨境讨论',
+            '综合站内 10 条高互动主题帖',
+            '综合站内 10 条专业席位跟踪分析',
+            '综合站内 10 条宏观深度长文',
+            '综合站内 10 条粤语热门讨论贴',
+            '综合站内 10 条高频交易讨论链',
+            '综合站内 10 篇机构仓位拆解报告',
+            '综合站内 10 条基民热评与定投贴',
+            '综合站内 10 篇外文热门深度分析',
+            '综合站内 10 套专业技术分析图表与指标',
+            '综合站内 10 篇顶尖私密价值分析研报',
+            '综合站内 10 条海外基金经理核心观点',
         ]
         for i, ((icon,no,name,label,vclass), (q,v), meta_tpl) in enumerate(zip(base, fallback_quotes, metas)):
             communities.append((

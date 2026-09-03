@@ -53,7 +53,7 @@ COMMUNITIES = [
         "url": "https://www.futunn.com/hk",
         "verdict_label": "多空分歧",
         "verdict_class": "mixed",
-        "meta_tpl": "综合站内 3 条热门长帖与讨论",
+        "meta_tpl": "综合站内 10 条热门长帖与讨论",
     },
     {
         "id": "02",
@@ -63,7 +63,7 @@ COMMUNITIES = [
         "url": "https://xueqiu.com/hq#HSI",
         "verdict_label": "多空分歧",
         "verdict_class": "mixed",
-        "meta_tpl": "综合站内 3 条深度研报与讨论",
+        "meta_tpl": "综合站内 10 条深度研报与讨论",
     },
     {
         "id": "03",
@@ -73,7 +73,7 @@ COMMUNITIES = [
         "url": "https://www.laohu8.com",
         "verdict_label": "偏空",
         "verdict_class": "bear",
-        "meta_tpl": "综合站内 3 条热门跨境讨论",
+        "meta_tpl": "综合站内 10 条热门跨境讨论",
     },
     {
         "id": "04",
@@ -83,7 +83,7 @@ COMMUNITIES = [
         "url": "https://guba.eastmoney.com",
         "verdict_label": "偏空",
         "verdict_class": "bear",
-        "meta_tpl": "综合站内 3 条高互动主题帖",
+        "meta_tpl": "综合站内 10 条高互动主题帖",
     },
     {
         "id": "05",
@@ -93,7 +93,7 @@ COMMUNITIES = [
         "url": "https://www.zhitongcaijing.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
-        "meta_tpl": "综合站内 3 条专业席位跟踪分析",
+        "meta_tpl": "综合站内 10 条专业席位跟踪分析",
     },
     {
         "id": "06",
@@ -103,7 +103,7 @@ COMMUNITIES = [
         "url": "https://wallstreetcn.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
-        "meta_tpl": "综合站内 3 条宏观深度长文",
+        "meta_tpl": "综合站内 10 条宏观深度长文",
     },
     {
         "id": "07",
@@ -113,7 +113,7 @@ COMMUNITIES = [
         "url": "https://www.discuss.com.hk/forumdisplay.php?fid=115",
         "verdict_label": "中性",
         "verdict_class": "neutral",
-        "meta_tpl": "综合站内 3 条粤语热门讨论贴",
+        "meta_tpl": "综合站内 10 条粤语热门讨论贴",
     },
     {
         "id": "08",
@@ -123,7 +123,7 @@ COMMUNITIES = [
         "url": "https://lihkg.com/category/5",
         "verdict_label": "偏空",
         "verdict_class": "bear",
-        "meta_tpl": "综合站内 3 条高频交易讨论链",
+        "meta_tpl": "综合站内 10 条高频交易讨论链",
     },
     {
         "id": "09",
@@ -133,7 +133,7 @@ COMMUNITIES = [
         "url": "https://www.jiucaishuo.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
-        "meta_tpl": "综合站内 3 篇机构仓位拆解报告",
+        "meta_tpl": "综合站内 10 篇机构仓位拆解报告",
     },
     {
         "id": "10",
@@ -143,7 +143,7 @@ COMMUNITIES = [
         "url": "https://www.antfortune.com",
         "verdict_label": "中性",
         "verdict_class": "neutral",
-        "meta_tpl": "综合站内 3 条基民热评与定投贴",
+        "meta_tpl": "综合站内 10 条基民热评与定投贴",
     },
     {
         "id": "11",
@@ -153,7 +153,7 @@ COMMUNITIES = [
         "url": "https://www.reddit.com/r/ChinaStocks/",
         "verdict_label": "中性",
         "verdict_class": "neutral",
-        "meta_tpl": "综合站内 3 篇外文热门深度分析",
+        "meta_tpl": "综合站内 10 篇外文热门深度分析",
     },
     {
         "id": "12",
@@ -163,7 +163,7 @@ COMMUNITIES = [
         "url": "https://www.tradingview.com/markets/hong-kong/",
         "verdict_label": "偏多",
         "verdict_class": "bull",
-        "meta_tpl": "综合站内 3 套专业技术分析图表与指标",
+        "meta_tpl": "综合站内 10 套专业技术分析图表与指标",
     },
     {
         "id": "13",
@@ -173,7 +173,7 @@ COMMUNITIES = [
         "url": "https://www.valueinvestorsclub.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
-        "meta_tpl": "综合站内 3 篇顶尖私密价值分析研报",
+        "meta_tpl": "综合站内 10 篇顶尖私密价值分析研报",
     },
     {
         "id": "14",
@@ -183,7 +183,7 @@ COMMUNITIES = [
         "url": "https://x.com/search?q=HSI%20Hong%20Kong",
         "verdict_label": "偏多",
         "verdict_class": "bull",
-        "meta_tpl": "综合站内 3 条海外基金经理核心观点",
+        "meta_tpl": "综合站内 10 条海外基金经理核心观点",
     },
 ]
 
@@ -355,7 +355,7 @@ def main():
         # 刷新所有社区的 fetch_date 和 meta
         for c in data.get('communities', []):
             c['fetch_date'] = fetch_date
-            c['meta'] = f"{c.get('meta_tpl','综合站内 3 条讨论')} · 最新读取 {fetch_date}"
+            c['meta'] = f"{c.get('meta_tpl','综合站内 10 条讨论')} · 最新读取 {fetch_date}"
         data.update({"generated_at": now_full, "fetch_date": fetch_date, "mode": "offline"})
         with open(args.json, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

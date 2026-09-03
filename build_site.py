@@ -177,7 +177,7 @@ def build_community_html(communities):
         vclass = c.get('verdict_class', 'neutral')
         quote = c.get('quote', '')
         verdict = c.get('verdict', '')
-        meta = c.get('meta', f"综合站内 3 条讨论 · 最新读取 {c.get('fetch_date','')}")
+        meta = c.get('meta', f"综合站内 10 条讨论 · 最新读取 {c.get('fetch_date','')}")
         # 转义？内容已是纯文本，保留 HTML 安全
         # 构造 article
         article = (
