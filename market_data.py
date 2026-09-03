@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI 全景分析 — 动态行情抓取 (market_data.py)
+章鱼 AI 量化策略日报 — 动态行情抓取 (market_data.py)
 
 每次构建/推送前自动抓取最新行情，生成 market_data.json，
 供 build_site.py 与 tools/wechat_push.py 动态注入，实现「动态抓取真正上线」：

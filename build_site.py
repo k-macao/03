@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI 全景分析 — 动态建站 (build_site.py)
+章鱼 AI 量化策略日报 — 动态建站 (build_site.py)
 
 读取 market_data.json + community_data.json，把 report.html 模板中的 {{占位符}} 替换为最新抓取数据，
 并动态注入 14 大社区最新研判，生成最终 report.html（页面源文件，供 GitHub Pages 部署与 wechat_push.py 内嵌）。
