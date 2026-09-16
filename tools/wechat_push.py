@@ -745,8 +745,17 @@ def run_push_preflight(strict=False, timeout=8, report_path=None):
         print(f'⚠️ 校验模块不可用, 跳过推送前预检: {e}', file=sys.stderr)
         return True
     data_path = os.environ.get('MARKET_DATA', os.path.join(REPO_ROOT, 'market_data.json'))
-    return vq.run_preflight(data_path=data_path, timeout=timeout,
-                            strict=strict, report_path=report_path)
+    try:
+        return vq.run_preflight(data_path=data_path, timeout=timeout,
+                                strict=strict, report_path=report_path)
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001 — 校验器自身故障不阻断业务, 但必须留完整堆栈
+        import traceback
+        print('⚠️ 校验器自身异常 (fail-open 不阻断推送), 完整堆栈:', file=sys.stderr)
+        traceback.print_exc()
+        sys.stderr.flush()
+        return True
 
 
 def main():
@@ -832,4 +841,13 @@ def main():
         print(parts[0][1][:800])
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001 — 任何未捕获异常打印完整堆栈 (exit 6), 便于 CI 排障
+        import traceback
+        print('💥 推送流程发生未捕获异常 (exit 6), 完整堆栈:', file=sys.stderr)
+        traceback.print_exc()
+        sys.stderr.flush()
+        sys.exit(6)
