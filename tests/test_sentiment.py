@@ -1,0 +1,391 @@
+# -*- coding: utf-8 -*-
+"""舆情/新闻因子接入层测试（聚宽 · 米筐 · 掘金 · 优矿 + 免费兜底源）。
+
+运行：python3 -m unittest discover -s tests -v      （或 python3 tests/test_sentiment.py）
+全部用 tests/fixtures 里的录制报文，零联网、零凭据，可在任意 CI 上跑。
+覆盖：自建词库规则 → 适配器解析 → 因子合成与降级 → 站点/微信注入 → 探针打分报告。
+"""
+import importlib.util
+import io
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+import sentiment_adapters as ad          # noqa: E402
+import sentiment_factors as sf           # noqa: E402
+import sentiment_nlp as nlp              # noqa: E402
+import sentiment_sources as reg          # noqa: E402
+
+FIXTURES = os.path.join(ROOT, 'tests', 'fixtures')
+
+
+def _load_module(name, relpath):
+    """按路径加载 tools/ 下的脚本模块（tools 不是包）。"""
+    path = os.path.join(ROOT, relpath)
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class capture_stdout:
+    """捕获 stdout（管线 print 较多，测试里静音）。"""
+
+    def __enter__(self):
+        self._buf = io.StringIO()
+        self._old = sys.stdout
+        sys.stdout = self._buf
+        return self._buf
+
+    def __exit__(self, *exc):
+        sys.stdout = self._old
+
+
+class TestNlpRules(unittest.TestCase):
+    """自建中文金融词库：极性、否定翻转、程度修饰、风险词。"""
+
+    def test_positive_and_negative(self):
+        pos = nlp.score_text('公司业绩大增，净利润同比上涨30%，获多家机构调研推荐')
+        neg = nlp.score_text('公司业绩大幅下滑，计提减值并被立案调查，股价跌停')
+        self.assertGreater(pos['sentiment'], 0.3, pos)
+        self.assertLess(neg['sentiment'], -0.3, neg)
+        self.assertGreater(neg['risk_score'], 0, '风险词应计分')
+
+    def test_negation_flips_polarity(self):
+        a = nlp.score_text('盈利增长')
+        b = nlp.score_text('盈利未增长')
+        self.assertGreater(a['sentiment'], 0)
+        self.assertLess(b['sentiment'], a['sentiment'], '否定词应显著拉低情感值')
+
+    def test_degree_modifier_scales(self):
+        small = nlp.score_text('业绩小幅预增')
+        big = nlp.score_text('业绩大幅预增')
+        self.assertGreater(abs(big['raw']), abs(small['raw']), '程度副词应改变得分幅度')
+        self.assertGreater(big['sentiment'], small['sentiment'], '同一情感词：大幅 > 小幅')
+        mild = nlp.score_text('净利小幅下滑')
+        severe = nlp.score_text('净利大幅下滑')
+        self.assertLess(severe['sentiment'], mild['sentiment'], '负面侧同样应被程度词区分')
+
+    def test_neutral_text(self):
+        r = nlp.score_text('今日上午召开董事会会议，审议常规议案')
+        self.assertAlmostEqual(r['sentiment'], 0.0, places=6, msg=r)
+
+    def test_time_decay(self):
+        old = nlp.score_text('业绩大增', published_at='2026-01-01 09:00:00',
+                             ref_time=__import__('datetime').datetime(2026, 9, 1, 9, 0, 0))
+        new = nlp.score_text('业绩大增', published_at='2026-09-01 08:30:00',
+                             ref_time=__import__('datetime').datetime(2026, 9, 1, 9, 0, 0))
+        self.assertLess(old['weight'], new['weight'], '旧消息权重应随时间衰减')
+
+    def test_self_test_script_passes(self):
+        p = subprocess.run([sys.executable, os.path.join(ROOT, 'sentiment_nlp.py'), '--self-test'],
+                           capture_output=True, text=True, timeout=120)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+
+
+class TestRegistry(unittest.TestCase):
+    """源注册表：11 个接口全部有适配器，且口径字段齐备。"""
+
+    def test_all_sources_have_adapters_and_fixtures(self):
+        for src in reg.SOURCES:
+            sid = src['id']
+            kind = src['kind']
+            self.assertIn(kind, ad.PARSERS, f'{sid} 缺解析器（kind={kind}）')
+            self.assertTrue(kind in ad.CALLERS or kind in ad.NO_LIVE_CALLER,
+                            f'{sid} 既无 live 调用器也未标注 NO_LIVE_CALLER')
+            if src.get('category') != 'none':
+                self.assertTrue(os.path.exists(os.path.join(FIXTURES, f'{sid}.json')),
+                                f'{sid} 缺 mock 报文')
+            for key in ('platform', 'name', 'category', 'access', 'kind', 'endpoint',
+                        'update_freq', 'granularity', 'history', 'coverage', 'quota',
+                        'cost', 'docs', 'doc_scores', 'requires', 'auth_env'):
+                self.assertIn(key, src, f'{sid} 缺字段 {key}')
+            self.assertIn(src['mode'] if 'mode' in src else src['access'],
+                          ('http_free', 'http', 'python_sdk', 'local_terminal', 'sdk'),
+                          f'{sid} 接入方式异常')
+            for dim, _w, _n, _d in reg.SCORE_DIMENSIONS:
+                self.assertIn(dim, src['doc_scores'], f'{sid} 缺评分维度 {dim}')
+
+    def test_gm_capability_gap_recorded(self):
+        gm = reg.get_source('GM_SDK')
+        self.assertEqual(gm['category'], 'none', '掘金无舆情接口，必须显式标注能力缺失')
+        self.assertIn('verdict_hint', gm, '能力缺失需给出判定依据，避免被依赖缺失淹没')
+
+    def test_watchlist_names_cover_watchlist(self):
+        for w in reg.WATCHLIST:
+            self.assertIn(w.split('.')[0], reg.WATCHLIST_NAMES, f'{w} 缺中文名映射')
+
+
+class TestNormSymbol(unittest.TestCase):
+    """各平台代码格式差异必须归一，否则个股舆情会串行。"""
+
+    def test_formats(self):
+        cases = {'600000': '600000', '600000.SH': '600000', 'SH600000': '600000',
+                 '1.600000': '600000', '0.000001': '000001', 'SZ000001': '000001',
+                 '600519.XSHG': '600519', '00700.HK': '00700'}
+        for raw, want in cases.items():
+            self.assertEqual(ad.norm_symbol(raw), want, raw)
+
+    def test_non_codes_rejected(self):
+        for raw in ('20260915001', '恒生指数', '', None, 1, 'SH6000'):
+            self.assertEqual(ad.norm_symbol(raw), '', f'{raw!r} 不应被当作股票代码')
+
+
+class TestAdaptersMock(unittest.TestCase):
+    """mock 回放：录制报文必须能解析成统一结构。"""
+
+    def test_all_sources_parse(self):
+        for sid in reg.ids():
+            r = ad.fetch(sid, mode='mock', symbols=['600000.SH', '000001.SZ', '600519.SH'])
+            src = reg.get_source(sid)
+            if src.get('category') == 'none':          # 掘金：能力缺失，必须优雅返回空
+                self.assertEqual(r['news'], [], sid)
+                self.assertEqual(r['series'], [], sid)
+                self.assertIn('掘金', (r['meta'].get('note') or '') + (r.get('error') or ''))
+                continue
+            self.assertTrue(r['ok'], f"{sid} 解析失败: {r.get('error')}")
+            self.assertTrue(r['news'] or r['series'], f'{sid} 应至少产出新闻或时序')
+            for item in r['news']:
+                for key in ('symbol', 'title', 'content', 'published_at', 'source'):
+                    self.assertIn(key, item, f'{sid} 新闻字段缺失 {key}')
+                self.assertTrue(item['title'], f'{sid} 出现空标题新闻')
+                self.assertLessEqual(len(item['symbol'].split('.')[0]), 6, item['symbol'])
+            for row in r['series']:
+                self.assertIn('date', row)
+                self.assertIsNotNone(row.get('value'), f'{sid} 时序值不可为空: {row}')
+
+    def test_native_sentiment_is_preserved(self):
+        """米筐/优矿给到的现成情感值必须原样带出，供 aggregate 优先采用。"""
+        r = ad.fetch('RQ_SDK', mode='mock')
+        self.assertTrue(any(n.get('sentiment') is not None for n in r['news']),
+                        'RQ_SDK 应带 sentiment（平台现成因子口径）')
+
+    def test_cli_mock_mode(self):
+        p = subprocess.run([sys.executable, os.path.join(ROOT, 'sentiment_adapters.py'),
+                            '--mode', 'mock'], capture_output=True, text=True, timeout=180)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+
+
+class TestSentimentFactors(unittest.TestCase):
+    """因子合成：写盘结构、降级行为、与站点/微信的联动。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix='sent-')
+        cls.out = os.path.join(cls.tmp, 'sentiment_data.json')
+        cls.hist = os.path.join(cls.tmp, 'sentiment_history.json')
+        _hist, _default = sf.HISTORY_PATH, sf.DEFAULT_OUT
+        sf.HISTORY_PATH, sf.DEFAULT_OUT = cls.hist, cls.out
+        try:
+            with capture_stdout() as buf:
+                cls.data = sf.run(mode='mock', out_path=cls.out, verbose=False)
+        finally:
+            sf.HISTORY_PATH, sf.DEFAULT_OUT = _hist, _default
+        cls.html = buf.getvalue()
+
+    def test_market_factors_in_range(self):
+        m = self.data['market']
+        self.assertGreaterEqual(m['news_count'], 10)
+        self.assertGreaterEqual(m['sent_temp'], 0)
+        self.assertLessEqual(m['sent_temp'], 100)
+        self.assertGreaterEqual(m['net_senti'], -1)
+        self.assertLessEqual(m['net_senti'], 1)
+        self.assertGreaterEqual(m['neg_share'], 0)
+        self.assertLessEqual(m['neg_share'], 100)
+        self.assertIn(m['label'], ['极度亢奋', '偏热', '中性', '偏冷', '恐慌', '极度悲观'])
+
+    def test_factor_library_filled(self):
+        for key, meta in self.data['factors'].items():
+            self.assertIn('value', meta, key)
+            self.assertIsInstance(meta['value'], (int, float), f'{key} 值应为数值: {meta}')
+            self.assertTrue(meta.get('name') and meta.get('definition'), f'{key} 缺口径说明')
+
+    def test_platform_native_vs_self_built_split(self):
+        m = self.data['market']
+        self.assertGreater(m['platform_native'], 0, '平台现成因子条数应被统计')
+        self.assertEqual(m['self_built'], m['news_count'] - m['platform_native'])
+
+    def test_stock_rows_normalized(self):
+        syms = [s['symbol'] for s in self.data['stocks']]
+        for s in self.data['stocks']:
+            self.assertRegex(s['symbol'], r'^\d{5,6}$', f"未归一个股代码: {s}")
+            self.assertGreaterEqual(s['news_count'], 0)
+        self.assertIn('600519', syms)
+        self.assertNotIn('1', syms, '文章流水号不得被当成分散个股代码')
+
+    def test_api_eval_embedded_if_available(self):
+        ev = self.data.get('api_eval')
+        if not os.path.exists(sf.PROBE_REPORT):
+            self.assertIsNone(ev)
+            return
+        self.assertTrue(ev and ev.get('ranking'), '已跑过探针时应把评测矩阵带进日报')
+        self.assertTrue(ev.get('generated_at'), '评测时间应可从 meta 读出')
+
+    def test_cli_writes_json_and_degrades(self):
+        p = subprocess.run([sys.executable, os.path.join(ROOT, 'sentiment_factors.py'),
+                            '--mock', '--json', self.out, '--quiet'],
+                           capture_output=True, text=True, cwd=ROOT, timeout=300)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        with open(self.out, encoding='utf-8') as f:
+            json.load(f)
+
+    def test_offline_mode_never_raises(self):
+        """断网兜底：无历史文件时也必须产出中性降级结果（且 verbose 打印不能崩）。"""
+        p = subprocess.run([sys.executable, os.path.join(ROOT, 'sentiment_factors.py'),
+                            '--offline', '--json', os.path.join(self.tmp, 'none.json')],
+                           capture_output=True, text=True, cwd=ROOT, timeout=120)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertIn('断网兜底', p.stdout, '--offline 应说明自己用的是兜底数据')
+
+    def test_series_rows_keep_one_calibre(self):
+        """指数序列只能放情绪指数：关注度/热度类序列必须走个股热度表，否则口径混淆。"""
+        for row in self.data['series']:
+            self.assertNotIn('factor', row.get('extra') or {}, row)
+            self.assertIn('platform', row, f'指数行需标注来源平台: {row}')
+            self.assertTrue(row.get('note'), '不同平台指数口径必须随值标注')
+            self.assertLess(abs(row['value']), 1e6)
+
+
+class TestReportAndPush(unittest.TestCase):
+    """站点与微信推送：注入生效 + 缺数据时降级不阻断。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.build_site = _load_module('build_site', 'build_site.py')
+        cls.wechat = _load_module('wechat_push', os.path.join('tools', 'wechat_push.py'))
+        cls.tmp = tempfile.mkdtemp(prefix='sent-site-')
+        cls.sent = os.path.join(cls.tmp, 'sentiment_data.json')
+        with open(cls.sent, 'w', encoding='utf-8') as f:
+            json.dump({'mode': 'mock', 'fetch_date': '2026-09-16',
+                       'market': {'sent_temp': 61.2, 'label': '偏热', 'net_senti': 0.31,
+                                  'neg_share': 22.5, 'news_count': 18, 'heat_z': 1.1,
+                                  'risk_score': 20.0, 'platform_native': 6, 'self_built': 12,
+                                  'events': [{'title': '某公司被立案调查', 'terms': ['立案'],
+                                               'risk_score': 30.0}]},
+                       'stocks': [{'symbol': '600519', 'name': '贵州茅台', 'heat': 98712.0,
+                                   'heat_z': 1.3, 'net_senti': 0.2, 'news_count': 3,
+                                   'risk_score': 0.0, 'as_of': '2026-09-15'}],
+                       'sources': [{'id': 'RQ_SDK', 'platform': '米筐 RiceQuant',
+                                    'name': '新闻舆情', 'ok': True, 'mode': 'live',
+                                    'news': 4, 'series': 0, 'latest_date': '2026-09-15',
+                                    'error': '', 'note': '', 'native_sentiment': 4}],
+                       'api_eval': {'generated_at': '2026-09-16 04:00:00 UTC', 'mode': 'mock',
+                                    'ranking': [{'id': 'RQ_SDK', 'platform': '米筐 RiceQuant',
+                                                 'name': 'news.get_stock_news', 'score': 67,
+                                                 'verdict': 'READY_WITH_LICENCE',
+                                                 'verdict_label': '可接入（需开权限/付费）'}]},
+                       'summary': {'total': 11, 'ok': 10, 'failed': ['GM_SDK']},
+                       'series': [{'date': '2026-09-15', 'value': 1.02, 'name': '市场情绪指数'}]},
+                      f, ensure_ascii=False)
+        with open(os.path.join(cls.tmp, 'empty_market.json'), 'w', encoding='utf-8') as f:
+            json.dump({'mode': 'mock', 'market': {}, 'summary': {}}, f)
+
+    def test_sentiment_tokens(self):
+        tokens = self.build_site._sentiment_tokens(
+            json.load(open(self.sent, encoding='utf-8')), '2026-09-16')
+        self.assertEqual(tokens['{{SENT_TEMP}}'], '61.2')
+        self.assertEqual(tokens['{{SENT_LABEL}}'], '偏热')
+        self.assertIn('10/11', tokens['{{SENT_SOURCE_STATUS}}'])
+        self.assertIn('GM_SDK', tokens['{{SENT_STATUS}}'])
+        for key, val in tokens.items():
+            self.assertNotIn('\x00', str(val), key)
+            self.assertLess(len(str(val)), 400, f'{key} 过长，可能把原始文本灌进模板')
+
+    def test_tokens_defaults_when_missing(self):
+        tokens = self.build_site._sentiment_tokens({}, '2026-09-16')
+        self.assertEqual(set(tokens), {'{{SENT_TEMP}}', '{{SENT_LABEL}}', '{{SENT_NET}}',
+                                       '{{SENT_NEG}}', '{{SENT_NEWS}}', '{{SENT_HEATZ}}',
+                                       '{{SENT_RISK}}', '{{SENT_DATE}}', '{{SENT_MODE}}',
+                                       '{{SENT_NATIVE}}', '{{SENT_SOURCE_STATUS}}', '{{SENT_STATUS}}'})
+        self.assertTrue(all(tokens.values()), '占位符默认值不得为空')
+
+    def test_inject_sentiment_replaces_markers(self):
+        tpl = ('<!-- SENTIMENT_LIST:BEGIN -->\n<p>舆情因子节点待生成</p>\n'
+               '<!-- SENTIMENT_LIST:END -->')
+        html = self.build_site.inject_sentiment(
+            tpl, self.build_site.build_sentiment_html(json.load(open(self.sent, encoding='utf-8'))))
+        self.assertNotIn('舆情因子节点待生成', html)
+        self.assertIn('贵州茅台', html)
+        self.assertNotIn('{{SENT_', html)
+        empty = self.build_site.inject_sentiment(tpl, self.build_site.build_sentiment_html({}))
+        self.assertTrue(empty and '舆情' in empty, '缺数据时也必须给出降级说明')
+
+    def test_check_cli_passes_on_repo_template(self):
+        p = subprocess.run([sys.executable, os.path.join(ROOT, 'build_site.py'), '--check'],
+                           capture_output=True, text=True, cwd=ROOT, timeout=180)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertNotIn('舆情因子节点待生成', p.stdout)
+
+    def test_wechat_sentiment_loader_degrades(self):
+        old = os.environ.get('SENTIMENT_DATA')
+        try:
+            os.environ['SENTIMENT_DATA'] = os.path.join(self.tmp, 'not-exist.json')
+            self.assertEqual(self.wechat.load_sentiment_data(), {})
+            os.environ['SENTIMENT_DATA'] = os.path.join(self.tmp, 'broken.json')
+            with open(os.environ['SENTIMENT_DATA'], 'w', encoding='utf-8') as f:
+                f.write('{oops')
+            self.assertEqual(self.wechat.load_sentiment_data(), {})
+        finally:
+            if old is None:
+                os.environ.pop('SENTIMENT_DATA', None)
+            else:
+                os.environ['SENTIMENT_DATA'] = old
+
+    def test_wechat_render_contains_03b(self):
+        html, _ts, _ts_full = self.wechat.build_single_wechat_html()
+        self.assertIn('03B /', html)
+        self.assertIn('舆情', html)
+        self.assertLess(len(html), 95000, '微信单页需保持在安全线内')
+        self.assertEqual(html.count('03B / 舆情'), 1, '03B 节点不得重复')
+
+
+class TestProbe(unittest.TestCase):
+    """接入实测探针：mock 跑通并产出打分矩阵与 Markdown 报告。"""
+
+    def test_mock_probe_outputs(self):
+        with tempfile.TemporaryDirectory() as d:
+            j, md = os.path.join(d, 'p.json'), os.path.join(d, 'p.md')
+            p = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'probe_sentiment_apis.py'),
+                                '--mock', '--json', j, '--md', md, '--repeat', '1'],
+                               capture_output=True, text=True, cwd=ROOT, timeout=600)
+            self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+            report = json.load(open(j, encoding='utf-8'))
+            self.assertEqual(report['meta']['mode'], 'mock')
+            self.assertEqual(len(report['matrix']), len(reg.SOURCES))
+            self.assertTrue(report['ranking'], '应产出评分排名')
+            for it in report['matrix']:
+                self.assertIn(it['verdict'], set(reg.VERDICT_LABEL), it['verdict'])
+                self.assertLessEqual(it['score_total'], 100)
+                self.assertGreaterEqual(it['score_total'], 0)
+            gm = next(x for x in report['matrix'] if x['id'] == 'GM_SDK')
+            self.assertEqual(gm['verdict'], 'NOT_SUPPORTED', '掘金必须被判为平台能力缺失')
+            text = open(md, encoding='utf-8').read()
+            self.assertIn('舆情', text)
+            self.assertIn('掘金', text)
+            self.assertNotIn('{', text.split('#')[0])       # 顶部不是裸 JSON
+            self.assertIsNone(re.search(r'None 分|\bNone\b\s*分', text), '报告不得漏出 None')
+
+    def test_repo_report_and_docs_are_fresh(self):
+        doc = os.path.join(ROOT, 'docs', 'sentiment-api-eval.md')
+        if not os.path.exists(doc):
+            self.skipTest('docs/sentiment-api-eval.md 尚未生成（跑 tools/probe_sentiment_apis.py --mock）')
+        text = open(doc, encoding='utf-8').read()
+        for plat in ('聚宽', '米筐', '掘金', '优矿'):
+            self.assertIn(plat, text, f'评测文档缺 {plat} 口径')
+        self.assertIn('自动生成', text)
+        for sec in ('结论速览', '能力矩阵', '评分明细', '逐源实测明细'):
+            self.assertIn(sec, text, f'评测文档缺章节 {sec}')
+        self.assertNotIn('None 分', text)
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

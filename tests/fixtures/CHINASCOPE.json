@@ -1,0 +1,12 @@
+{
+  "recorded_from": "数库 A 股新闻情绪指数 GET https://www.chinascope.com/inews/senti/index?period=YEAR（akshare index_news_sentiment_scope 同源口径）",
+  "note": "2026-09 实测该域名已跳转 .com.cn 首页，公开 JSON 疑随官网改版下线；本录制报文用于离线回归解析",
+  "payload": [
+    {"tradeDate": "2026-09-08", "maIndex1": 1.0312, "marketClose": 3860.24},
+    {"tradeDate": "2026-09-09", "maIndex1": 1.0287, "marketClose": 3845.10},
+    {"tradeDate": "2026-09-10", "maIndex1": 1.0418, "marketClose": 3889.55},
+    {"tradeDate": "2026-09-11", "maIndex1": 1.0463, "marketClose": 3902.18},
+    {"tradeDate": "2026-09-14", "maIndex1": 1.0389, "marketClose": 3877.42},
+    {"tradeDate": "2026-09-15", "maIndex1": 1.0244, "marketClose": 3841.06}
+  ]
+}

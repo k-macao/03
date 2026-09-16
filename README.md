@@ -22,12 +22,57 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 - **日期联动**：14 大社区「最新读取」日期与正文中的“8 月 X 日”日期均随抓取日自动刷新（`community_data.py` 生成当天日期），推送前日期核对（`--push` 严格 / `--scheduled` 宽松）逻辑保持不变。
 - 本地联调可用 `python3 market_data.py --demo && python3 community_data.py --demo` 生成模拟行情+社区。
 
+## 🗞️ 舆情 / 新闻因子层 — 量化平台现成因子接入实测（聚宽 · 米筐 · 掘金 · 优矿）
+
+社区热评是"印象"，量化要的是**可回测的因子**。本层专门实测境内主流量化平台是否提供**现成的舆情 / 新闻情感因子接口**，
+并把取到的数据合成成 5 个可直接入模的因子，接入同一条日报管线（页面 03B 节 + 微信 03B 节点）：
+
+```bash
+python3 tools/probe_sentiment_apis.py --mock     # ① 接口接入实测 + 6 维打分 → api_probe_report.json + docs/sentiment-api-eval.md
+python3 sentiment_nlp.py --self-test             # ② 自建中文金融词库自检（否定/程度/风险词规则）
+python3 sentiment_adapters.py --mode mock        # ③ 11 个接口逐个解析校验（零联网）
+python3 sentiment_factors.py --mock              # ④ 离线回放合成因子 → sentiment_data.json（CI/本地默认用这条）
+python3 sentiment_factors.py --live              # ④′ 境内出口 + 凭据的联网实测（优先平台现成因子，缺失时自动降级）
+python3 build_site.py                            # ⑤ 建站时把舆情因子注入 report.html 的 <!-- SENTIMENT_LIST --> 标记
+```
+
+- **因子口径**：`NET_SENTI` 净情感强度 = Σ(情感×权重)/Σ权重 ∈[-1,1]；`NEG_SHARE` 负面舆情占比；
+  `NEWS_HEAT_Z` 新闻热度 Z 值（今日条数对近 20 日均值标准化）；`SENT_TEMP` 市场舆情温度计 = 50+35·net+12·tanh(z/2)−18·neg_share ∈[0,100]（≥72 极度亢奋 / ≥60 偏热 / ≥45 中性 / ≥32 偏冷 / ≥20 恐慌）；`EVENT_RISK` 突发事件风险分（立案/处罚/造假/违约…加权，截断 0-100）。
+- **打分规则可解释**：命中金融情感词按词权计分 → 程度副词乘权（大幅×1.5 / 小幅×0.7…）→ 否定字（不未无没非失否难）在情感词前 3 字内则极性翻转打 8 折 → 按发布时间 24h 半衰期指数衰减加权；平台已给 `sentiment` 时**优先采用平台口径**（结果里标 `source_provided`），纯标准库、可复现。
+- **实测结论（详见 `docs/sentiment-api-eval.md`）**：
+
+| 平台 | 现成舆情/新闻因子 | 关键接口 | 时效 / 历史 | 口径提醒 |
+|---|---|---|---|---|
+| 米筐 RQData | ✅ 最贴近"现成因子" | 私有 pip 源装 `rqdatac` + `rqdatac_news` → `rqdatac.news.get_stock_news()` | 日内每 30 分钟；2017 至今 | `news_emotion_indicator`(±1/0) + 正/中/负 weight + `company_relevance` + 公司层情感，拿到即可入模；需商务开舆情数据包 |
+| 聚宽 JQData | ⚠️ 名不副实 | `get_factor_values(['VOL5','VOL20','AR','BR','ARBR','ATR14',…])`；舆情仅 `finance.CCTV_NEWS` / 雪球热度 / 百度因子 | 因子 T+1 05:00；热度 03:00；新闻联播 20:30 | 聚宽"情绪因子"= 量价换手类，**不是新闻情感**；试用账号「因子和特色数据：无」；`get_query_count()` 可当配额探针 |
+| 掘金量化 | ❌ 不提供 | `gm.api`：`history/current/stk_get_*/fnd_*`（无新闻·无情感） | 行情实时 | 官方 FAQ：指标数据需自行设计实现；SDK 依赖本地掘金终端代理 → CI 完全不可用；舆情必须外挂 |
+| 优矿 Uqer | ✅ 免费层最划算 | `DataAPI.NewsSentimentIndexGet→sentimentIndex`、`NewsHeatIndexGet→heatIndex`、`NewsByTickersGet` | 指数日更；新闻 2004-10-28 起 | 现成日频舆情因子，两个数即可入模；站点迭代放缓，字段需实测复核 |
+| Tushare Pro | ⚠️ 只给文本 | `POST api.tushare.pro {api_name:'news'/'major_news'/'cctv_news'}` | 准实时；6–8 年 | 需单独开权限；`news` 单次 1500 条；配合自建词库才成因子 |
+| 免费兜底 | 热度可用 / 情感弱 | 东财千股千评（关注指数）、金十微博人气、东财 search-api 新闻、数库情绪指数 | 日更 / 小时级 | 东财只有热度无极性；数库端点疑似随官网改版下线，必须降级 |
+
+- **落地建议**：有预算 → 米筐（唯一"给到即入模"）；性价比 → 优矿；零成本 → 东财热度 + Tushare/东财文本 + 自建词库；聚宽只补量价情绪因子；**掘金不承担舆情**。
+- **境内出口硬约束**：聚宽 `dataapi.joinquant.com` 等站点对非中国大陆 IP 直接拒绝访问，GitHub 海外 runner 跑不通 → CI 里 `--live` 失败即自动降级 `--mock`（页面与推送显示"降级说明"，绝不阻断 09:00 定时任务）；要拿真实因子请在境内执行器（自建机 / 境内 Actions runner）跑 `--live` 并配好凭据。
+- **凭据环境变量**（缺失即跳过该源，不算故障）：`JQ_MOBILE`/`JQ_USERNAME` + `JQ_PASSWORD`（聚宽）、`RQDATA_USER`/`RQDATAC_USER` + `RQDATA_PASSWORD`/`RQDATAC_PASSWORD`、`RQDATA_TOKEN`（米筐）、`UQER_TOKEN`（优矿）、`TUSHARE_TOKEN`（Tushare）、`GM_TOKEN`（掘金，仅行情）；用 `python3 sentiment_sources.py` 查看逐源凭据与依赖状态。
+- **CI 接线**：`.github/workflows/m.yml` 的三个 job（deploy / wechat / daily）都需在 `build_site.py` 之前生成 `sentiment_data.json`
+  （先 `tools/probe_sentiment_apis.py --mock` 出评测矩阵，再 `sentiment_factors.py --live`，取不到数据自动降级 `--mock`）。
+  若当前 GitHub 连接未授予 `workflows` 权限、CI 改动无法随 PR 推送，仓库内备好了补丁：`git apply docs/sentiment-ci-workflow.patch`
+  后自行提交即可（不改 workflow 也不影响本地/境内执行器跑舆情因子）。
+- **单源失败降级**：11 个源任一失败只把自己标成 `ok=false` 并计入 `summary.failed`，其余源继续供数；全源失败时温度计回退 50（中性）并标注 `degraded`，页面与推送照常构建。
+
 ## 结构
 
 | 文件 | 说明 |
 |---|---|
 | `market_data.py` | **动态行情抓取**：多源回退抓取最新行情，生成 `market_data.json`（构建产物，不入库） |
+| `sentiment_data.json` / `sentiment_history.json` | 舆情因子当日结果与新闻条数历史（供 `NEWS_HEAT_Z` 基线），均为构建产物，不入库 |
 | `community_data.py` | **动态社区抓取**：14 大社区 HTTP GET + 动态模板回退，生成 `community_data.json`（构建产物，不入库），每次刷新当天日期与研判正文 |
+| `sentiment_sources.py` | **接口注册表**：11 个量化平台/公开源舆情·新闻因子的能力口径（端点、字段、时效、历史、额度、成本、局限）+ 因子定义 + 9 个评测阶段与 6 维评分权重；`python3 sentiment_sources.py` 打印清单与凭据/依赖状态 |
+| `sentiment_adapters.py` | **接入适配器**：每源一个 `call_*`（live 取数）+ `parse_*`（报文 → 统一结构 `{news, series, meta}`），全部纯标准库；`--mode mock` 用 `tests/fixtures` 录制报文离线校验解析链路 |
+| `sentiment_nlp.py` | **自建情感层**：中文金融词库 + 否定/程度修饰 + 时间衰减 → `score_text()`，`aggregate()` 合成 `NET_SENTI / NEG_SHARE / SENT_TEMP / EVENT_RISK`；`--self-test` 自检 |
+| `sentiment_factors.py` | **因子合成管线**：分层取数（平台现成因子优先 → 免费热度/文本 + 自建词库）→ `sentiment_data.json`（构建产物，不入库）；`--live` / `--mock` / `--offline`，任何源失败都不阻断 |
+| `tools/probe_sentiment_apis.py` | **接入实测探针**：依赖→网络→鉴权→取数→字段→时效→覆盖→延迟→额度 9 阶段短路判定 + 100 分制打分 → `api_probe_report.json` 与 `docs/sentiment-api-eval.md` |
+| `docs/sentiment-api-eval.md` | **评测矩阵**（可提交的结论文档）：结论速览 / 能力矩阵 / 评分明细 / 逐源明细，由探针自动生成 |
+| `tests/test_sentiment.py` | 舆情层测试（30 项，零联网）：`python3 -m unittest discover -s tests` |
 | `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，并把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记 |
 | `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 `<!-- COMMUNITY_LIST:BEGIN/END -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
 | `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `community_data.json` 双动态数据，转为微信兼容的单页完整内联样式 HTML，经 PushPlus **一对多**群组推送（群组编码 `oai.1`）到微信 |

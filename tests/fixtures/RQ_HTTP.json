@@ -1,0 +1,14 @@
+{
+  "recorded_from": "RQData HTTP 端点未公开（机构合同提供），此报文与 SDK 路径同构，用于验证解析与降级逻辑",
+  "payload": {
+    "records": [
+      {"order_book_id": "000001.XSHE", "datetime": "2026-09-15 10:15:00", "news_id": 309171900,
+       "title": "银行板块获北向资金连续净买入，平安银行位列前三",
+       "original_time": "2026-09-15 10:12:00", "url": "https://www.yicai.com/news/100000001.html",
+       "source": "第一财经", "news_emotion_indicator": 1, "news_neutral_weight": 0.21,
+       "news_positive_weight": 0.79, "news_negative_weight": 0.0,
+       "company_relevance": 0.91, "company_emotion_indicator": 1,
+       "company_neutral_weight": 0.11, "company_positive_weight": 0.86, "company_negative_weight": 0.03}
+    ]
+  }
+}
