@@ -1,0 +1,30 @@
+{
+  "recorded_from": "东财 search-api GET https://search-api-web.eastmoney.com/search/jsonp?param={...cmsArticleWebOld...}（JSONP 外壳已在适配器剥离）",
+  "payload": {
+    "result": {
+      "hitsTotal": 100,
+      "cmsArticleWebOld": [
+        {"code": "20260915001", "date": "2026-09-15 07:58:00", "mediaName": "券商中国",
+         "title": "银行业<em>存款利率</em>下调落地 理财收益率被动走低",
+         "content": "多家大行同步下调挂牌利率，负债成本改善但中间业务收入承压。",
+         "url": "http://finance.eastmoney.com/a/20260915001.html", "secid": "1.600000"},
+        {"code": "20260915002", "date": "2026-09-15 09:12:00", "mediaName": "财联社",
+         "title": "某银行因<em>违规</em>放贷收到<em>罚单</em>，<em>立案</em>调查仍在进行",
+         "content": "公司称已完成整改，预计不影响当期损益，但估值修复需时间。",
+         "url": "http://finance.eastmoney.com/a/20260915002.html", "secid": "0.000001"},
+        {"code": "20260915003", "date": "2026-09-15 11:30:00", "mediaName": "证券时报",
+         "title": "白酒龙头业绩<em>超预期</em>，机构<em>上调</em>目标价",
+         "content": "渠道库存去化顺利，回款改善明显，盈利确定性提升。",
+         "url": "http://finance.eastmoney.com/a/20260915003.html", "secid": "1.600519"},
+        {"code": "20260915004", "date": "2026-09-15 14:05:00", "mediaName": "上证报",
+         "title": "港股科技股午后<em>跳水</em>，南向资金逆势<em>净流入</em>",
+         "content": "分析师认为短线波动源于获利了结，中期逻辑未变。",
+         "url": "http://finance.eastmoney.com/a/20260915004.html", "secid": ""},
+        {"code": "20260915005", "date": "2026-09-15 16:40:00", "mediaName": "中证网",
+         "title": "多家上市公司宣布<em>回购</em>并<em>增持</em>，释放积极信号",
+         "content": "产业资本密集出手，对市场情绪形成支撑。",
+         "url": "http://finance.eastmoney.com/a/20260915005.html", "secid": ""}
+      ]
+    }
+  }
+}
