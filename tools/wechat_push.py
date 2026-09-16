@@ -500,22 +500,6 @@ def build_single_wechat_html(now=None):
         return '\n'.join(rows)
 
 
-    platforms = (
-        '• <strong>富途牛牛社区</strong>：华语圈最大的港股散户大本营，实时个股讨论与资金流向反馈最快。<br/>'
-        '• <strong>雪球网</strong>：深度价值投资社区，盛产港股财报拆解、长文分析与中长期基本面研究。<br/>'
-        '• <strong>老虎社区</strong>：跨境华人股民集中地，聚焦美股映射、全球宏观对冲对港股的影响。<br/>'
-        '• <strong>东方财富港股股吧</strong>：内地散户基数最大的论坛，是观察南下资金短线情绪的晴雨表。<br/>'
-        '• <strong>智通财经互动区</strong>：港股垂直门户，聚焦席位追踪、牛熊证期权衍生品与打新套利。<br/>'
-        '• <strong>华尔街见闻社区</strong>：主打宏观经济视角，深度探讨离岸市场流动性与中美博弈对大盘的影响。<br/>'
-        '• <strong>香港讨论区财经版</strong>：香港本地传统“炒鬼”大本营，全粤语真实反映本土零售股民心态。<br/>'
-        '• <strong>LIHKG 连登财经台</strong>：香港年轻高频交易者激进社区，极端行情下迷因（Meme）情绪极强。<br/>'
-        '• <strong>韭圈儿 / 红岸社区</strong>：聚焦公募基金与机构仓位，提供港股通 ETF 建仓动向与经理观点。<br/>'
-        '• <strong>蚂蚁财富港股社区</strong>：基民大众理财社区，适合作为观测普通大众市场狂热度的“反向指标”。<br/>'
-        '• <strong>Reddit (r/ChinaStocks)</strong>：欧美散户与英文分析师集中地，提供纯粹的西方外资审视视角。<br/>'
-        '• <strong>TradingView 香港板块</strong>：全球技术分析圣地，布满恒指与蓝筹股的硬核 K 线及多空指标预测。<br/>'
-        '• <strong>Value Investors Club</strong>：全球顶尖价投私密社区，其港股中小盘与私有化套利报告含金量极高。<br/>'
-        '• <strong>Twitter / X (FinTwit)</strong>：全球时效性最强的金融社群，宏观对冲基金经理实时发表港股多空观点。'
-    )
 
     html = f'''<div style="background:#eef0f2;color:#141414;font-family:'黑体','SimHei','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;font-size:12px;line-height:1.85;padding:16px 12px;">
 
@@ -565,28 +549,6 @@ def build_single_wechat_html(now=None):
 
   {h('03B / 舆情·新闻因子接入实测 (Sentiment & News Factor API Bench · 聚宽 米筐 掘金 优矿)')}
   {sentiment_block()}
-
-  {h('04 / 监测平台列表与雷达矩阵 (Tactical Radar List)')}
-  {box(platforms)}
-
-  {h('05 / 数据获取与时间核对 (Telemetry & Timestamps)')}
-  {box(
-    '<strong>时间核对：' + ts_full + '</strong> — 本次推送前已重新抓取各平台数据（不复用历史抓取结果），并逐条核对 14 个频道的「最新读取」标记，正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>' +
-    '<strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/>' +
-    '若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。<br/>' +
-    '市场行情由 <strong>market_data.py</strong> 每次构建/推送前自动抓取（Yahoo Finance / Stooq 多源回退），行情快照与正文数字同步刷新；单品抓取失败自动降级显示 —，不阻断推送。<br/>' +
-    '社区研判由 <strong>community_data.py</strong> 每次构建/推送前自动抓取 14 大社区最新热评（HTTP GET + 动态模板回退），正文 14 个社区内容与「最新读取」日期全部动态刷新，杜绝旧数据残留。<br/>'
-    '舆情/新闻因子由 <strong>sentiment_factors.py</strong> 分层取数合成（优先米筐 <code>news.get_stock_news</code>、'
-    '优矿 <code>sentimentIndex/heatIndex</code> 等平台现成因子；权限未开通时降级到东财千股千评关注指数、'
-    '金十微博人气与东财/Tushare 新闻文本 + 自建中文金融词库），单源失败不阻断推送；'
-    '接口可用性评测由 <strong>tools/probe_sentiment_apis.py</strong> 生成。')}
-
-  {h('06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)')}
-  {box(
-    '本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14），重点文字为荧光绿字 + 黑色底，装饰线深绿。<br/>' +
-    '<strong>字体与字号规范：</strong>全文统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 / Noto Sans SC 黑体栈），正文 12px 紧凑小字号，标题加粗分级。<br/>' +
-    '<strong>推送时间协议：</strong>每一次推送前先核对当前时间，标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong>实时刷新为最新时间</strong>后再发送。<br/>' +
-    '<strong>单页协议：</strong>微信推送采用<strong>一对多群组推送</strong>（群组编码 oai.1，推送到群内全部关注成员微信），并采用<strong>单页完整卡片</strong>格式，全篇 8 大章节（含 03B 舆情·新闻因子实测节点）与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
 
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
   {box(
