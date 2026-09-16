@@ -95,6 +95,40 @@ VERDICT_LABEL = {
 }
 
 # ---------------------------------------------------------------------------
+# 对外展示开关：平台「接入评测（9 阶段实测）」区块默认**不**渲染给读者
+# ---------------------------------------------------------------------------
+# 隐藏范围仅限「对外输出」：
+#   • build_site.py       → 网页 report.html 的 03B 节不再出现评分矩阵与 9 阶段说明
+#   • tools/wechat_push.py → 微信推送 03B 节不再出现「接入评测（9 阶段实测）」方框
+# 管线本身完全保留：tools/probe_sentiment_apis.py 照常跑 9 阶段实测、
+# api_probe_report.json 照常产出、sentiment_factors.py 的 api_eval 字段照常写入
+# sentiment_data.json、docs/sentiment-api-eval.md 照常刷新（结论沉淀在仓库文档里）。
+# 内部评审 / 截图需要临时恢复展示时：SENTIMENT_SHOW_API_EVAL=1
+SHOW_API_EVAL_ENV = 'SENTIMENT_SHOW_API_EVAL'
+
+# 对外输出（网页 03B 节 + 微信推送 03B 节）**不显示数据来源**：
+# 平台名 / 接口 ID / 域名 / SDK / 凭据与依赖提示统一由 sentiment_match.redact() 遮成「量化平台」，
+# 逐源明细表默认不渲染；来源信息仍完整保留在 sentiment_data.json（内部构建产物）与本注册表里。
+# 内部核对需要临时显示来源时：SENTIMENT_SHOW_SOURCE=1
+SHOW_SOURCE_ENV = 'SENTIMENT_SHOW_SOURCE'
+
+
+def show_source():
+    """对外输出是否显示数据来源平台（默认 False ＝ 不显示）。"""
+    import os
+    return str(os.environ.get(SHOW_SOURCE_ENV, '')).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def show_api_eval():
+    """是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块。
+
+    默认 False（隐藏）；只有显式设置 SENTIMENT_SHOW_API_EVAL=1/true/yes/on 才展示。
+    """
+    import os
+    return str(os.environ.get(SHOW_API_EVAL_ENV, '')).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+# ---------------------------------------------------------------------------
 # 数据源清单
 # ---------------------------------------------------------------------------
 SOURCES = [

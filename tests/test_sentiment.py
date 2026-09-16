@@ -21,6 +21,7 @@ if ROOT not in sys.path:
 
 import sentiment_adapters as ad          # noqa: E402
 import sentiment_factors as sf           # noqa: E402
+import sentiment_match as smatch         # noqa: E402
 import sentiment_nlp as nlp              # noqa: E402
 import sentiment_sources as reg          # noqa: E402
 
@@ -222,6 +223,29 @@ class TestSentimentFactors(unittest.TestCase):
         self.assertIn('600519', syms)
         self.assertNotIn('1', syms, '文章流水号不得被当成分散个股代码')
 
+    def test_matches_align_with_report_targets(self):
+        """新功能：采集到的新闻舆情必须匹配到日报标的，且匹配层不含来源信息。"""
+        mm = self.data.get('matches') or {}
+        self.assertTrue(mm, 'sentiment_data.json 应带 matches（采集 → 匹配层）')
+        self.assertEqual(mm['total_news'], self.data['market']['news_count'])
+        self.assertGreater(mm['matched_news'], 0, '录制报文里应至少匹配到一个日报标的')
+        self.assertEqual(mm['matched_news'] + mm['unmatched'], mm['total_news'])
+        keys = {t['key'] for t in mm['all_targets']}
+        self.assertTrue({'HSI', 'HSTECH', 'HSCE', 'SPX', 'NDQ', 'DJI',
+                         'GOLD', 'WTI', 'USDCNH'} <= keys, '标的键需与行情表对齐')
+        for t in mm['all_targets']:
+            for banned in ('source', 'platform', 'src', 'media'):
+                self.assertNotIn(banned, t, f'匹配层不得携带来源字段 {banned}: {t}')
+            if t['hits']:
+                self.assertGreater(t['relevance'], 0, t['key'])
+                self.assertTrue(t['top_titles'], f"{t['key']} 命中后应给出代表新闻")
+                self.assertIn(t['label'], ['极度亢奋', '偏热', '中性', '偏冷', '恐慌', '极度悲观'])
+        self.assertTrue(mm['keywords_used'], '应记录本次采集关键词（便于复核匹配口径）')
+        # 采集关键词本身必须能命中日报标的，否则「采集 → 匹配」对不上
+        for kw in smatch.search_keywords():
+            self.assertTrue(any(kw in t['name'] or kw in ' '.join(t['keywords'])
+                                for t in smatch.TARGETS), f'采集关键词与标的脱节: {kw}')
+
     def test_api_eval_embedded_if_available(self):
         ev = self.data.get('api_eval')
         if not os.path.exists(sf.PROBE_REPORT):
@@ -283,6 +307,13 @@ class TestReportAndPush(unittest.TestCase):
                                                  'name': 'news.get_stock_news', 'score': 67,
                                                  'verdict': 'READY_WITH_LICENCE',
                                                  'verdict_label': '可接入（需开权限/付费）'}]},
+                       'matches': smatch.build_matches([
+                           {'title': '恒指收跌 2.22%，南向资金逆势净流入港股',
+                            'published_at': '2026-09-16 08:00:00'},
+                           {'title': '现货黄金刷新历史高位，避险资金涌入贵金属',
+                            'published_at': '2026-09-16 07:30:00', 'sentiment': 0.8},
+                           {'title': '美联储 9 月加息概率下降，CPI 同比回落至 3.4%',
+                            'published_at': '2026-09-16 06:00:00'}]),
                        'summary': {'total': 11, 'ok': 10, 'failed': ['GM_SDK']},
                        'series': [{'date': '2026-09-15', 'value': 1.02, 'name': '市场情绪指数'}]},
                       f, ensure_ascii=False)
@@ -295,7 +326,16 @@ class TestReportAndPush(unittest.TestCase):
         self.assertEqual(tokens['{{SENT_TEMP}}'], '61.2')
         self.assertEqual(tokens['{{SENT_LABEL}}'], '偏热')
         self.assertIn('10/11', tokens['{{SENT_SOURCE_STATUS}}'])
-        self.assertIn('GM_SDK', tokens['{{SENT_STATUS}}'])
+        # 对外不显示数据来源：状态文案只给降级个数，不列接口 ID / 平台名
+        self.assertNotIn('GM_SDK', tokens['{{SENT_STATUS}}'])
+        self.assertIn('1 个接口自动降级', tokens['{{SENT_STATUS}}'])
+        os.environ['SENTIMENT_SHOW_SOURCE'] = '1'
+        try:
+            shown = self.build_site._sentiment_tokens(
+                json.load(open(self.sent, encoding='utf-8')), '2026-09-16')
+            self.assertIn('GM_SDK', shown['{{SENT_STATUS}}'], '内部视图应能看到降级接口 ID')
+        finally:
+            os.environ.pop('SENTIMENT_SHOW_SOURCE', None)
         for key, val in tokens.items():
             self.assertNotIn('\x00', str(val), key)
             self.assertLess(len(str(val)), 400, f'{key} 过长，可能把原始文本灌进模板')
@@ -305,7 +345,8 @@ class TestReportAndPush(unittest.TestCase):
         self.assertEqual(set(tokens), {'{{SENT_TEMP}}', '{{SENT_LABEL}}', '{{SENT_NET}}',
                                        '{{SENT_NEG}}', '{{SENT_NEWS}}', '{{SENT_HEATZ}}',
                                        '{{SENT_RISK}}', '{{SENT_DATE}}', '{{SENT_MODE}}',
-                                       '{{SENT_NATIVE}}', '{{SENT_SOURCE_STATUS}}', '{{SENT_STATUS}}'})
+                                       '{{SENT_NATIVE}}', '{{SENT_SOURCE_STATUS}}', '{{SENT_STATUS}}',
+                                       '{{SENT_MATCH_HITS}}', '{{SENT_MATCH_RATE}}'})
         self.assertTrue(all(tokens.values()), '占位符默认值不得为空')
 
     def test_inject_sentiment_replaces_markers(self):
@@ -346,6 +387,154 @@ class TestReportAndPush(unittest.TestCase):
         self.assertIn('舆情', html)
         self.assertLess(len(html), 95000, '微信单页需保持在安全线内')
         self.assertEqual(html.count('03B / 舆情'), 1, '03B 节点不得重复')
+
+
+class TestSourceAnonymity(unittest.TestCase):
+    """新功能：舆情因子对外输出「不显示数据来源」，且采集结果按日报标的匹配展示。"""
+
+    BLACKLIST = ('聚宽', '米筐', '掘金', '优矿', 'Tushare', '东财', '金十', '数库', 'Chinascope',
+                 'JoinQuant', 'RiceQuant', 'Myquant', 'Uqer', '千股千评', 'rqdatac', 'jqdatasdk',
+                 'eastmoney', 'jin10', 'RQ_SDK', 'RQ_HTTP', 'UQER_HTTP', 'EM_COMMENT', 'EM_NEWS',
+                 'JQ_SDK', 'JQ_HTTP', 'GM_SDK', 'CHINASCOPE', 'JIN10_WEIBO', 'TUSHARE_NEWS',
+                 'UQER_TOKEN', 'TUSHARE_TOKEN', '接入评测', '9 阶段', '证券时报网')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.build_site = _load_module('build_site_anon', 'build_site.py')
+        cls.wechat = _load_module('wechat_push_anon', os.path.join('tools', 'wechat_push.py'))
+        cls.tmp = tempfile.mkdtemp(prefix='sent-anon-')
+        cls.sent = os.path.join(cls.tmp, 'sentiment_data.json')
+        # 故意把来源痕迹塞满每个字段：平台名 / 接口 ID / 域名 / 凭据与依赖报错 / 媒体名
+        data = {
+            'mode': 'mock', 'fetch_date': '2026-09-16',
+            'mode_note': '离线回放：米筐 RQ_SDK 与 优矿 Uqer fixtures',
+            'market': {'sent_temp': 55.0, 'label': '中性', 'net_senti': 0.1, 'neg_share': 20.0,
+                       'pos_share': 50.0, 'news_count': 6, 'heat_z': 0.3, 'risk_score': 30.0,
+                       'platform_native': 2, 'self_built': 4,
+                       'events': [{'title': '东财快讯：某公司被立案调查', 'terms': ['立案'],
+                                   'risk_score': 30.0, 'published_at': '2026-09-15 09:12'}],
+                       'top_negative': [{'title': '某银行被罚 79 万元', 'source': '证券时报网',
+                                         'sentiment': -0.55, 'published_at': '2026-09-15 08:30',
+                                         'hits': {'pos': [], 'neg': ['罚款'], 'risk': ['罚款']}}],
+                       'top_positive': [{'title': '多家公司宣布回购增持', 'source': '金十数据',
+                                         'sentiment': 0.75, 'published_at': '2026-09-15 16:40',
+                                         'hits': {'pos': ['回购'], 'neg': [], 'risk': []}}]},
+            'stocks': [{'symbol': '600519', 'name': '贵州茅台', 'heat': 98712.0, 'heat_z': 1.3,
+                        'net_senti': 0.4, 'news_count': 2, 'risk_score': 0.0,
+                        'as_of': '2026-09-15'}],
+            'sources': [
+                {'id': 'RQ_SDK', 'platform': '米筐 RiceQuant', 'name': 'news.get_stock_news',
+                 'ok': False, 'news': 0, 'series': 0, 'latest_date': '',
+                 'error': '依赖缺失 rqdatac：pip install rqdatac（私有源）', 'note': ''},
+                {'id': 'UQER_HTTP', 'platform': '优矿 Uqer（通联数据）', 'name': 'NewsSentimentIndexGet',
+                 'ok': False, 'news': 0, 'series': 0, 'latest_date': '',
+                 'error': '缺少 UQER_TOKEN', 'note': ''},
+                {'id': 'EM_COMMENT', 'platform': '东方财富（免费公开）', 'name': '千股千评关注指数',
+                 'ok': True, 'news': 0, 'series': 9, 'latest_date': '2026-09-16',
+                 'error': '', 'note': '热度类因子，无极性', 'native_sentiment': 0}],
+            'series': [{'date': '2026-09-15', 'value': 1.02, 'name': '市场情绪指数',
+                        'source': 'CHINASCOPE', 'platform': '数库 Chinascope',
+                        'note': '数库市场情绪指数，基期 = 1.0'}],
+            'api_eval': {'generated_at': '2026-09-16 04:00:00 UTC', 'mode': 'mock',
+                         'ranking': [{'id': 'RQ_SDK', 'platform': '米筐 RiceQuant',
+                                      'name': 'news.get_stock_news', 'score': 67,
+                                      'verdict': 'READY_WITH_LICENCE',
+                                      'verdict_label': '可接入（需开权限/付费）'}],
+                         'conclusion': ['米筐：唯一"给到即入模"的舆情因子']},
+            'matches': smatch.build_matches([
+                {'title': '恒指低开低走收跌 2.22%，南向资金仍净流入港股',
+                 'published_at': '2026-09-16 08:00:00'},
+                {'title': '现货黄金刷新历史高位，避险资金涌入贵金属',
+                 'published_at': '2026-09-16 07:30:00', 'sentiment': 0.8},
+                {'title': '美联储 9 月加息概率下降，CPI 同比回落',
+                 'published_at': '2026-09-16 06:00:00'},
+                {'title': '某公司公布季度报表', 'published_at': '2026-09-16 05:00:00'}],
+                keywords_used=smatch.search_keywords()),
+            'summary': {'total': 11, 'ok': 9, 'failed': ['RQ_SDK', 'UQER_HTTP']},
+        }
+        with open(cls.sent, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+
+    def _web(self):
+        with open(self.sent, encoding='utf-8') as f:
+            return self.build_site.build_sentiment_html(json.load(f))
+
+    def _push(self):
+        old = os.environ.get('SENTIMENT_DATA')
+        os.environ['SENTIMENT_DATA'] = self.sent
+        try:
+            with capture_stdout():
+                html, _ts, _ts_full = self.wechat.build_single_wechat_html()
+        finally:
+            if old is None:
+                os.environ.pop('SENTIMENT_DATA', None)
+            else:
+                os.environ['SENTIMENT_DATA'] = old
+        i, j = html.index('03B /'), html.index('07 /')
+        return html[i:j]
+
+    def test_web_03b_hides_every_source_trace(self):
+        html = self._web()
+        for bad in self.BLACKLIST:
+            self.assertNotIn(bad, html, f'网页 03B 泄漏来源: {bad}')
+        self.assertIn('量化平台', html, '脱敏后应保留中性占位')
+
+    def test_push_03b_hides_every_source_trace(self):
+        html = self._push()
+        for bad in self.BLACKLIST:
+            self.assertNotIn(bad, html, f'微信推送 03B 泄漏来源: {bad}')
+
+    def test_eval_matrix_hidden_by_default(self):
+        self.assertNotIn('接入评测', self._web())
+        self.assertNotIn('接入评测', self._push())
+
+    def test_matched_targets_are_displayed(self):
+        web = self._web()
+        self.assertIn('标的匹配', web, '网页应渲染「舆情因子 × 日报标的匹配」表')
+        for name in ('恒生指数', '现货黄金', '美联储与美元流动性'):
+            self.assertIn(name, web, f'匹配表应展示 {name}')
+        self.assertIn('匹配率', web)
+        push = self._push()
+        self.assertIn('🎯', push, '微信推送应逐条展示匹配到的标的')
+        self.assertIn('命中', push)
+        self.assertIn('代表新闻', push)
+        self.assertIn('恒生指数', push)
+
+    def test_env_flags_restore_internal_views(self):
+        os.environ['SENTIMENT_SHOW_API_EVAL'] = '1'
+        os.environ['SENTIMENT_SHOW_SOURCE'] = '1'
+        try:
+            web = self._web()
+            self.assertIn('接入评测', web, '开开关后应恢复评测矩阵（内部核对用）')
+            self.assertIn('逐源取数明细', web)
+            self.assertIn('RQ_SDK', web)
+            with capture_stdout():
+                push_html, _t, _tf = self.wechat.build_single_wechat_html()
+            self.assertIn('9 阶段实测', push_html)
+        finally:
+            os.environ.pop('SENTIMENT_SHOW_API_EVAL', None)
+            os.environ.pop('SENTIMENT_SHOW_SOURCE', None)
+
+    def test_redact_masks_all_known_traces(self):
+        dirty = ('米筐 RiceQuant RQ_SDK news.get_stock_news、优矿 Uqer sentimentIndex、聚宽 JQ_HTTP、'
+                 '掘金 gm.api、Tushare Pro、东财千股千评、金十微博人气、数库 Chinascope，'
+                 '端点 datacenter-web.eastmoney.com，缺少 UQER_TOKEN，依赖缺失 rqdatac')
+        clean = smatch.redact(dirty)
+        for bad in self.BLACKLIST:
+            if bad in ('接入评测', '9 阶段'):
+                continue
+            self.assertNotIn(bad, clean, f'脱敏残留: {bad} → {clean}')
+
+    def test_status_line_and_summary_are_anonymous(self):
+        with open(self.sent, encoding='utf-8') as f:
+            data = json.load(f)
+        line = smatch.status_line(data)
+        self.assertIn('9/11', line)
+        self.assertIn('2 个接口自动降级', line)
+        for bad in ('RQ_SDK', 'UQER_HTTP', '米筐', '优矿'):
+            self.assertNotIn(bad, line)
+        c = smatch.collection_summary(data)
+        self.assertEqual((c['ok'], c['total'], c['failed_n']), (9, 11, 2))
 
 
 class TestProbe(unittest.TestCase):

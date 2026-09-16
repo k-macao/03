@@ -41,6 +41,20 @@ import re
 import sys
 from datetime import datetime, timezone
 
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+import sentiment_match as smatch                           # noqa: E402  采集→匹配→脱敏展示层
+
+try:
+    # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
+    from sentiment_sources import show_api_eval           # noqa: E402
+except Exception:                                          # 注册表缺失/异常时保持默认：隐藏
+    def show_api_eval():
+        return str(os.environ.get('SENTIMENT_SHOW_API_EVAL', '')).strip().lower() \
+            in ('1', 'true', 'yes', 'on')
+
 # 行情占位符规则: key -> (中文名, 小数位组)
 QUOTE_KEYS = ['HSI', 'HSTECH', 'HSCE', 'SPX', 'NDQ', 'DJI', 'GOLD', 'WTI', 'BRENT', 'USDCNH', 'USDCNY']
 FX_KEYS = {'USDCNH', 'USDCNY'}
@@ -156,8 +170,10 @@ def _sentiment_tokens(s, fallback_date):
         '{{SENT_MODE}}': {'live': '联网实测', 'mock': '离线回放（fixtures）',
                           'off': '断网兜底', 'offline': '断网兜底'}.get((s or {}).get('mode'), '未生成'),
         '{{SENT_NATIVE}}': num(m.get('platform_native'), 0),
-        '{{SENT_SOURCE_STATUS}}': (f"{sm.get('ok')}/{sm.get('total')} 个平台接口可用"
+        '{{SENT_SOURCE_STATUS}}': (f"量化平台接口 {sm.get('ok')}/{sm.get('total')} 可用"
                                    if sm.get('total') else '舆情因子数据未生成'),
+        '{{SENT_MATCH_HITS}}': num((s or {}).get('matches', {}).get('matched_news'), 0),
+        '{{SENT_MATCH_RATE}}': num(((s or {}).get('matches', {}).get('coverage') or 0) * 100, 1, '%'),
         '{{SENT_STATUS}}': _sentiment_status(s),
     }
 
@@ -169,9 +185,11 @@ def _sentiment_status(s):
     sm = s.get('summary') or {}
     ok, total, failed = sm.get('ok'), sm.get('total'), sm.get('failed') or []
     gen = s.get('generated_at') or ''
-    txt = f'舆情/新闻因子接口 {ok}/{total} 可用 · 生成于 {gen}'
+    txt = f'量化平台舆情/新闻因子接口 {ok}/{total} 可用 · 生成于 {gen}'
     if failed:
-        txt += f' · 降级源：{"、".join(failed)}'
+        # 对外不显示数据来源：只给降级个数，不列接口 ID / 平台名
+        txt += (f' · 降级源：{"、".join(failed)}' if smatch.show_source()
+                else f' · {len(failed)} 个接口自动降级（不阻断构建与推送）')
     if (s.get('market') or {}).get('degraded'):
         txt += ' · 本次为降级结果（因子数值未刷新，已标注）'
     return txt
@@ -303,15 +321,32 @@ def inject_community_list(template, community_html):
 
 
 def build_sentiment_html(s):
-    """03B / 舆情因子接入实测节点（温度计 + 平台评测矩阵 + 个股热度 + 风险事件 + 取数明细）。"""
+    """03B / 舆情·新闻因子节点（温度计 + 标的匹配 + 个股热度 + 风险事件 + 情感样本 + 采集概况）。
+
+    对外输出**不显示数据来源**：平台名 / 接口 ID / 域名 / SDK / 凭据与依赖提示由
+    `sentiment_match.redact()` 统一遮成「量化平台」，逐源明细表默认不渲染
+    （内部核对需临时显示时设 `SENTIMENT_SHOW_SOURCE=1`）。
+    「量化平台现成舆情 / 新闻因子接入评测（9 阶段实测）」评分矩阵默认隐藏
+    （`SENTIMENT_SHOW_API_EVAL=1` 可临时恢复），结论仍完整保留在 `docs/sentiment-api-eval.md`。
+    """
     esc = _esc
+    anon = not smatch.show_source()
+
+    def clean(v, limit=None):
+        """对外文案：脱敏（不显示来源）→ 截断 → HTML 转义。"""
+        t = smatch.redact(v) if anon else str(v if v is not None else '')
+        if limit and len(t) > limit:
+            t = t[:limit].rstrip(' ·、/，,') + '…'
+        return esc(t)
+
     if not s:
-        return ('<div class="pub-box"><div class="pub-sub">◆ 舆情 / 新闻因子接口尚未接入</div>'
+        return ('<div class="pub-box"><div class="pub-sub">◆ 舆情 / 新闻因子节点待生成</div>'
                 '本节点由 <code>sentiment_factors.py</code> 动态注入：'
                 '<code>python3 sentiment_factors.py --live</code>（境内出口 + 凭据）实测取数，'
                 '或 <code>python3 sentiment_factors.py --mock</code> 用录制报文离线回放。'
-                '<div class="pub-meta">接入评测与打分由 <code>tools/probe_sentiment_apis.py</code> 生成，'
-                '结论详见 <code>docs/sentiment-api-eval.md</code>。</div></div>')
+                + ('<div class="pub-meta">接入评测与打分由 <code>tools/probe_sentiment_apis.py</code> 生成，'
+                   '结论详见 <code>docs/sentiment-api-eval.md</code>。</div>' if show_api_eval() else '')
+                + '</div>')
 
     m = s.get('market') or {}
     sm = s.get('summary') or {}
@@ -330,15 +365,52 @@ def build_sentiment_html(s):
              f"本次关联新闻 {m.get('news_count', 0)} 条（对比近 20 日均值）"),
         card('突发事件风险分 EVENT_RISK', _f2(m.get('risk_score'), '.0f'),
              '监管/诉讼/违约/退市/减持等高风险词加权命中，单日取最大值'),
-        card('接口可用性', f"{sm.get('ok', '—')}/{sm.get('total', '—')}",
-             f"模式：{esc(s.get('mode_note') or '')[:44]}"),
+        card('量化平台接口可用性', f"{sm.get('ok', '—')}/{sm.get('total', '—')}",
+             f"模式：{clean(s.get('mode_note'), 44) or '—'}"),
         card('平台现成因子占比', f"{m.get('platform_native', 0)} / {m.get('news_count', 0)}",
-             '带 sentiment 字段者直接采用平台口径（米筐/优矿），其余由自建词库打分'),
+             '带原生情感字段者直接采用平台口径，其余由自建中文金融词库打分'),
     ]
     parts.append('<div class="stat-grid">' + ''.join(cards) + '</div>')
 
+    # ---- 采集 → 匹配：新闻舆情按关键词对齐到日报标的与主题（对外不显示来源） ----
+    mm = s.get('matches') or {}
+    tgts = mm.get('targets') or []
+    if tgts:
+        rows = []
+        for t in tgts[:12]:
+            top = (t.get('top_titles') or [{}])[0]
+            rows.append(f"<tr><td>{esc(t.get('name', ''))}</td>"
+                        f"<td>{t.get('hits', 0)}</td>"
+                        f"<td class=\"q-pct\">{_f2(t.get('net_senti'), '+.3f')}</td>"
+                        f"<td>{_f2(t.get('neg_share'), '.1f')}%</td>"
+                        f"<td>{_f2(t.get('risk_score'), '.0f')}</td>"
+                        f"<td>{esc(t.get('label') or '—')} {_f2(t.get('sent_temp'), '.1f')}</td>"
+                        f"<td>{clean(top.get('title'), 34) or '—'}</td></tr>")
+        parts.append(
+            '<div class="pub-box"><div class="pub-sub">◆ 舆情因子 × 日报标的匹配'
+            '（多平台采集后自动对齐 · 不显示数据来源）</div>'
+            f'<div style="font-size:11.5px;color:#333;margin-bottom:6px;">本次共采集 '
+            f'<strong>{mm.get("total_news", 0)}</strong> 条新闻舆情，其中 '
+            f'<strong>{mm.get("matched_news", 0)}</strong> 条匹配到本页 02 节行情标的与日报主题'
+            f'（匹配率 {_f2((mm.get("coverage") or 0) * 100, ".1f")}%）· 采集关键词 '
+            f'{esc("、".join(mm.get("keywords_used") or []) or "—")}</div>'
+            '<table class="quote-table"><tr><th>标的 / 主题</th><th>命中</th><th>净情感</th>'
+            '<th>负面占比</th><th>风险分</th><th>舆情温度</th><th>代表新闻（不含来源）</th></tr>'
+            + ''.join(rows) + '</table>'
+            + (f'<div class="pub-meta">未匹配 {mm.get("unmatched", 0)} 条（与日报标的相关性不足，'
+               '只计入市场级读数，不进标的表）。</div>' if mm.get('unmatched') else '')
+            + '<div class="pub-meta">匹配规则：标题命中权重 0.4 / 正文 0.15，净情感与风险分复用同一套'
+              '自建中文金融词库口径（平台已给原生情感字段时优先采用平台口径）。</div></div>')
+
+    # ---- 平台接入评测（9 阶段实测）矩阵：默认对外隐藏 ----
     ev = s.get('api_eval') or {}
-    if ev.get('ranking'):
+    if ev.get('ranking') and not show_api_eval():
+        # 探针照常跑、api_eval 照常写入 sentiment_data.json，只是不渲染给读者；
+        # 结论仍完整保留在 docs/sentiment-api-eval.md（内部评测档案）。
+        print(f'  🔒 03B「量化平台现成舆情 / 新闻因子接入评测（9 阶段实测）」已隐藏'
+              f'（{len(ev["ranking"])} 个源的评分矩阵未渲染；结论见 docs/sentiment-api-eval.md，'
+              f'需展示时设 SENTIMENT_SHOW_API_EVAL=1）')
+    elif ev.get('ranking'):
         rows = []
         for r in ev['ranking']:
             rows.append(f"<tr><td>{esc(r.get('platform', ''))}</td>"
@@ -374,13 +446,13 @@ def build_sentiment_html(s):
             '<div class="pub-box"><div class="pub-sub">◆ 个股舆情热度与情感（关注度因子 + 情感因子）</div>'
             '<table class="quote-table"><tr><th>标的</th><th>关注指数</th><th>热度 Z</th>'
             '<th>净情感</th><th>新闻数</th><th>风险分</th></tr>' + ''.join(rows) + '</table>'
-            '<div class="pub-meta">关注指数来自东财千股千评（小时/日频热度类因子，无极性）；'
-            '净情感来自平台原生字段或自建词库打分。</div></div>')
+            '<div class="pub-meta">关注指数为量化平台现成热度类因子（小时/日频，无极性）；'
+            '净情感来自平台原生情感字段或自建中文金融词库打分。</div></div>')
 
     events = (m.get('events') or [])[:5]
     if events:
         lis = ''.join(
-            f"<li><strong>{esc(e.get('title') or '')[:60]}</strong> — 命中 "
+            f"<li><strong>{clean(e.get('title'), 60)}</strong> — 命中 "
             f"{esc('、'.join(e.get('terms') or []))} · 风险分 {e.get('risk_score')}"
             f"{' · ' + esc(str(e.get('published_at'))[:16]) if e.get('published_at') else ''}</li>"
             for e in events)
@@ -393,15 +465,16 @@ def build_sentiment_html(s):
             hits = (x.get('hits') or {})
             kw = '、'.join((hits.get('neg') or [])[:3] + (hits.get('pos') or [])[:3])
             return (f"<li><span style=\"background:#000;color:#39ff14;font-size:10px;\""
-                    f"padding:1px 6px;margin-right:6px;\">{tag}</span>{esc(x.get('title') or '')}"
-                    f"<span style=\"color:#7d838b;\"> · {esc(x.get('source') or '')} "
-                    f"{esc(str(x.get('published_at') or ''))[:16]} · 情感 {x.get('sentiment')} · 命中 {esc(kw)}</span></li>")
-        parts.append('<div class="pub-box"><div class="pub-sub">◆ 情感样本极值（可回溯：命中词与权重）</div>'
+                    f"padding:1px 6px;margin-right:6px;\">{tag}</span>{clean(x.get('title'), 60)}"
+                    f"<span style=\"color:#7d838b;\">"
+                    f" · {esc(str(x.get('published_at') or ''))[:16]} · 情感 {x.get('sentiment')}"
+                    f" · 命中 {esc(kw)}</span></li>")
+        parts.append('<div class="pub-box"><div class="pub-sub">◆ 情感样本极值（可回溯：命中词与权重 · 不含来源）</div>'
                      '<ul class="pixel-list">' + ''.join(li(x, '负面') for x in top_neg)
                      + ''.join(li(x, '正面') for x in top_pos) + '</ul></div>')
 
     srcs = s.get('sources') or []
-    if srcs:
+    if srcs and not anon:
         rows = []
         for r in srcs:
             ok = '✅' if r.get('ok') else '⚠️'
@@ -412,23 +485,35 @@ def build_sentiment_html(s):
                         f"<td>{esc(r.get('latest_date') or '—')}</td>"
                         f"<td class=\"q-off\">{esc((r.get('error') or r.get('note') or '')[:60])}</td></tr>")
         parts.append(
-            '<div class="pub-box"><div class="pub-sub">◆ 逐源取数明细（本次构建）</div>'
+            '<div class="pub-box"><div class="pub-sub">◆ 逐源取数明细（本次构建 · 内部视图）</div>'
             '<table class="quote-table"><tr><th>接口</th><th>平台</th><th>状态</th>'
             '<th>新闻/序列</th><th>最新日期</th><th>说明</th></tr>' + ''.join(rows) + '</table>'
-            '<div class="pub-meta">单源失败自动降级、不阻断构建与推送；失败原因如实标注在此表。</div></div>')
+            '<div class="pub-meta">单源失败自动降级、不阻断构建与推送；失败原因如实标注在此表。'
+            '（对外默认隐藏，本表由 SENTIMENT_SHOW_SOURCE=1 开启）</div></div>')
+    elif srcs:
+        c = smatch.collection_summary(s)
+        parts.append(
+            '<div class="pub-box"><div class="pub-sub">◆ 本次采集概况（多量化平台合并 · 不显示来源）</div>'
+            f'量化平台接口 <strong>{c["ok"]}/{c["total"]}</strong> 可用 · 采集新闻 '
+            f'<strong>{c["news"]}</strong> 条 · 指数序列 {c["series"]} 行 · 平台现成因子 '
+            f'{c["native"]} 条 · 自建词库打分 {c["self_built"]} 条'
+            + (f' · <strong>{c["failed_n"]}</strong> 个接口本次自动降级（单接口失败不阻断构建与推送）'
+               if c['failed_n'] else ' · 全部接口取数成功')
+            + f'<div class="pub-meta">数据日期 {esc(c["date"] or "—")} · 模式 {clean(c["mode_note"], 60) or "—"}'
+              ' · 全源不可用时温度计回退中性 50 并标注降级；来源明细仅保留在内部构建产物中。</div></div>')
 
     series = (s.get('series') or [])[-10:]
     if series:
         lis = ''.join(
-            f"<li>{esc(r.get('date'))} · {esc(r.get('name'))}"
-            f"（{esc(r.get('platform') or r.get('source') or '—')}）"
+            f"<li>{esc(r.get('date'))} · {clean(r.get('name'), 24)}"
+            f"{'（' + clean(r.get('platform') or r.get('source'), 20) + '）' if not anon else ''}"
             f" <strong>{r.get('value')}</strong>"
-            f' <span class="pub-meta">{esc(r.get("note") or "")}</span></li>'
+            f' <span class="pub-meta">{clean(r.get("note"), 60)}</span></li>'
             for r in reversed(series))
         parts.append('<div class="pub-box"><div class="pub-sub">◆ 市场级新闻情绪指数序列（平台现成因子 · 日频 · 末 10 期）</div>'
                      f'<ul class="pixel-list">{lis}</ul>'
-                     '<div class="pub-meta">各平台指数口径不同（数库基期 = 1.0；优矿 sentimentIndex ∈ [-1,1]），'
-                     '跨源不可直接比较；关注度类序列（东财关注指数、金十微博人气）见上表个股热度。</div></div>')
+                     '<div class="pub-meta">不同接口的指数口径不同（基期 = 1.0 型 vs [-1,1] 情感均值型），'
+                     '跨源不可直接比较；关注度/热度类序列见上方个股热度表。</div></div>')
     return '\n'.join(parts)
 
 

@@ -41,6 +41,19 @@ import urllib.request
 from datetime import datetime, timezone
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+import sentiment_match as smatch                          # noqa: E402  采集→匹配→脱敏展示层
+
+try:
+    # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
+    from sentiment_sources import show_api_eval           # noqa: E402
+except Exception:                                          # 注册表缺失/异常时保持默认：隐藏
+    def show_api_eval():
+        return str(os.environ.get('SENTIMENT_SHOW_API_EVAL', '')).strip().lower() \
+            in ('1', 'true', 'yes', 'on')
+
 SOURCE_HTML = os.path.join(REPO_ROOT, 'report.html')
 PAGES_URL = 'https://k-macao.github.io/03/'
 PUSH_URL = 'https://www.pushplus.plus/send'
@@ -451,25 +464,35 @@ def build_single_wechat_html(now=None):
     # ---------- 03B 舆情/新闻因子节点（sentiment_data.json 动态注入） ----------
     def sentiment_block():
         if not _sd:
-            return box('<strong style="color:#000;">AI 多空总览统计</strong> 舆情因子节点待接入：'
+            return box('<strong style="color:#000;">AI 多空总览统计</strong> 舆情因子节点待生成：'
                        '在境内出口执行 <strong>python3 sentiment_factors.py --live</strong>'
-                       '（或 <strong>--mock</strong> 离线回放）后重建即可注入本节点。')
+                       '（或 <strong>--mock</strong> 离线回放）后重建，'
+                       '即可注入「标的匹配 + 因子读数」（对外不显示数据来源）。')
         m = _sd.get('market') or {}
-        sm = _sd.get('summary') or {}
+        mm = _sd.get('matches') or {}
+        anon = not smatch.show_source()
         rows = []
+
+        def clean(v, limit=0):
+            """对外文案：脱敏（不显示数据来源）→ 截断。"""
+            t = smatch.redact(v) if anon else str(v if v is not None else '')
+            return (t[:limit].rstrip(' ·、/，,') + '…') if limit and len(t) > limit else t
+
         rows.append(
             '<div style="background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;'
             'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;line-height:1.85;">'
-            + sub('◆ 市场舆情因子读数（可回测口径，非论坛印象）')
+            + sub('◆ 市场舆情因子读数（多量化平台合并采集 · 可回测口径 · 不显示数据来源）')
             + key(f"舆情温度计 {m.get('sent_temp', '—')} · {m.get('label', '—')}")
             + f"　净情感 {m.get('net_senti', '—')}　负面占比 {m.get('neg_share', '—')}%"
               f"　热度 {m.get('heat_z', '—')}σ　风险分 {m.get('risk_score', '—')}"
-              f"<br/>关联新闻 <strong>{m.get('news_count', 0)}</strong> 条，其中平台现成因子 "
+              f"<br/>采集新闻 <strong>{m.get('news_count', 0)}</strong> 条，其中平台现成因子 "
               f"<strong>{m.get('platform_native', 0)}</strong> 条、自建词库打分 "
               f"<strong>{m.get('self_built', 0)}</strong> 条"
+              f"<br/>匹配日报标的 <strong>{mm.get('matched_news', 0)}</strong> 条"
+              f"（匹配率 {(mm.get('coverage') or 0) * 100:.1f}%）· 采集关键词 "
+              f"{'、'.join(mm.get('keywords_used') or []) or '—'}"
               f"<br/><span style=\"color:#7d838b;font-size:10px;\">数据日期 {_sd.get('fetch_date', '—')} · "
-              f"接口 {sm.get('ok', '—')}/{sm.get('total', '—')} 可用"
-              + (f" · 降级：{'、'.join(sm.get('failed') or [])}" if sm.get('failed') else '')
+              + smatch.status_line(_sd)
               + f" · {'离线回放（fixtures）' if _sd.get('mode') == 'mock' else '联网实测'}</span></div>")
 
         def row(icon, title, body):
@@ -477,6 +500,13 @@ def build_single_wechat_html(now=None):
                     'padding:9px 12px;margin:8px 0;font-size:11.5px;color:#141414;line-height:1.8;">'
                     f'<strong style="color:#000;">{icon} {title}</strong>　{body}</div>')
 
+        for t in (mm.get('targets') or [])[:8]:
+            top = (t.get('top_titles') or [{}])[0]
+            rows.append(row('🎯', f"{t.get('name', '')}　命中 {t.get('hits', 0)} 条",
+                            f"净情感 {t.get('net_senti')}　负面 {t.get('neg_share')}%"
+                            f"　风险 {t.get('risk_score')}　温度 {t.get('sent_temp')}·{t.get('label', '')}"
+                            + (f"<br/><span style=\"color:#7d838b;font-size:10.5px;\">代表新闻："
+                               f"{clean(top.get('title'), 46)}</span>" if top.get('title') else '')))
         for st in (_sd.get('stocks') or [])[:5]:
             rows.append(row(st.get('symbol', ''),
                             f"{st.get('name') or st.get('symbol')}",
@@ -485,10 +515,16 @@ def build_single_wechat_html(now=None):
                             f"　新闻 {st.get('news_count')} 条　风险 {st.get('risk_score')}"))
         for e in (m.get('events') or [])[:3]:
             rows.append(row('⚠️', '风险事件',
-                            f"{(e.get('title') or '')[:60]}　命中 {'、'.join(e.get('terms') or [])}"
+                            f"{clean(e.get('title'), 60)}　命中 {'、'.join(e.get('terms') or [])}"
                             f"（{e.get('risk_score')} 分）"))
         ev = _sd.get('api_eval') or {}
-        if ev.get('ranking'):
+        if ev.get('ranking') and not show_api_eval():
+            # 按要求对外隐藏：微信推送不再展示平台接入评测（9 阶段实测）评分方框，
+            # 探针照常跑、结论仍完整保留在 docs/sentiment-api-eval.md。
+            print('  🔒 微信推送 03B：「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」已隐藏'
+                  f'（{len(ev["ranking"])} 个源的评分未渲染；结论见 docs/sentiment-api-eval.md，'
+                  '需展示时设 SENTIMENT_SHOW_API_EVAL=1）')
+        elif ev.get('ranking'):
             cells = '<br/>' + '<br/>'.join(
                 f"· <strong>{r.get('platform', '').split('（')[0]}</strong>·"
                 f"{(r.get('name') or r.get('id', ''))[:26]}　{r.get('verdict_label')}"
@@ -547,7 +583,7 @@ def build_single_wechat_html(now=None):
 
   {community_html}
 
-  {h('03B / 舆情·新闻因子接入实测 (Sentiment & News Factor API Bench · 聚宽 米筐 掘金 优矿)')}
+  {h('03B / 舆情·新闻因子：多平台采集 → 标的匹配 (Sentiment & News Factor Bench · 不显示数据来源)')}
   {sentiment_block()}
 
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
