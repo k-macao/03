@@ -181,6 +181,7 @@ def make_quote(key, name, unit, decimals, last, prev, as_of, source):
         'unit': unit,
         'decimals': decimals,
         'last': last,
+        'prev_close': prev,
         'chg': chg,
         'pct': pct,
         'as_of': as_of,
