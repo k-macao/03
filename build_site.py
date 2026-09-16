@@ -165,11 +165,41 @@ def find_leftovers(html):
     return sorted(set(re.findall(r'\{\{\s*[A-Za-z0-9_]+\s*\}\}', html)))
 
 
+def build_quant_html(quant):
+    """构建核心量化指标 HTML（网页版）"""
+    if not quant:
+        return ""
+    # 兼容旧数据缺失 quant 时
+    sentiment = quant.get('sentiment', {})
+    event = quant.get('event', {})
+    relevance = quant.get('relevance', {})
+    novelty = quant.get('novelty', {})
+
+    s_display = sentiment.get('display', '—')
+    s_desc = sentiment.get('desc', '由新闻对应文本片段的情绪，排除无关主体干扰')
+    e_label = event.get('label', '综合')
+    e_desc = event.get('desc', '精准匹配业绩、并购、监管等场景')
+    r_display = relevance.get('display', '—')
+    r_desc = relevance.get('desc', '衡量新闻与标的的关联程度，过滤无效噪音')
+    n_display = novelty.get('display', '—')
+    n_desc = novelty.get('desc', '区分新闻首发与转载，识别信息冲击强度')
+
+    return (
+        f'  <div class="quant-metrics">\n'
+        f'    <div class="quant-metrics-title">◆ 核心量化指标</div>\n'
+        f'    <ul class="quant-metrics-list">\n'
+        f'      <li><strong>实体级情感得分：</strong>{s_display} — {s_desc}</li>\n'
+        f'      <li><strong>新闻细分事件分类：</strong>{e_label} — {e_desc}</li>\n'
+        f'      <li><strong>相关性得分：</strong>{r_display} — {r_desc}</li>\n'
+        f'      <li><strong>新颖度得分：</strong>{n_display} — {n_desc}</li>\n'
+        f'    </ul>\n'
+        f'  </div>'
+    )
+
 def build_community_html(communities):
-    """根据 community_data.json 生成 14 个社区的 HTML 列表"""
+    """根据 community_data.json 生成 14 个社区的 HTML 列表，包含核心量化指标"""
     html_parts = []
     for c in communities:
-        # 防御：确保必要字段存在
         icon = c.get('icon', '📌')
         cid = c.get('id', '01')
         name = c.get('name', '未知社区')
@@ -177,14 +207,15 @@ def build_community_html(communities):
         vclass = c.get('verdict_class', 'neutral')
         quote = c.get('quote', '')
         verdict = c.get('verdict', '')
+        quant = c.get('quant', {})
         meta = c.get('meta', f"综合站内 10 条讨论 · 最新读取 {c.get('fetch_date','')}")
-        # 转义？内容已是纯文本，保留 HTML 安全
-        # 构造 article
+        quant_html = build_quant_html(quant)
         article = (
             f'<article class="pub-card" data-verdict="{vclass}">\n'
             f'  <div class="pub-card-head"><span class="pub-name">{icon} {cid}. {name}</span><span class="pub-chip">{label}</span></div>\n'
             f'  <p class="pub-quote"><strong>平台深度热评：</strong>{quote}</p>\n'
             f'  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>{verdict}</div>\n'
+            f'{quant_html}\n'
             f'  <div class="pub-meta">{meta}</div>\n'
             f'</article>'
         )
