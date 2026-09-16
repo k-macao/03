@@ -358,7 +358,6 @@ def build_single_wechat_html(now=None):
                 meta
             ))
         print(f'  🧩 微信推送：已加载 {len(communities)} 个动态社区源（来自 community_data.json，含核心量化指标）')
- {len(communities)} 个动态社区源（来自 community_data.json）')
     else:
         # 回退：内置兜底社区数据，但日期动态刷新为当天
         # 使用当天日期生成动态内容，杜绝 8 月 12 日旧数据
