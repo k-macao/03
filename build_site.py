@@ -41,6 +41,8 @@ import re
 import sys
 from datetime import datetime, timezone
 
+import macro_render as mr   # 宏观层渲染 + 时效护栏（与 tools/wechat_push.py 共用，口径一致）
+
 # 行情占位符规则: key -> (中文名, 小数位组)
 QUOTE_KEYS = ['HSI', 'HSTECH', 'HSCE', 'SPX', 'NDQ', 'DJI', 'GOLD', 'WTI', 'BRENT', 'USDCNH', 'USDCNY']
 FX_KEYS = {'USDCNH', 'USDCNY'}
@@ -51,6 +53,12 @@ COMMUNITY_LIST_BEGIN = '<!-- COMMUNITY_LIST:BEGIN -->'
 COMMUNITY_LIST_END = '<!-- COMMUNITY_LIST:END -->'
 SENTIMENT_LIST_BEGIN = '<!-- SENTIMENT_LIST:BEGIN -->'
 SENTIMENT_LIST_END = '<!-- SENTIMENT_LIST:END -->'
+MACRO_BLOCK_BEGIN = '<!-- MACRO_BLOCK:BEGIN -->'
+MACRO_BLOCK_END = '<!-- MACRO_BLOCK:END -->'
+FRESHNESS_BLOCK_BEGIN = '<!-- FRESHNESS_BLOCK:BEGIN -->'
+FRESHNESS_BLOCK_END = '<!-- FRESHNESS_BLOCK:END -->'
+VERDICT_LIST_BEGIN = '<!-- VERDICT_LIST:BEGIN -->'
+VERDICT_LIST_END = '<!-- VERDICT_LIST:END -->'
 
 def fmt_last(q, nd=None):
     """最新价 → "25,440.17"；缺失 → "—"。GOLD 且 >=1000 时取整数。"""
@@ -106,6 +114,17 @@ def build_tokens(data, now, community_data=None, sentiment_data=None):
         tokens[f'{{{{{k}_CHG}}}}'] = fmt_chg(q)
         tokens[f'{{{{{k}_PCT}}}}'] = fmt_pct(q)
         tokens[f'{{{{{k}_ASOF}}}}'] = fmt_asof(q)
+
+    # 03 节筛选标签的家数由本次抓取结果实时统计（不再写死 14/6/3/3/2）
+    comms = ((community_data or {}).get('communities') or [])
+    counts = {'bull': 0, 'bear': 0, 'neutral': 0, 'mixed': 0}
+    for c in comms:
+        vc = c.get('verdict_class')
+        if vc in counts:
+            counts[vc] += 1
+    tokens['{{FILTER_TOTAL}}'] = str(len(comms)) if comms else '\u2014'
+    for _k, _v in counts.items():
+        tokens['{{FILTER_%s}}' % _k.upper()] = str(_v) if comms else '\u2014'
 
     tokens['{{TS_FULL}}'] = now.strftime('%Y-%m-%d %H:%M:%S UTC')
     tokens['{{FETCH_DATE}}'] = data.get('fetch_date', now.strftime('%Y-%m-%d'))
@@ -463,12 +482,55 @@ def inject_sentiment(template, block_html):
     return template
 
 
+def _inject_between(template, begin, end, block_html, label):
+    """通用标记注入；无标记则告警并原样返回（向后兼容）。"""
+    if begin in template and end in template:
+        pattern = re.compile(re.escape(begin) + r'.*?' + re.escape(end), re.S)
+        new_html, count = pattern.subn(lambda m: f"{begin}\n{block_html}\n{end}", template)
+        if count:
+            print(f'  🌍 已动态注入 {label}')
+            return new_html
+    print(f'  ⚠️ 未找到 {label} 标记，跳过注入', file=sys.stderr)
+    return template
+
+
+def inject_macro(template, block_html):
+    """02 节「全球经济与财经动态」——与微信推送同源（macro_render.build_blocks）。"""
+    return _inject_between(template, MACRO_BLOCK_BEGIN, MACRO_BLOCK_END, block_html, '02 宏观层')
+
+
+def inject_freshness(template, block_html):
+    """02 节时效核对横幅 + 逐项 as_of 表（取代"正文所有时间戳均为最新"的空口承诺）。"""
+    return _inject_between(template, FRESHNESS_BLOCK_BEGIN, FRESHNESS_BLOCK_END,
+                           block_html, '02 时效核对表')
+
+
+def inject_verdict(template, block_html):
+    """07 节「核心结论」——与微信推送共用 macro_render.verdict_items()。"""
+    return _inject_between(template, VERDICT_LIST_BEGIN, VERDICT_LIST_END, block_html, '07 核心结论')
+
+
+def build_macro_web(macro, market, community, sentiment, now):
+    """生成网页端 02 节内容：横幅 + 数据块 + 时效表。"""
+    blocks = mr.build_blocks(macro, market, today=now.date())
+    rep = mr.freshness_report(macro, market, community, sentiment, today=now.date(), now=now)
+    banner = ('' if rep['pushable'] else f'<div class="stale-banner">{rep["banner"]}</div>')
+    body = banner + mr.render_web(blocks)
+    fresh = (f'<div class="macro-block"><div class="macro-sub">◆ 数据时效核对（逐项 as_of · 核对日 {rep["today"]}）</div>'
+             f'<div class="macro-body">{rep["banner"]}{mr.render_freshness_web(rep)}<br/>'
+             f'<span>陈旧/缺失项已在上方正文逐条标注；本页面与微信推送由同一份 macro_render 渲染，口径一致。</span>'
+             f'</div></div>')
+    return body, fresh, rep
+
+
 def main():
-    ap = argparse.ArgumentParser(description='章鱼 AI — 动态建站（行情+社区+舆情三动态+量化指标）')
+    ap = argparse.ArgumentParser(description='章鱼 AI — 动态建站（行情+社区+舆情+宏观四动态+量化指标）')
     ap.add_argument('--data', default='market_data.json', help='行情数据 JSON 路径')
     ap.add_argument('--community', default='community_data.json', help='社区数据 JSON 路径')
     ap.add_argument('--sentiment', default='sentiment_data.json',
                     help='舆情因子数据 JSON 路径（sentiment_factors.py 生成）')
+    ap.add_argument('--macro', default='macro_data.json',
+                    help='宏观数据 JSON 路径（macro_data.py 生成，02 节数据源）')
     ap.add_argument('--template', default='report.html', help='模板文件路径')
     ap.add_argument('--out', default='report.html', help='输出文件路径')
     ap.add_argument('--check', action='store_true', help='只校验占位符，不写文件')
@@ -521,6 +583,17 @@ def main():
         print('提示: 未找到 sentiment_data.json，03B 舆情因子节点显示降级说明；'
               '可先运行 python3 sentiment_factors.py --mock 生成', file=sys.stderr)
 
+    macro_data = {}
+    if os.path.exists(args.macro):
+        try:
+            with open(args.macro, encoding='utf-8') as f:
+                macro_data = json.load(f)
+        except ValueError as e:
+            print(f'警告: {args.macro} 解析失败({e})，02 节宏观层将全部显示「未取到」', file=sys.stderr)
+    else:
+        print(f'警告: 未找到 {args.macro}，02 节宏观层将显示「未取到」而非旧数据；'
+              f'请先运行 python3 macro_data.py（离线可用 --mock）', file=sys.stderr)
+
     now = datetime.now(timezone.utc)
     tokens = build_tokens(data, now, community_data, sentiment_data)
 
@@ -531,6 +604,15 @@ def main():
         print('  ℹ️ 社区数据为空，跳过动态注入，保留模板原有社区内容')
 
     template = inject_sentiment(template, build_sentiment_html(sentiment_data))
+
+    # ---------- 02 节宏观层（网页与微信推送同源渲染） ----------
+    macro_body, freshness_body, fresh_rep = build_macro_web(
+        macro_data, data, community_data, sentiment_data, now)
+    template = inject_freshness(template, freshness_body)
+    template = inject_macro(template, macro_body)
+    template = inject_verdict(template, mr.render_verdict_web(
+        mr.verdict_items(macro_data, data, sentiment_data, today=now.date())))
+    print(f'  📊 数据时效: {fresh_rep["banner"]}')
 
     missing = sorted(set(find_leftovers(template)) - set(tokens))
     if missing:

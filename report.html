@@ -193,6 +193,24 @@ body {
 }
 .q-off { color:var(--muted); }
 
+
+    /* ===== 02 节宏观层（macro_render.py 动态注入，与微信推送同源同口径） ===== */
+    .macro-block{background:#f8f9fa;border:1px solid #d9dce0;border-left:3px solid #007a35;
+      border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12.5px;line-height:1.9;color:#141414;}
+    .macro-block.is-stale{border-left-color:#b26a00;background:#fffaf2;}
+    .macro-block.is-missing{border-left-color:#141414;background:#f4f4f4;}
+    .macro-sub{color:#007a35;font-weight:700;font-size:13px;margin-bottom:6px;}
+    .macro-body span{color:#7d838b;font-size:11px;}
+    .fresh-table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px;}
+    .fresh-table th{color:#7d838b;text-align:left;padding:4px 8px;border-bottom:1px solid #d9dce0;font-weight:400;}
+    .fresh-table td{padding:4px 8px;border-bottom:1px dashed #d9dce0;}
+    .fresh-table tr.stale td{background:#fffaf2;}
+    .fresh-table tr.missing td{background:#f4f4f4;}
+    .stale-banner{background:#000;color:#39ff14;border-radius:6px;padding:10px 14px;margin:12px 0;
+      font-size:12px;line-height:1.8;font-weight:700;}
+    .pixel-list li.is-missing{color:#7d838b;}
+    .pixel-list li.verdict-note{list-style:none;margin-top:8px;}
+    .pixel-list li.verdict-note span{color:#7d838b;font-size:10.5px;line-height:1.7;}
 </style>
 </head>
 <body>
@@ -212,7 +230,18 @@ body {
       <div class="terminal-log-box" id="pushStatus">STATUS &gt; 一对多群组推送已就绪 (oai.1)<span>▌</span></div>
     </div>
 
-    <h2 class="pub-heading">02 / 行情快照 (Live Quotes)</h2>
+    <h2 class="pub-heading">02 / 全球经济与财经动态 (Global Macro &amp; HK Battlefield)</h2>
+    <div class="pub-box">
+      <div class="pub-sub">◆ 本节由 macro_data.py + market_data.py 每次构建动态生成 —— 每项断言均标注数据日期 (as_of) 与来源；缺失项写「未取到」，不用旧值兜底</div>
+      <!-- FRESHNESS_BLOCK:BEGIN -->
+      <div class="macro-block is-missing"><div class="macro-sub">时效核对未构建</div><div class="macro-body">请先运行 <code>python3 macro_data.py</code> 与 <code>python3 build_site.py</code>。</div></div>
+      <!-- FRESHNESS_BLOCK:END -->
+      <!-- MACRO_BLOCK:BEGIN -->
+      <div class="macro-block is-missing"><div class="macro-sub">宏观层未构建</div><div class="macro-body">请先运行 <code>python3 macro_data.py</code>（联网）或 <code>--mock</code>（离线回放）后再 <code>python3 build_site.py</code>。</div></div>
+      <!-- MACRO_BLOCK:END -->
+    </div>
+
+    <h2 class="pub-heading">02B / 行情快照 (Live Quotes)</h2>
     <div class="pub-box">
       <div class="pub-sub">◆ 行情快照 · {{QUOTE_DATE_CN}} · {{TS_FULL}}</div>
       <table class="quote-table">
@@ -234,223 +263,19 @@ body {
 
     <h2 class="pub-heading">03 / 社区论坛热评 (14 大平台 · 含核心量化指标)</h2>
     <div class="filter-row">
-      <button class="filter-tab active" onclick="filterCards('all', this)">全部 14 平台</button>
-      <button class="filter-tab" onclick="filterCards('bull', this)">偏多 (6)</button>
-      <button class="filter-tab" onclick="filterCards('bear', this)">偏空 (3)</button>
-      <button class="filter-tab" onclick="filterCards('neutral', this)">中性 (3)</button>
-      <button class="filter-tab" onclick="filterCards('mixed', this)">多空分歧 (2)</button>
+      <button class="filter-tab active" onclick="filterCards('all', this)">全部 {{FILTER_TOTAL}} 平台</button>
+      <button class="filter-tab" onclick="filterCards('bull', this)">偏多 ({{FILTER_BULL}})</button>
+      <button class="filter-tab" onclick="filterCards('bear', this)">偏空 ({{FILTER_BEAR}})</button>
+      <button class="filter-tab" onclick="filterCards('neutral', this)">中性 ({{FILTER_NEUTRAL}})</button>
+      <button class="filter-tab" onclick="filterCards('mixed', this)">多空分歧 ({{FILTER_MIXED}})</button>
     </div>
     <div id="communityList">
 <!-- COMMUNITY_LIST:BEGIN -->
-<article class="pub-card" data-verdict="mixed">
-  <div class="pub-card-head"><span class="pub-name">🐮 01. 富途牛牛社区</span><span class="pub-chip">多空分歧</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>{{QUOTE_DATE_CN}}恒指低开低走收跌 0.83%，技术派指出 26,000 整数关连续受阻后 30 分钟级别再度空头排列，短线视为明确离场信号，需等待次日高开金叉才重新进场；资金派紧盯分时大单与南向净流向，强调“先看异动再做决策”——当日科网普跌、光通信与内房午后突变，盘口反馈远快于叙事；中长线声音则认为：即便回踩 25,200–25,400 箱体下沿，南向 7 月净买入 628.69 亿、8 月仍净流入，叠加盈利修复，明年上半年挑战 28,200 点的路径未被破坏。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空 · 中期偏多。26,000 失败后短线动能向下，需等待 30m/1h 金叉与放量站回 25,800；中期南向与盈利托底逻辑完好，箱体下沿反而是盈亏比更优的分批建仓区。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.12 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>资金流向 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>88/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>62/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条热门长帖与讨论 · 最新读取 {{CD_01}}</div>
-</article>
-<article class="pub-card" data-verdict="mixed">
-  <div class="pub-card-head"><span class="pub-name">❄️ 02. 雪球网</span><span class="pub-chip">多空分歧</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>热帖直指“恒指 26,000 关口压力重重，本轮是反弹还是反转”。8 月 6 日恒指跌 1.49% 报 25,530、恒科跌 2.28% 报 4,820 后，球友对半导体“空头撤退股价仍跌”解读为被动出清而非新一轮做空；美债 10 年期约 4.67% 仍压制高估值成长，资金在光通信 / 芯片与红利、内房之间高速轮动。价值派强调：南向 7 月净买入 628.69 亿、今年除 5 月外持续流入，盈利 3%–4% 内生增长与 31,000 点基准目标仍成立，主张高息底仓 + 新质生产力，拒绝在 26,000 附近追高。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空 · 中期偏多。26,000 失败与成长股出清尚未结束；但南向月度级回流与低估值高息底仓，为中期提供足够安全边际。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.08 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>业绩 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>90/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>58/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条深度研报与讨论 · 最新读取 {{CD_02}}</div>
-</article>
-<article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">🐯 03. 老虎社区</span><span class="pub-chip">偏空</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>跨境账户情绪仍偏弱：8 月 11–12 日港股跌幅明显大于上证（恒指 −1.1%、−0.83% vs 沪指相对抗跌），被解读为外资 trim China exposure 快于内资；美伊和解预期降温、霍尔木兹推升油价，叠加华尔街隔夜科技股回撤，亚洲时段反弹乏力。社区对折价配售、H 股大额募资（中际旭创等）仍敏感，认为股权稀释压制追高意愿；操作共识是继续观望，等待金叉与 25,800 放量收复，短线维持离场信号。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏空观望。外资定价的离岸市场对地缘与美股映射更敏感，港股“先跌于 A 股”格局未改；在缺乏右侧信号前不宜抄底。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>-0.42 (偏空) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>宏观 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>72/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>65/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条热门跨境讨论 · 最新读取 {{CD_03}}</div>
-</article>
-<article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">💰 04. 东方财富港股股吧</span><span class="pub-chip">偏空</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>股吧情绪从 8 月初追高迅速切到“迷茫期”：{{QUOTE_DATE_CN}}恒指低开 0.6%、全天低开低走，科网股普跌被视作减仓信号；讨论焦点从“五连阳还能不能追”转为“26,000 失败后会不会回踩 25,200”。内房午后突然拉升（中国金茂涨超 13%、越秀地产涨近 10%）被解读为政策博弈炒作而非趋势反转；消费防御（康师傅、龙湖、华润置地）相对抗跌。多数声音主张先看 25,400 箱体下沿能否守住，跌破再看 24,400 / 23,500。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空。散户从狂热切换到观望，低开低走与科网兑现共振；内房脉冲难改大盘箱体下修的短线基调。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>-0.38 (偏空) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>情绪面 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>78/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>55/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条高互动主题帖 · 最新读取 {{CD_04}}</div>
-</article>
-<article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">📈 05. 智通财经互动区</span><span class="pub-chip">偏多</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>席位与衍生品视角：8 月 8 日恒指牛熊街货比约 49:51，熊证重货区落在 26,200–26,299、牛证重货区在 25,200–25,299，与现货箱体高度吻合；8 月 11 日街货比约 49.5:50.5，多空几乎打平。盘面结构上，光通信获摩根大通一周内多次加仓中际旭创 H 股（持股升至 15.60%），芯片股 {{QUOTE_DATE_CN}}逆市（中芯 +3%、华虹 +7%）；长线席位继续流向高息、REITs、电信与公用事业。8 月扩容的每周/月度股票期权为对冲 26,000 失败后的波动率提供了工具。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (结构性机遇)。街货比中性、机构在光通信与高息两端同时加仓，箱体内更适合用期权做结构，而不是裸空指数。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.55 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>技术面 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>88/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>82/100 (首发) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条专业席位跟踪分析 · 最新读取 {{CD_05}}</div>
-</article>
-<article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">🌐 06. 华尔街见闻社区</span><span class="pub-chip">偏多</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>宏观对冲盘聚焦两则新数据：{{QUOTE_DATE_CN}}美国 7 月 CPI 同比 3.4%、核心 2.5%，叠加 7 月非农净减 2.3 万人，显著压低 9 月加息概率，离岸成长估值压力边际缓解；另一面是美伊和解预期降温、油价升至一周高位，霍尔木兹溢价重新定价。社区主流叙事仍是“全球资金从韩日美股拥挤多头再平衡至低估港股 + 国内政策托底”，但强调 26,000 失败后应以防守姿态做多：黄金约 4,400 美元、铜铝锂与高息低贝塔，而不是追互联网贝塔。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性偏多 (防御姿态做多)。CPI 降温打开估值修复窗口，霍尔木兹与油价则封住上行斜率；适合用高息 + 贵金属底仓承接再平衡资金。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.48 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>宏观 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>84/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>85/100 (首发) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条宏观深度长文 · 最新读取 {{CD_06}}</div>
-</article>
 <article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">🇭🇰 07. 香港讨论区财经版</span><span class="pub-chip">中性</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>本地炒鬼对 {{QUOTE_DATE_CN}}低开低走并不意外——“又係 26,000 附近派货”。内房午后突然炒作（中国金茂、越秀、绿城）被当成政策消息博弈，多数人表示“睇得、唔好追”。共识仍是港股弱于 A 股、先跌后上，必须等金叉同南向持续净流入先至加仓；配置上继续揽住高息、本地电信、REITs 同公用，地产蓝筹只当短线股息工具。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性。本土零售维持防守观望，内房脉冲难改仓位结构；右侧金叉出现前不宜激进加仓。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>-0.05 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>情绪面 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>65/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>60/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条粤语热门讨论贴 · 最新读取 {{CD_07}}</div>
-</article>
-<article class="pub-card" data-verdict="bear">
-  <div class="pub-card-head"><span class="pub-name">🔥 08. LIHKG 连登财经台</span><span class="pub-chip">偏空</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>连登交易员认为 8 月初 RSI 逼近 72、三周涨 8.5% 后未能放量突破 26,200–26,500，超买回调已经兑现：8 月 6 日 −1.49%、11 日 −1.1%、12 日 −0.83%。主流策略从“追五连阳”全面切到期权 / 牛熊证做波动率，街货比 49:51 被解读为多空打平、适合两边开仓；硬止损纪律被反复强调。中期仍认资金再平衡，但短线要紧盯 6h/12h ALMA 与 25,200 牛证重货区，失守再减。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>短线偏空 (超买回调兑现中)。26,000 失败后波动率交易优于方向单；未站回 25,800–26,000 前，杠杆多头盈亏比不佳。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>-0.35 (偏空) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>技术面 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>70/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>58/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条高频交易讨论链 · 最新读取 {{CD_08}}</div>
-</article>
-<article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">🥦 09. 韭圈儿 / 红岸社区</span><span class="pub-chip">偏多</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>公募与港股通持仓透视：7 月南向净买入 628.69 亿、6 月 271.11 亿，8 月延续净流入；近一月主力流向资讯科技（+295 亿）、原材料（+224 亿）、医疗保健（+156 亿）。截至 8 月 3 日南向持股市值前十仍是腾讯、建行、工行、中海油、汇丰、中国移动、阿里、中行、中芯、小米。中信海外策略指出外资二季度已由净流出转为净流入，是本轮上行的边际增量。机构共识未改：估值修复 + 科技盈利是 2026 主引擎，31,000 / 34,000 目标仍在；但 26,000 附近已见部分调仓换股，散户狂热降温后更利于机构吸筹。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (中期基本面驱动)。月度级南向与外资回流比单日指数涨跌更有信息量；箱体震荡是机构完成高低切换的窗口。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.62 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>资金流向 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>86/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>80/100 (首发) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 篇机构仓位拆解报告 · 最新读取 {{CD_09}}</div>
-</article>
-<article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">🐜 10. 蚂蚁财富港股社区</span><span class="pub-chip">中性</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>8 月初五连阳时散户港股 ETF 申购与搜索热度冲高，被视作反向指标；经过 26,000 失败与连续回调后，社区狂热明显降温，讨论从“还能不能追”转为“定投要不要暂停”。理财顾问仍主推高息红利、REITs、电信与公用事业作为底仓，提醒不要在箱体上沿加杠杆。反向指标警报部分解除，但基民定投惯性仍在，情绪从极度乐观回到中性偏防守。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性 (狂热降温)。散户 FOMO 消退降低了短线见顶压力，但尚未出现恐慌性申赎；适合把仓位从追涨切换回定投式防御底仓。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>-0.02 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>情绪面 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>62/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>57/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条基民热评与定投贴 · 最新读取 {{CD_10}}</div>
-</article>
-<article class="pub-card" data-verdict="neutral">
-  <div class="pub-card-head"><span class="pub-name">👾 11. Reddit (r/ChinaStocks)</span><span class="pub-chip">中性</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>英文社区仍把港股当作投资中国核心资产最便利的离岸通道，VIE / ADR 等价性讨论未停。增量话题切到宏观：{{QUOTE_DATE_CN}}美国 CPI 符合预期降温、7 月就业意外净减，降低了美联储 9 月加息的紧迫性；同时霍尔木兹和解预期反复、油价走高，被视作持有中国风险资产的主要外部扰动。阿里巴巴将于 8 月 20 日公布业绩，成为个股层面的观察点。整体仍偏“可投资性 + 事件驱动”，缺少一致的指数多空押注。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>中性。外资认可通道与估值，但在地缘与政策细节落地前维持审慎评估，等待 CPI 后续路径与中概业绩季。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.05 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>监管 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>68/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>78/100 (首发) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 篇外文热门深度分析 · 最新读取 {{CD_11}}</div>
-</article>
-<article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">📊 12. TradingView 香港板块</span><span class="pub-chip">偏多</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>图表派更新：三周反弹 8.5% 后于 26,000 录得 RSI 72.58 的全程最高读数，成为本轮首个真正超买警报；EMA9/21 交叉约 25,978 / 25,471 仍托住整段升势，MACD 柱状图在高位出现减速。{{QUOTE_DATE_CN}}收 25,440，恰好回踩 9/21 均线带下沿附近。新交易计划：方向仍偏多、原目标已兑现，新作战目标 26,500 / 延伸 27,044，移动止损上移至 25,124；若失守 25,200 牛证重货区则视为箱体下破。长线仍提示：以 28,056 为 2026 高点的均值回归下沿可指向 19,885，每段必须执行 −10% 硬止损。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (结构完好、战术回调)。超买在 26,000 消化是健康的，均线带未坏；回踩 25,400–25,470 是加仓带，失守 25,124 才改方向。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.51 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>技术面 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>82/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>88/100 (首发) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 套专业技术分析图表与指标 · 最新读取 {{CD_12}}</div>
-</article>
-<article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">💎 13. Value Investors Club</span><span class="pub-chip">偏多</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>价投私密社区并不把 26,000 失败当成逻辑破坏：港股相对欧美的估值折价、中小盘私有化套利与控股股东折价仍是 2026 主引擎。基准情景维持恒指年底 28,000–29,000、乐观 31,000，盈利增速 3%–4%；8 月国泰君安国际遭母公司约 286 亿港元私有化要约，被当作“折价收窄仍在发生”的活样本。配置不变：高息 + 中资科技 + 本地金融为底仓，REITs / 电信 / 必需消费 / 公用对冲霍尔木兹与再通胀。短线指数位置反而提供更好的安全边际。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (价投标尺确立)。箱体回撤不改变折价修复路径；私有化与回购仍是中小盘的确定性事件驱动。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.66 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>并购 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>80/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>90/100 (首发) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 篇顶尖私密价值分析研报 · 最新读取 {{CD_13}}</div>
-</article>
-<article class="pub-card" data-verdict="bull">
-  <div class="pub-card-head"><span class="pub-name">🐦 14. Twitter / X (FinTwit)</span><span class="pub-chip">偏多</span></div>
-  <p class="pub-quote"><strong>平台深度热评：</strong>FinTwit 宏观账户仍把港股标成“再平衡避风港”，但语气从 8 月初的右侧突破转为“26,000 失败后的健康回撤”。7 月 CPI 3.4% + 就业意外疲弱压低加息赔率，被视作离岸中资的估值利好；黄金约 4,400、铜锂继续作为地缘对冲。政策叙事切到北京“及时实施积极政策”表态与一线城市放松限购 / 公积金（{{QUOTE_DATE_CN}}内房脉冲），但批评声音指出政治局只给方向未给细则。技术上 MA50 已站上，关键是守住 25,200–25,470 均线带，再挑战 26,000。</p>
-  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>偏多 (国际资本仍在场)。再平衡 + CPI 降温仍是多头底盘；缺的是政策细则与放量收复 26,000，短线应降低进攻斜率。</div>
-  <div class="quant-metrics">
-    <div class="quant-metrics-title">◆ 核心量化指标</div>
-    <ul class="quant-metrics-list">
-      <li><strong>实体级情感得分：</strong>+0.44 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰</li>
-      <li><strong>新闻细分事件分类：</strong>宏观 — 精准匹配业绩、并购、监管等场景</li>
-      <li><strong>相关性得分：</strong>83/100 — 衡量新闻与标的的关联程度，过滤无效噪音</li>
-      <li><strong>新颖度得分：</strong>86/100 (首发) — 区分新闻首发与转载，识别信息冲击强度</li>
-    </ul>
-  </div>
-  <div class="pub-meta">综合站内 10 条海外基金经理核心观点 · 最新读取 {{CD_14}}</div>
+  <div class="pub-card-head"><span class="pub-name">🧩 14 大社区热评（构建时注入）</span><span class="pub-chip">未构建</span></div>
+  <p class="pub-quote"><strong>本模板不保留任何静态社区文案。</strong>14 个社区卡片由 <code>community_data.py</code> 抓取、<code>build_site.py</code> 注入到本标记之间；抓取失败的平台显式标注「未取到 / 动态模板回退（非当日论坛原文）」，绝不回填历史点位、资金流或旧叙事。</p>
+  <div class="pub-verdict"><strong style="color:#000;">▶ 构建顺序：</strong>market_data.py → macro_data.py → community_data.py → build_site.py（CI 每次部署前自动重跑）。</div>
+  <div class="pub-meta">模板占位 · 构建后被 14 条动态卡片整体替换 · 抓取日 {{FETCH_DATE}}</div>
 </article>
 <!-- COMMUNITY_LIST:END -->
     </div>
@@ -481,10 +306,9 @@ body {
     <h2 class="pub-heading">07 / 核心结论 (Boss Verdict)</h2>
     <div class="pub-box">
       <ul class="pixel-list">
-        <li><strong>港股</strong>：{{QUOTE_DATE_CN}}恒指 {{HSI_LAST}}（{{HSI_PCT}}），箱体 25,400–26,200；南向持续净流入；</li>
-        <li><strong>技术</strong>：RSI 超买回踩 EMA9/21，守 25,200–25,400 为健康，破 25,124 转弱；</li>
-        <li><strong>配置</strong>：进攻光通信 / AI 硬科技 / 内房博弈，防御高息 / REITs / 电信 / 公用，黄金 {{GOLD_LAST}} + 铜锂对冲；</li>
-        <li><strong>情绪</strong>：FOMO 降温，短线不追高，25,400 附近分批。</li>
+        <!-- VERDICT_LIST:BEGIN -->
+        <li class="is-missing"><strong>核心结论未构建</strong>：请先运行 <code>python3 market_data.py</code> / <code>python3 macro_data.py</code>，再 <code>python3 build_site.py</code>。本节不保留任何写死的点位、箱体、止损位或情绪判断 —— 全部由当次抓取数据推导，缺失项写「未取到」。</li>
+        <!-- VERDICT_LIST:END -->
       </ul>
     </div>
     <div class="pub-box start">
@@ -508,12 +332,13 @@ body {
  "parts": [
   {
    "title": "章鱼 AI·全景分析（情绪因子分析）",
-   "content": "<div style=\"background:#eef0f2;color:#141414;font-family:'黑体','SimHei','PingFang SC',sans-serif;font-size:12px;line-height:1.85;padding:16px 12px;\">\n\n  <div style=\"background:#000;border-bottom:4px solid #39ff14;padding:16px 12px 14px;margin:0 -12px 16px;\">\n    <div style=\"color:#39ff14;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;\">章鱼 AI·全景分析（情绪因子分析）<\/div>\n    <div style=\"color:#39ff14;font-size:11px;margin-top:6px;\">2026-09-16 04:50:53 UTC · 11/11 项行情同步成功 · 14/14 个社区源同步成功 · 2026-09-16 04:50:53 UTC<\/div>\n  <\/div>\n\n  <div style=\"color:#000;font-family:'黑体','SimHei','PingFang SC',sans-serif;font-size:15px;font-weight:700;border-left:4px solid #39ff14;padding-left:9px;margin:24px 0 10px;\">02 / 行情快照 (Live Quotes)<\/div>\n  <div style=\"background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;margin-bottom:6px;\">◆ 行情快照 · 2026-09-16 · 2026-09-16 04:50:53 UTC<\/div><table style=\"width:100%;border-collapse:collapse;font-size:11.5px;\"><tr><th style=\"text-align:left;color:#7d838b;padding:4px 8px;border-bottom:1px solid #d9dce0;\">市场<\/th><th style=\"text-align:left;color:#7d838b;padding:4px 8px;border-bottom:1px solid #d9dce0;\">最新<\/th><th style=\"text-align:left;color:#7d838b;padding:4px 8px;border-bottom:1px solid #d9dce0;\">涨跌幅<\/th><th style=\"text-align:left;color:#7d838b;padding:4px 8px;border-bottom:1px solid #d9dce0;\">日期<\/th><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">恒生指数<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\"><b>25,440.17<\/b><\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">−0.83%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">恒生科技<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\"><b>4,776.44<\/b><\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">−0.99%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">恒生国企<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\"><b>9,012.34<\/b><\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">−0.66%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">标普 500<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">6,120.45<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">+0.25%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">纳斯达克<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">19,980.12<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">+0.30%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">道琼斯<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">41,500.88<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">−0.29%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">现货黄金<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">4,400 美元<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">+0.57%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">WTI 原油<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">82.70<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">+1.10%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">布伦特<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">89.05<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">+0.96%<\/td><td style=\"padding:4px 8px;border-bottom:1px dashed #d9dce0;\">2026-08-28<\/td><\/tr><tr><td style=\"padding:4px 8px;\">美元/离岸人民币<\/td><td style=\"padding:4px 8px;\">7.1820<\/td><td style=\"padding:4px 8px;\">−0.07%<\/td><td style=\"padding:4px 8px;\">2026-08-28<\/td><\/tr><\/table><div style=\"color:#7d838b;font-size:10px;margin-top:6px;\">11/11 项行情同步成功 · 14/14 个社区源同步成功 · 2026-09-16 04:50:53 UTC · 2026-09-16 04:50:53 UTC<\/div><\/div>\n\n  <div style=\"color:#000;font-family:'黑体','SimHei','PingFang SC',sans-serif;font-size:15px;font-weight:700;border-left:4px solid #39ff14;padding-left:9px;margin:24px 0 10px;\">03 / 社区论坛热评 (14 大平台 · 含核心量化指标)<\/div>\n  <div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🐮 01. 富途牛牛社区 <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">多空分歧<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>平台深度热评：9 月 16 日恒指低开低走收跌 -0.83%，收报 25,440.17 点，连续受阻后空头排列，短线动能转弱。技术派指出 26,000 整数关仍是强阻力，30 分钟级别需等待金叉才重新进场；资金派紧盯分时大单与南向净流向，强调“先看异动再做决策”——当日盘口反馈远快于叙事。（现场抓取片段：演示模式：模拟抓取成功…） 中长线声音则认为：即便回踩 25,200–25,400 箱体下沿，南向 7 月净买入 628.69 亿、8 月仍净流入，叠加盈利修复，明年上半年挑战 28,200 点的路径未被破坏。<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>短线偏空 · 中期偏多。26,000 失败后短线动能向下，需等待 30m/1h 金叉与放量站回 25,800；中期南向与盈利托底逻辑完好，箱体下沿反而是盈亏比更优的分批建仓区。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>-0.10 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>资金流向 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>92/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>57/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条热门长帖与讨论 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">❄️ 02. 雪球网 <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">多空分歧<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>热帖直指“恒指 26,000 关口压力重重，本轮是反弹还是反转”。9 月 16 日恒指低开低走收跌 -0.83% 报 25,440.17，恒科同步 连续受阻后空头排列，短线动能转弱。球友对半导体“空头撤退股价仍跌”解读为被动出清而非新一轮做空；美债 10 年期约 4.67% 仍压制高估值成长，资金在光通信 / 芯片与红利、内房之间高速轮动。价值派强调：南向 7 月净买入 628.69 亿、今年除 5 月外持续流入，盈利 3%–4% 内生增长与 31,000 点基准目标仍成立，主张高息底仓 + 新质生产力，拒绝在 26,000 附近追高。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>短线偏空 · 中期偏多。26,000 失败与成长股出清尚未结束；但南向月度级回流与低估值高息底仓，为中期提供足够安全边际。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>-0.06 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>业绩 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>93/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>61/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条深度研报与讨论 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #141414;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🐯 03. 老虎社区 <span style=\"background:#000;color:#cfcfcf;font-size:10px;padding:1px 6px;margin-left:4px;\">偏空<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>跨境账户情绪：9 月 16 日港股低开低走收跌（恒指 -0.83%），外资 trim China exposure 快于内资的格局仍在；美伊和解预期与霍尔木兹油价扰动叠加华尔街隔夜科技回撤，亚洲时段反弹乏力。社区对折价配售、H 股大额募资仍敏感，认为股权稀释压制追高意愿；操作共识是继续观望，等待金叉与 25,800 放量收复，短线维持离场信号。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>偏空观望。外资定价的离岸市场对地缘与美股映射更敏感，港股“先跌于 A 股”格局未改；在缺乏右侧信号前不宜抄底。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>-0.66 (偏空) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>宏观 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>69/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>56/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条热门跨境讨论 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #141414;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">💰 04. 东方财富港股股吧 <span style=\"background:#000;color:#cfcfcf;font-size:10px;padding:1px 6px;margin-left:4px;\">偏空<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>股吧情绪：9 月 16 日恒指低开低走收跌 -0.83%，科网股与内房分化明显。讨论焦点从“五连阳还能不能追”转为“26,000 失败后会不会回踩 25,200”。内房午后异动被解读为政策博弈炒作而非趋势反转；消费防御相对抗跌。多数声音主张先看 25,400 箱体下沿能否守住，跌破再看 24,400 / 23,500。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>短线偏空。散户从狂热切换到观望，低开低走与科网兑现共振；内房脉冲难改大盘箱体下修的短线基调。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>-0.42 (偏空) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>情绪面 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>73/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>50/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条高互动主题帖 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">📈 05. 智通财经互动区 <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">偏多<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>席位与衍生品视角：9 月 16 日恒指牛熊街货比约 49:51，熊证重货区落在 26,200–26,299、牛证重货区在 25,200–25,299，与现货箱体高度吻合。连续受阻后空头排列，短线动能转弱，收 25,440.17（-0.83%）。光通信获摩根大通一周内多次加仓中际旭创 H 股，芯片股逆市走强；长线席位继续流向高息、REITs、电信与公用事业。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>偏多 (结构性机遇)。街货比中性、机构在光通信与高息两端同时加仓，箱体内更适合用期权做结构，而不是裸空指数。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.45 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>技术面 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>84/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>62/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条专业席位跟踪分析 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🌐 06. 华尔街见闻社区 <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">偏多<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>宏观对冲盘聚焦：9 月 16 日美国 CPI 与非农数据组合仍主导离岸成长估值，恒指低开低走收跌 -0.83% 至 25,440.17。社区主流叙事仍是“全球资金从韩日美股拥挤多头再平衡至低估港股 + 国内政策托底”，但强调 26,000 失败后应以防守姿态做多：黄金与铜铝锂及高息低贝塔，而非追互联网贝塔。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>中性偏多 (防御姿态做多)。CPI 降温打开估值修复窗口，霍尔木兹与油价则封住上行斜率；适合用高息 + 贵金属底仓承接再平衡资金。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.70 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>宏观 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>85/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>67/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条宏观深度长文 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🇭🇰 07. 香港讨论区财经版 <span style=\"background:#000;color:#cfcfcf;font-size:10px;padding:1px 6px;margin-left:4px;\">中性<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>本地炒鬼：9 月 16 日恒指低开低走收跌 -0.83%，共识是“又係 26,000 附近派货”。内房脉冲被当成政策消息博弈，多数人表示“睇得、唔好追”。共识仍是港股弱于 A 股、先跌后上，必须等金叉同南向持续净流入先至加仓；配置上继续揽住高息、本地电信、REITs 同公用。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>中性。本土零售维持防守观望，内房脉冲难改仓位结构；右侧金叉出现前不宜激进加仓。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>-0.06 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>情绪面 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>65/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>54/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条粤语热门讨论贴 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #141414;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🔥 08. LIHKG 连登财经台 <span style=\"background:#000;color:#cfcfcf;font-size:10px;padding:1px 6px;margin-left:4px;\">偏空<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>连登交易员：9 月 16 日恒指低开低走收跌 -0.83%，三周涨幅后未能放量突破 26,200–26,500，连续受阻后空头排列，短线动能转弱。主流策略切到期权 / 牛熊证做波动率，街货比 49:51 被解读为多空打平、适合两边开仓；硬止损纪律被反复强调。中期仍认资金再平衡，但短线紧盯 6h/12h ALMA 与 25,200 牛证重货区。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>短线偏空 (超买回调兑现中)。26,000 失败后波动率交易优于方向单；未站回 25,800–26,000 前，杠杆多头盈亏比不佳。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>-0.41 (偏空) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>技术面 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>74/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>66/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条高频交易讨论链 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🥦 09. 韭圈儿 / 红岸社区 <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">偏多<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>公募与港股通持仓透视：9 月 16 日恒指低开低走收跌 -0.83% 报 25,440.17，南向 7 月净买入 628.69 亿、8 月延续净流入；近一月主力流向资讯科技、原材料、医疗保健。截至 9 月 16 日南向持股市值前十仍是腾讯、建行、工行、中海油、汇丰、中国移动、阿里、中行、中芯、小米。机构共识未改：估值修复 + 科技盈利是 2026 主引擎，箱体震荡是机构完成高低切换的窗口。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>偏多 (中期基本面驱动)。月度级南向与外资回流比单日指数涨跌更有信息量；箱体震荡是机构完成高低切换的窗口。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.31 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>资金流向 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>83/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>48/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 篇机构仓位拆解报告 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🐜 10. 蚂蚁财富港股社区 <span style=\"background:#000;color:#cfcfcf;font-size:10px;padding:1px 6px;margin-left:4px;\">中性<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>基民社区：9 月 16 日恒指低开低走收跌 -0.83%，散户港股 ETF 申购与搜索热度随指数回踩降温，讨论从“还能不能追”转为“定投要不要暂停”。理财顾问仍主推高息红利、REITs、电信与公用事业作为底仓，提醒不要在箱体上沿加杠杆。情绪从极度乐观回到中性偏防守。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>中性 (狂热降温)。散户 FOMO 消退降低了短线见顶压力，但尚未出现恐慌性申赎；适合把仓位从追涨切换回定投式防御底仓。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.02 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>情绪面 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>63/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>58/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条基民热评与定投贴 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">👾 11. Reddit (r/ChinaStocks) <span style=\"background:#000;color:#cfcfcf;font-size:10px;padding:1px 6px;margin-left:4px;\">中性<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>英文社区：9 月 16 日恒指低开低走收跌 -0.83%，仍把港股当作投资中国核心资产最便利的离岸通道，VIE / ADR 等价性讨论未停。增量话题切到宏观：美国 CPI 与就业数据降低加息紧迫性；霍尔木兹和解预期反复、油价走高被视作主要外部扰动。整体偏“可投资性 + 事件驱动”，缺少一致指数多空押注。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>中性。外资认可通道与估值，但在地缘与政策细节落地前维持审慎评估，等待 CPI 后续路径与中概业绩季。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.03 (中性) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>监管 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>68/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>67/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 篇外文热门深度分析 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">📊 12. TradingView 香港板块 <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">偏多<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>图表派更新：9 月 16 日恒指收 25,440.17（-0.83%），连续受阻后空头排列，短线动能转弱。三周反弹后于 26,000 录得 RSI 超买警报；EMA9/21 交叉约 25,978 / 25,471 仍托住升势，MACD 高位减速。新作战目标 26,500 / 延伸 27,044，移动止损上移至 25,124；若失守 25,200 牛证重货区则视为箱体下破。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>偏多 (结构完好、战术回调)。超买在 26,000 消化是健康的，均线带未坏；回踩 25,400–25,470 是加仓带，失守 25,124 才改方向。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.57 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>技术面 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>87/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>54/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 套专业技术分析图表与指标 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">💎 13. Value Investors Club <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">偏多<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>价投私密社区：9 月 16 日恒指低开低走收跌 -0.83%，并不把 26,000 失败当成逻辑破坏：港股相对欧美估值折价、中小盘私有化套利与控股股东折价仍是 2026 主引擎。基准情景维持恒指年底 28,000–29,000、乐观 31,000。配置不变：高息 + 中资科技 + 本地金融为底仓，REITs / 电信 / 必需消费 / 公用对冲。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>偏多 (价投标尺确立)。箱体回撤不改变折价修复路径；私有化与回购仍是中小盘的确定性事件驱动。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.31 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>并购 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>78/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>48/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 篇顶尖私密价值分析研报 · 最新读取 2026-09-16<\/div><\/div>\n<div style=\"background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:13px;\">🐦 14. Twitter / X (FinTwit) <span style=\"background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;\">偏多<\/span><\/div><div style=\"margin-top:6px;line-height:1.8;\"><strong>热评：<\/strong>FinTwit 宏观账户：9 月 16 日恒指低开低走收跌 -0.83% 至 25,440.17，仍把港股标成“再平衡避风港”，但语气从右侧突破转为“26,000 失败后的健康回撤”。CPI 降温与就业疲弱压低加息赔率，黄金与铜锂继续作为地缘对冲。政策叙事切到北京“及时实施积极政策”与一线城市放松限购，技术上 MA50 已站上，关键是守住 25,200–25,470 均线带。（现场抓取片段：演示模式：模拟抓取成功…）<\/div><div style=\"background:#eceef0;border-left:3px solid #007a35;border-radius:4px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;\"><strong>▶ 研判：<\/strong>偏多 (国际资本仍在场)。再平衡 + CPI 降温仍是多头底盘；缺的是政策细则与放量收复 26,000，短线应降低进攻斜率。<\/div><div style=\"background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;\"><div style=\"color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;\">◆ 核心量化指标<\/div><div style=\"margin-bottom:4px;\">◦ <strong>实体级情感得分：<\/strong>+0.47 (偏多) — 由新闻对应文本片段的情绪，排除无关主体干扰<\/div><div style=\"margin-bottom:4px;\">◦ <strong>新闻细分事件分类：<\/strong>宏观 — 精准匹配业绩、并购、监管等场景<\/div><div style=\"margin-bottom:4px;\">◦ <strong>相关性得分：<\/strong>79/100 — 衡量新闻与标的的关联程度，过滤无效噪音<\/div><div>◦ <strong>新颖度得分：<\/strong>64/100 (转载/跟踪) — 区分新闻首发与转载，识别信息冲击强度<\/div><\/div><div style=\"color:#7d838b;font-size:10px;margin-top:8px;\">综合站内 10 条海外基金经理核心观点 · 最新读取 2026-09-16<\/div><\/div>\n\n  <div style=\"color:#000;font-family:'黑体','SimHei','PingFang SC',sans-serif;font-size:15px;font-weight:700;border-left:4px solid #39ff14;padding-left:9px;margin:24px 0 10px;\">07 / 核心结论<\/div>\n  <div style=\"background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;\">• 恒指 <b>25,440.17<\/b>（−0.83%）· 恒科 <b>4,776.44<\/b>（−0.99%）· 黄金 <b>4,400<\/b><br/>• 箱体 25,400–26,200 · 守 25,200–25,400 健康 · 破 25,124 转弱<br/>• 配置：进攻光通信/AI硬科技/内房博弈 · 防御高息/REITs/电信/公用 · 黄金+铜锂对冲<br/>• 情绪：FOMO降温 · 不追高 · 25,400 附近分批<br/><span style=\"color:#7d838b;font-size:10px;\">2026-09-16 04:50:53 UTC · 仅供参考<\/span><\/div>\n\n  <div style=\"background:#000;border-top:4px solid #39ff14;padding:12px 12px 10px;margin:20px -12px 0;font-size:11px;color:#c8c8c8;line-height:1.9;\">\n    <strong style=\"color:#39ff14;\">作者：章鱼 ai · 仅供参考，分析研究<\/strong><br/>\n    <span style=\"color:#7d838b;font-size:10px;\">生成时间：2026-09-16 04:50:53 UTC · 社区 14 源 · 含核心量化指标 · 无固态说明<\/span>\n  <\/div>\n\n<\/div>"
+   "content": "<div style=\"background:#eef0f2;color:#141414;font-family:'黑体','SimHei','PingFang SC',sans-serif;font-size:12.5px;line-height:1.9;padding:16px 12px;\"><div style=\"background:#000;border-bottom:4px solid #39ff14;padding:14px 12px;margin:-16px -12px 14px;\"><div style=\"color:#39ff14;font-size:20px;font-weight:700;\">章鱼 AI·全景分析（情绪因子分析）<\/div><div style=\"color:#39ff14;font-size:11px;margin-top:6px;\">推送负载未构建<\/div><\/div><strong>⚠️ 这是仓库里的模板版本，不内嵌推送正文快照。<\/strong><br/>内嵌快照会随时间过期，把旧点位/旧资金流当成最新内容推给群组，因此本文件只保留占位说明。<br/><strong>构建方式：<\/strong><code>python3 market_data.py &amp;&amp; python3 macro_data.py &amp;&amp; python3 community_data.py &amp;&amp; python3 build_site.py &amp;&amp; python3 tools/wechat_push.py --embed<\/code><br/>CI（.github/workflows/m.yml）在每次部署前都会重跑上述管线，线上页面的推送按钮始终携带当次抓取的内容，并在正文逐项标注数据日期（as_of）与陈旧状态。<\/div>"
   }
  ],
  "pages_url": "https://k-macao.github.io/03/",
- "generated_at": "2026-09-16 04:50 UTC",
- "mode": "one-to-many"
+ "generated_at": null,
+ "mode": "one-to-many",
+ "_note": "占位负载：构建时由 tools/wechat_push.py --embed 幂等替换为当次抓取内容"
 }
 </script>
 <!-- WECHAT-EMBED:END -->

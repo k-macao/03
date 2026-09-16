@@ -5,6 +5,9 @@ index.html
 market_data.json
 community_data.json
 
+# 宏观层构建产物（macro_data.py 每次抓取生成，不入库；人工维护项见 macro_manual_inputs.json）
+macro_data.json
+
 # 舆情/新闻因子层构建产物（每次构建生成，不入库；评测结论见 docs/sentiment-api-eval.md）
 sentiment_data.json
 sentiment_history.json

@@ -34,7 +34,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # ---------------------------------------------------------------------------
 # 行情清单: (key, 中文名, 单位, Yahoo 代码, Stooq 代码, 展示小数位)
@@ -55,6 +55,10 @@ SYMBOLS = [
 
 YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=5d'
 STOOQ_BASE = 'https://stooq.com/q/l/?s={sym}&f=sdc&h&e=csv'
+# 历史 K 线（用于动态计算 EMA / RSI / 箱体上下沿，取代正文里写死的技术位）
+YAHOO_HIST = 'https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=6mo'
+STOOQ_HIST = 'https://stooq.com/q/d/l/?s={sym}&d1={d1}&d2={d2}&i=d'
+HIST_DAYS = 190
 UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/126.0 Safari/537.36')
 
@@ -133,6 +137,141 @@ def fetch_stooq(stooq_sym, timeout=10):
     return (last, None, as_of)
 
 
+
+def fetch_yahoo_history(yahoo_sym, timeout=10):
+    """Yahoo 6 个月日线 → (dates, closes, highs, lows) 或 None。"""
+    if not yahoo_sym:
+        return None
+    url = YAHOO_HIST.format(sym=urllib.parse.quote(yahoo_sym, safe=''))
+    data = json.loads(http_get(url, timeout=timeout))
+    result = (data.get('chart') or {}).get('result')
+    if not result:
+        return None
+    r0 = result[0]
+    stamps = r0.get('timestamp') or []
+    q = ((r0.get('indicators') or {}).get('quote') or [{}])[0]
+    closes, highs, lows = q.get('close') or [], q.get('high') or [], q.get('low') or []
+    rows = []
+    for i, ts in enumerate(stamps):
+        if i >= len(closes) or closes[i] is None:
+            continue
+        d = datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d')
+        hi = highs[i] if i < len(highs) and highs[i] is not None else closes[i]
+        lo = lows[i] if i < len(lows) and lows[i] is not None else closes[i]
+        rows.append((d, float(closes[i]), float(hi), float(lo)))
+    return rows or None
+
+
+def fetch_stooq_history(stooq_sym, timeout=10):
+    """Stooq 日线 CSV → [(date, close, high, low)] 或 None。"""
+    if not stooq_sym:
+        return None
+    today = datetime.now(timezone.utc).date()
+    url = STOOQ_HIST.format(sym=urllib.parse.quote(stooq_sym, safe=''),
+                            d1=(today - timedelta(days=HIST_DAYS)).strftime('%Y%m%d'),
+                            d2=today.strftime('%Y%m%d'))
+    raw = http_get(url, timeout=timeout)
+    if 'No data' in raw:
+        return None
+    rows = []
+    for ln in raw.strip().splitlines()[1:]:
+        parts = ln.split(',')
+        if len(parts) < 5:
+            continue
+        try:
+            rows.append((parts[0], float(parts[4]), float(parts[2]), float(parts[3])))
+        except ValueError:
+            continue
+    return rows or None
+
+
+def _ema(vals, n):
+    if len(vals) < n:
+        return None
+    k = 2.0 / (n + 1)
+    e = sum(vals[:n]) / n
+    for v in vals[n:]:
+        e = v * k + e * (1 - k)
+    return round(e, 2)
+
+
+def _rsi(closes, n=14):
+    if len(closes) < n + 1:
+        return None
+    gains, losses = [], []
+    for i in range(1, len(closes)):
+        d = closes[i] - closes[i - 1]
+        gains.append(max(d, 0.0))
+        losses.append(max(-d, 0.0))
+    avg_g, avg_l = sum(gains[:n]) / n, sum(losses[:n]) / n
+    for i in range(n, len(gains)):
+        avg_g = (avg_g * (n - 1) + gains[i]) / n
+        avg_l = (avg_l * (n - 1) + losses[i]) / n
+    if avg_l == 0:
+        return 100.0
+    return round(100 - 100 / (1 + avg_g / avg_l), 2)
+
+
+def _chg_over(closes, n):
+    """近 n 个交易日涨跌幅（%）；数据不足返回 None。"""
+    if len(closes) <= n:
+        return None
+    a, b = closes[-n - 1], closes[-1]
+    if not a:
+        return None
+    return round((b / a - 1) * 100, 2)
+
+
+def compute_tech(rows):
+    """由日线序列计算动态技术面，取代正文写死的 EMA/RSI/箱体数字。
+
+    rows: [(date, close, high, low)] → dict 或 None
+    """
+    if not rows or len(rows) < 30:
+        return None
+    rows = sorted(rows, key=lambda r: r[0])
+    dates = [r[0] for r in rows]
+    closes = [r[1] for r in rows]
+    highs = [r[2] for r in rows]
+    lows = [r[3] for r in rows]
+    win = min(20, len(rows))
+    ema9, ema21 = _ema(closes, 9), _ema(closes, 21)
+    ma50 = round(sum(closes[-50:]) / min(50, len(closes)), 2) if len(closes) >= 20 else None
+    box_high, box_low = round(max(highs[-win:]), 2), round(min(lows[-win:]), 2)
+    rsi14 = _rsi(closes)
+    return {
+        'as_of': dates[-1],
+        'points': len(rows),
+        'window_start': dates[-win],
+        'ema9': ema9, 'ema21': ema21, 'ma50': ma50,
+        'rsi14': rsi14,
+        'rsi_state': ('超买' if rsi14 and rsi14 >= 70 else
+                      '超卖' if rsi14 and rsi14 <= 30 else '中性') if rsi14 is not None else None,
+        'box_high_20d': box_high, 'box_low_20d': box_low,
+        'high_6mo': round(max(highs), 2), 'low_6mo': round(min(lows), 2),
+        'chg_5d_pct': _chg_over(closes, 5),
+        'chg_1m_pct': _chg_over(closes, 21),
+        'chg_3m_pct': _chg_over(closes, 63),
+        'ema_state': (None if not (ema9 and ema21) else
+                      ('多头排列' if ema9 > ema21 else '空头排列')),
+    }
+
+
+def fetch_tech(yahoo_sym, stooq_sym, timeout=10):
+    """历史 K 线多源回退 → compute_tech()；全部失败返回 None（不阻断构建）。"""
+    rows = None
+    try:
+        rows = fetch_yahoo_history(yahoo_sym, timeout)
+    except Exception as e:  # noqa: BLE001
+        print(f'  ⚠️ 历史K线 Yahoo 失败({e}); 尝试 Stooq…', file=sys.stderr)
+    if not rows:
+        try:
+            rows = fetch_stooq_history(stooq_sym, timeout)
+        except Exception as e:  # noqa: BLE001
+            print(f'  ⚠️ 历史K线 Stooq 失败({e}); 技术面降级为 null', file=sys.stderr)
+    return compute_tech(rows) if rows else None
+
+
 def make_quote(key, name, unit, decimals, last, prev, as_of, source):
     """组装单条行情 dict；无 prev 时 chg/pct 为 None。"""
     chg = pct = None
@@ -185,8 +324,10 @@ def main():
             if key in DEMO:
                 last, chg, _pct, as_of = DEMO[key]
                 quotes[key] = make_quote(key, name, unit, dec, last, round(last - chg, 4), as_of, 'demo')
+                quotes[key]['tech'] = None   # 演示模式不编造技术面
             else:
                 quotes[key] = make_quote(key, name, unit, dec, None, None, None, None)
+                quotes[key]['tech'] = None
         mode = 'demo'
     else:
         mode = 'live'
@@ -216,6 +357,18 @@ def main():
             else:
                 print(f'  ✅ {name: <8} {src: <6} '
                       f'{q["last"]:,.{q["decimals"]}f}  {q["pct"]}%  ({q["as_of"]})')
+            if q.get('last') is not None:
+                tech = fetch_tech(yahoo_sym, stooq_sym, args.timeout)
+                q['tech'] = tech
+                if tech:
+                    print(f'  📐 {name: <8} 技术面 EMA9 {tech["ema9"]} / EMA21 {tech["ema21"]}'
+                          f' · RSI14 {tech["rsi14"]}（{tech["rsi_state"]}）'
+                          f' · 20 日箱体 {tech["box_low_20d"]}–{tech["box_high_20d"]}'
+                          f'（{tech["points"]} 根日线，截至 {tech["as_of"]}）')
+                else:
+                    q['tech'] = None
+            else:
+                q['tech'] = None
             quotes[key] = q
             time.sleep(0.2)
 
@@ -228,10 +381,15 @@ def main():
             'ok': len(SYMBOLS) - len(failed),
             'total': len(SYMBOLS),
             'failed': failed,
+            'tech_ok': sum(1 for q in quotes.values() if q.get('tech')),
+            'mode': mode,
         },
         'notes': [
             '由 market_data.py 构建时自动抓取 (Yahoo Finance → Stooq 多源回退)',
             '单品抓取失败降级显示 "—"，不阻断构建与推送',
+            'tech 字段由 6 个月日线动态计算（EMA9/21、MA50、RSI14、20 日箱体、5d/1m/3m 涨跌），'
+            '取不到则为 null，正文对应技术位断言直接不渲染',
+            'demo/offline 模式不生成 tech，避免把演示数据当实时技术面推送',
         ],
     }
     with open(args.json, 'w', encoding='utf-8') as f:

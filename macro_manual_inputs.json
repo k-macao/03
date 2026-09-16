@@ -1,0 +1,67 @@
+{
+  "_comment": [
+    "人工维护的宏观输入项（无免费公开接口的数据）。",
+    "规则：每一项必须带 as_of（数据所属日期/vintage）与 max_age_days；",
+    "macro_data.py 会按当日计算 age_days 并给出 status = manual / stale / missing，",
+    "正文渲染时对 stale 项强制打「⚠️ 数据陈旧 · 截至 X」标签，missing 项直接不渲染断言。",
+    "更新方式：只改本文件的 value / as_of / note，不需要改代码；as_of 不更新就会被护栏拦下。"
+  ],
+  "updated_by": "macro_data.py 人工维护层",
+  "inputs": {
+    "imf_weo": {
+      "name": "IMF《世界经济展望》全球增速预测",
+      "value": 3.0,
+      "unit": "%",
+      "display": "3.0%",
+      "as_of": "2026-07-08",
+      "source": "IMF WEO 2026 年 7 月更新（人工录入）",
+      "max_age_days": 100,
+      "note": "WEO 每年 4 月与 10 月（含 7 月修订）发布；新一期发布后必须同步更新 value 与 as_of。",
+      "extra": {
+        "prev_forecast": 3.1,
+        "prev_forecast_vintage": "2026-04",
+        "_note": "历史实际增速不再人工录入 —— 统一由 world_growth（世界银行 API 实际值）给出，避免同一份报告出现两个互相矛盾的「2025 年实际」数字。"
+      }
+    },
+    "lithium_carbonate": {
+      "name": "电池级碳酸锂价格",
+      "value": 148000,
+      "unit": "元/吨",
+      "display": "14.8 万元/吨",
+      "as_of": "2026-08-28",
+      "source": "人工录入（无免密钥公开接口）",
+      "max_age_days": 14,
+      "note": "价格波动快，超 14 天即判 stale；接不到新数据时正文只显示带日期的旧值并标注陈旧。"
+    },
+    "geopolitics_note": {
+      "name": "地缘与能源溢价（编辑判断）",
+      "value": "霍尔木兹海峡航运风险与美伊和解预期反复，仍是油价与全球增长的主要外部扰动",
+      "unit": "",
+      "display": "霍尔木兹航运风险 + 美伊和解预期反复",
+      "as_of": "2026-08-12",
+      "source": "编辑判断（人工）",
+      "max_age_days": 7,
+      "note": "这是叙事而非数据，7 天不更新即判 stale，避免把一个月前的地缘判断当成今天的结论推送。"
+    },
+    "bank_targets": {
+      "name": "主要国际与中资大行恒指目标价（2026 基准情景）",
+      "value": null,
+      "unit": "点",
+      "display": "见 targets",
+      "as_of": "2026-08-28",
+      "source": "各行公开研报（人工录入）",
+      "max_age_days": 60,
+      "note": "目标价属机构预测，必须带 vintage；超过 60 天未复核即判 stale。",
+      "targets": [
+        {"bank": "富途证券", "base": "31,000 点", "bull": "34,000 点", "bear": null,
+         "note": "乐观情景需内需政策共振"},
+        {"bank": "星展银行 (DBS)", "base": "30,000 点", "bull": "36,500 点", "bear": "23,000 点",
+         "note": "极乐观牛市 / 极悲观熊市底线"},
+        {"bank": "中金公司 (CICC)", "base": "28,000–29,000 点", "bull": null, "bear": null,
+         "note": "盈利修复支撑估值均值回归"},
+        {"bank": "渣打银行 (StanChart)", "base": "28,000–30,000 点", "bull": null, "bear": null,
+         "note": "高股息底仓 + 中资科技龙头双轮驱动"}
+      ]
+    }
+  }
+}

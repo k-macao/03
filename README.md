@@ -8,11 +8,12 @@
 页面与微信收到的永远是当天最新数据，杜绝“8 月 12 日”旧内容残留：
 
 ```bash
-python3 market_data.py               # ① 动态抓取行情 → market_data.json (Yahoo→Stooq回退)
-python3 community_data.py            # ② 动态抓取14社区 → community_data.json (HTTP GET+模板回退，每次刷新当天日期)
-python3 build_site.py                # ③ 动态建站 → report.html (注入行情+社区+日期/时间戳，14源动态注入)
-python3 tools/wechat_push.py --embed # ④ 内嵌最新推送负载进 report.html
-python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微信
+python3 market_data.py               # ① 动态抓取行情 + 6个月日线技术面 → market_data.json (Yahoo→Stooq回退)
+python3 macro_data.py                # ② 动态抓取宏观 → macro_data.json (FRED/世界银行/东方财富 + 人工维护项，离线可 --mock)
+python3 community_data.py            # ③ 动态抓取14社区 → community_data.json (HTTP GET+模板回退，正文引用①②的实算事实)
+python3 build_site.py                # ④ 动态建站 → report.html (注入行情+宏观+时效核对表+社区+核心结论)
+python3 tools/wechat_push.py --embed # ⑤ 内嵌最新推送负载进 report.html
+python3 tools/wechat_push.py --push --scheduled   # ⑥ 推送完整报告到微信（推送前过真时效护栏）
 ```
 
 - **行情源**：Yahoo Finance chart API → Stooq CSV 多源自动回退（纯标准库，CI 无需安装依赖）。
@@ -21,6 +22,41 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 - **失败降级**：单品行情/单社区抓取失败自动降级（行情显示 "—"，社区显示动态模板），并在页面标注，**不阻断构建与推送**，保证 09:00 定时任务永不中断。
 - **日期联动**：14 大社区「最新读取」日期与正文中的“8 月 X 日”日期均随抓取日自动刷新（`community_data.py` 生成当天日期），推送前日期核对（`--push` 严格 / `--scheduled` 宽松）逻辑保持不变。
 - 本地联调可用 `python3 market_data.py --demo && python3 community_data.py --demo` 生成模拟行情+社区。
+
+## 🌍 02 节全球经济与财经动态 — 去固化 + 真时效护栏
+
+**过去的问题**：`02 / 全球经济与财经动态` 整节是写死的文案（美债 4.67%、南向净买入 628.69 亿、中国 CPI 0.5%、
+恒指 25,440.17 / RSI 72.58 / 箱体 25,200–25,400 / 止损 25,124 / 街货比 49:51 / 大行目标 31,000 …），
+日期占位符会刷新但数字永远不变；推送前的"日期核对"比较的是同一份数据的日期，**恒真**，等于没有护栏；
+网页端甚至完全没有这一节。
+
+**现在的做法**：数据、渲染、护栏三层分离，网页与微信推送共用同一份渲染器。
+
+| 层 | 文件 | 职责 |
+|---|---|---|
+| 取数 | `macro_data.py` | 9 项指标：FRED（联邦基金区间 / CPI / 核心 CPI / 非农 / 10 年期 / 铜）、东方财富数据中心（中国 CPI、港股通成交额）、世界银行（全球实际 GDP 增速）；每项带 `value / display / as_of / source / freq / max_age_days / status / age_days`。取不到 → `status=missing` + `error`，**不回填旧值** |
+| 取数 | `market_data.py` | 11 项行情 + **动态技术面**（6 个月日线实算 EMA9/21、MA50、RSI14、近 20 日箱体、5 日/1 月/3 月涨跌），写进 `quotes[key]['tech']`，技术位不再写死 |
+| 人工项 | `macro_manual_inputs.json` | 无免费公开接口的 4 项（IMF WEO 预测 / 碳酸锂 / 大行目标价 / 地缘判断），**每项必须带 `as_of` 与 `max_age_days`**；超期自动判 `stale` 并在正文打标，改数据不用改代码 |
+| 渲染 | `macro_render.py` | `build_blocks()` → `render_web()` / `render_wechat()` 双端同源；`verdict_items()` 供 07 节核心结论共用；`freshness_report()` + `scan_narrative_dates()` 是护栏 |
+| 消费 | `community_data.py` / `build_site.py` / `tools/wechat_push.py` | 14 社区模板、网页 02/07 节、微信 02/07 节全部只引用上述数据，缺项写「未取到」 |
+
+**时效护栏（真核对，取代恒真校验）**
+
+- 频率上限：日频 7 天 / 月频 45 天（按**观测期最后一天**算，避免把正常公布节奏误判为陈旧）/ 年频 400 天 / 人工项各自上限。
+- `mode=mock|demo|offline` 的数据层一律判 `stale`，**不得冒充实时抓取**。
+- 陈旧项在正文强制打 `⚠️ 数据陈旧 · 截至 X（N 天前，上限 M 天）`；缺失项直接不渲染断言。
+- 渲染后再扫一遍正文里的中文绝对日期（`scan_narrative_dates`），超过 45 天的过期叙事（如"8 月 20 日阿里业绩"）会被揪出来。
+- 推送：`--push` 严格模式命中即 **退出码 6 拒绝推送**；`--push --scheduled`（09:00 定时）只警告不中断；`--allow-stale` 为知情放行，正文仍保留 ⚠️ 标注。
+- 网页 02 节顶部同步渲染**时效核对表**（逐项 `as_of` / 龄期 / 上限 / 状态 / 判定依据），不再声称"正文所有时间戳均为最新"。
+
+**诚实性约定**：港股通单日净买入额自 2024-08 起官方停止公布（接口返回 `null`），本报告只引用成交额，
+**永不编造"南向净买入 XXX 亿"**；取不到的数据一律写「未取到」，不用旧值兜底、不冒充当天。
+
+```bash
+python3 macro_data.py                 # 联网抓取（FRED / 世界银行 / 东方财富）
+python3 macro_data.py --mock          # 离线回放 tests/fixtures/MACRO_*（CI 降级路径，标记 mode=mock 并判陈旧）
+python3 -m unittest tests.test_macro  # 56 项宏观层测试（零联网）
+```
 
 ## 🗞️ 舆情 / 新闻因子层 — 量化平台现成因子接入实测（聚宽 · 米筐 · 掘金 · 优矿）
 
@@ -64,6 +100,9 @@ python3 build_site.py                            # ⑤ 建站时把舆情因子�
 | 文件 | 说明 |
 |---|---|
 | `market_data.py` | **动态行情抓取**：多源回退抓取最新行情，生成 `market_data.json`（构建产物，不入库） |
+| `macro_data.py` | **动态宏观抓取**：FRED / 世界银行 / 东方财富 9 项指标 + 人工维护项 + 事件日历 → `macro_data.json`（构建产物，不入库）；每项带 `as_of` 与频率上限，`--mock` 可离线回放 fixtures |
+| `macro_manual_inputs.json` | **人工维护输入**（入库）：IMF WEO / 碳酸锂 / 大行目标价 / 地缘判断，每项必须带 `as_of` + `max_age_days`，超期自动判陈旧 |
+| `macro_render.py` | **共享渲染器 + 时效护栏**：`build_blocks` / `render_web` / `render_wechat` / `verdict_items` / `freshness_report` / `scan_narrative_dates`，网页与微信同源同口径 |
 | `sentiment_data.json` / `sentiment_history.json` | 舆情因子当日结果与新闻条数历史（供 `NEWS_HEAT_Z` 基线），均为构建产物，不入库 |
 | `community_data.py` | **动态社区抓取**：14 大社区 HTTP GET + 动态模板回退，生成 `community_data.json`（构建产物，不入库），每次刷新当天日期与研判正文 |
 | `sentiment_sources.py` | **接口注册表**：11 个量化平台/公开源舆情·新闻因子的能力口径（端点、字段、时效、历史、额度、成本、局限）+ 因子定义 + 9 个评测阶段与 6 维评分权重；`python3 sentiment_sources.py` 打印清单与凭据/依赖状态 |
@@ -73,10 +112,11 @@ python3 build_site.py                            # ⑤ 建站时把舆情因子�
 | `tools/probe_sentiment_apis.py` | **接入实测探针**：依赖→网络→鉴权→取数→字段→时效→覆盖→延迟→额度 9 阶段短路判定 + 100 分制打分 → `api_probe_report.json` 与 `docs/sentiment-api-eval.md` |
 | `docs/sentiment-api-eval.md` | **评测矩阵**（可提交的结论文档）：结论速览 / 能力矩阵 / 评分明细 / 逐源明细，由探针自动生成 |
 | `tests/test_sentiment.py` | 舆情层测试（30 项，零联网）：`python3 -m unittest discover -s tests` |
-| `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，并把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记 |
-| `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 `<!-- COMMUNITY_LIST:BEGIN/END -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
-| `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `community_data.json` 双动态数据，转为微信兼容的单页完整内联样式 HTML，经 PushPlus **一对多**群组推送（群组编码 `oai.1`）到微信 |
-| `.github/workflows/m.yml` | CI：动态抓取行情+社区 → 动态建站（双注入） → 部署 Pages + 一键触发微信单页推送 + **每天北京时间 09:00 定时自动推送** |
+| `tests/test_macro.py` | 宏观层测试（56 项，零联网）：取数 → 时效计算 → 渲染无写死值 → 护栏拦截 → 网页注入 → 社区降级文案 |
+| `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳（含 `{{FILTER_*}}` 社区家数），并把 14 条社区研判注入 `<!-- COMMUNITY_LIST -->`、02 节宏观层注入 `<!-- MACRO_BLOCK -->`、时效核对表注入 `<!-- FRESHNESS_BLOCK -->`、07 节核心结论注入 `<!-- VERDICT_LIST -->` |
+| `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 `<!-- COMMUNITY_LIST -->` / `<!-- MACRO_BLOCK -->` / `<!-- FRESHNESS_BLOCK -->` / `<!-- VERDICT_LIST -->` 四组动态注入标记；**模板里不保留任何静态数据文案**（03 节静态卡片与内嵌推送快照已清空为占位说明），仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
+| `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `macro_data.json` + `community_data.json` + `sentiment_data.json`，转为微信兼容的单页完整内联样式 HTML，经 PushPlus **一对多**群组推送（群组编码 `oai.1`）；推送前过 `assert_content_freshness()` 真护栏（严格模式命中退出码 6），社区数据缺失时复用 `community_data.py` 的同一套模板，不再内嵌第二份写死文案 |
+| `.github/workflows/m.yml` | CI：动态抓取行情+宏观+社区+舆情 → 动态建站（四注入） → 部署 Pages + 一键触发微信单页推送 + **每天北京时间 09:00 定时自动推送**；`macro_data.py` 联网失败自动降级 `--mock`（fixtures 回放，正文标注陈旧） |
 
 ## 页面风格系统 (Style A · 电子杂志 × 电子墨水)
 
@@ -113,7 +153,34 @@ Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中，网页按钮与�
 
 > 提示：GitHub Actions 定时任务存在少量延迟属正常现象；若需精确到秒的定时，可结合仓库 Secrets (PUSHPLUS_TOKEN) 与外部 Cron 服务。
 
-## 🐛 本次修复：红圈旧数据问题
+## 🐛 修复记录二：02 节全球经济与财经动态整节固化
+
+- **问题**：`02 / 全球经济与财经动态` 与 `07 / 核心结论` 的数字全部写死（美债 4.67%、南向 628.69 亿、CPI 0.5%、
+  恒指 25,440.17、RSI 72.58、EMA 25,978/25,471、箱体 25,200–25,400、止损 25,124、街货比 49:51、目标 31,000），
+  只有日期在动；网页端根本没有 02 节；推送前的日期校验恒真。
+- **根因**：宏观数据没有取数层，正文直接写文案；网页与推送各写一套模板，护栏形同虚设。
+- **修复**：
+  1. 新增 `macro_data.py`（9 项指标 + 事件日历）与 `macro_manual_inputs.json`（4 项人工维护项，必带 vintage）。
+  2. 新增 `macro_render.py`：网页/微信**共用**渲染器 + `freshness_report()` 真护栏 + `scan_narrative_dates()` 过期叙事扫描。
+  3. `market_data.py` 增加动态技术面层（EMA / RSI / MA50 / 近 20 日箱体 / 多周期涨跌），技术位不再写死。
+  4. `report.html` 新增 `02 / 全球经济与财经动态` 节（`MACRO_BLOCK` + `FRESHNESS_BLOCK` 标记）与 07 节 `VERDICT_LIST` 标记；
+     原 `02 / 行情快照` 顺延为 `02B`；清空 03 节静态社区卡片与内嵌推送旧快照（改为占位说明，构建时注入）。
+  5. `build_site.py` 增加 `--macro` 参数与三处注入；`tools/wechat_push.py` 改为 `assert_content_freshness()` 真核对
+     （严格模式退出码 6 / `--scheduled` 仅警告 / `--allow-stale` 知情放行），社区回退复用 `community_data.py` 模板。
+  6. `community_data.py` 14 套引语与研判模板全部改为引用实算事实；行情缺失走**降级模板**（只说明缺什么 + 列出仍取到的宏观事实），
+     不再套用富模板产出破句，也不再默认"窄幅震荡"。
+  7. `.github/workflows/m.yml` 三个 job 均增加 `macro_data.py` 步骤（联网失败降级 `--mock`），
+     `community_data.py` 显式传 `--macro-data`；`.gitignore` 忽略 `macro_data.json`。
+     > ⚠️ **workflow 改动需单独应用**：GitHub App 默认无 `workflows` 权限，无法推送 `.github/workflows/` 下的文件。
+     > 该改动已导出为补丁 `docs/ci-macro-step.patch`，请由有权限的账号执行：
+     > `git apply docs/ci-macro-step.patch && git commit -am "ci: 增加 macro_data.py 步骤" && git push`
+     > （或在 Arena 里为 GitHub 连接开启 `workflows` 权限后重推）。未应用补丁时 CI 仍可运行，
+     > 但 02 节会走"宏观数据缺失"降级路径，页面显式写「未取到」而不会显示旧数字。
+  8. 新增 `tests/test_macro.py`（56 项）：把上述约束固化为回归测试，任何写死值回潮都会红。
+- **验证**：`python3 macro_data.py --mock && python3 build_site.py --out /tmp/x.html && python3 tools/wechat_push.py --dry-run`；
+  `python3 -m unittest discover -s tests` → 86 项全绿。
+
+## 🐛 修复记录一：红圈旧数据问题
 
 - **问题**：截图红圈显示 14 个社区正文仍是“8 月 12 日”旧数据，仅 `{{CD_xx}}` 日期占位符刷新，社区研判正文未动态。
 - **根因**：`report.html` 与 `tools/wechat_push.py` 中社区内容为硬编码静态文本，未接入动态管线。

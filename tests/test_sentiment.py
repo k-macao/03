@@ -341,7 +341,7 @@ class TestReportAndPush(unittest.TestCase):
                 os.environ['SENTIMENT_DATA'] = old
 
     def test_wechat_render_contains_03b(self):
-        html, _ts, _ts_full = self.wechat.build_single_wechat_html()
+        html, _ts, _ts_full, _fresh = self.wechat.build_single_wechat_html()
         self.assertIn('03B /', html)
         self.assertIn('舆情', html)
         self.assertLess(len(html), 95000, '微信单页需保持在安全线内')

@@ -38,9 +38,13 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from collections import Counter
 from datetime import datetime, timezone
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+import macro_render as mr   # noqa: E402  宏观层渲染 + 时效护栏（微信与网页共用）
 SOURCE_HTML = os.path.join(REPO_ROOT, 'report.html')
 PAGES_URL = 'https://k-macao.github.io/03/'
 PUSH_URL = 'https://www.pushplus.plus/send'
@@ -201,16 +205,20 @@ def build_single_wechat_html(now=None):
     # ---------- 动态行情注入 (market_data.json) ----------
     _md = load_market_data()
     _quotes = _md.get('quotes') or {}
-    _fetch_date = _md.get('fetch_date') or now.strftime('%Y-%m-%d')
+    # 抓取日期一律取数据文件自带的 fetch_date；文件缺失就是「未抓取」，绝不回退成当天日期
+    # —— 否则"先把日期改写成今天、再校验是不是今天"就成了恒真检查（旧版正是这个 bug）。
+    _fetch_date = _md.get('fetch_date')
 
     # ---------- 动态社区注入 (community_data.json) ----------
     _cd = load_community_data()
     # ---------- 动态舆情因子注入 (sentiment_data.json) ----------
     _sd = load_sentiment_data()
+    # ---------- 动态宏观注入 (macro_data.json · 02 节去固化) ----------
+    _macro = mr.load_macro()
     _communities_raw = _cd.get('communities') or []
-    # 社区抓取日期优先取社区数据的 fetch_date，否则取行情的 fetch_date
-    _community_fetch_date = _cd.get('fetch_date') or _fetch_date
-    # 如果社区数据存在，用社区的 fetch_date 覆盖行情的 fetch_date 用于统一日期显示
+    # 社区抓取日期取社区数据自带的 fetch_date；缺失时明确标记「未抓取」，
+    # 让推送前的时效核对能真的失败，而不是被伪装成当天。
+    _community_fetch_date = _cd.get('fetch_date') or _fetch_date or '未抓取'
     if _cd.get('fetch_date'):
         _fetch_date = _cd.get('fetch_date')
 
@@ -234,8 +242,8 @@ def build_single_wechat_html(now=None):
         sign = MINUS if v < 0 else '+'
         return f'{sign}{abs(v):,.2f}%'
 
-    def chg_desc(fb='跌 212.65 点'):
-        """恒指涨跌描述，如 '跌 212.65 点' / '涨 15.20 点'。"""
+    def chg_desc(fb=None):
+        """恒指涨跌描述；缺失返回 None —— 调用方据此不渲染断言，不再兜底成 8 月旧数字。"""
         q = _quotes.get('HSI')
         if not q or q.get('chg') is None:
             return fb
@@ -243,11 +251,11 @@ def build_single_wechat_html(now=None):
         verb = '跌' if v < 0 else '涨'
         return f'{verb} {abs(v):,.2f} 点'
 
-    def dq(fb='8 月 12 日'):
-        """恒指行情日期，如 '8 月 28 日'。"""
+    def dq(fb=None):
+        """恒指行情日期（中文），如 '9 月 15 日'；缺失返回 None —— 绝不伪造日期。"""
         a = (_quotes.get('HSI') or {}).get('as_of') or ''
         m = re.match(r'20\d{2}-(\d{2})-(\d{2})', a)
-        return fb if not m else f'{int(m.group(1))} 月 {int(m.group(2))} 日'
+        return fb if not m else f'{int(m.group(2))} 月 {int(m.group(3))} 日'
 
     def asof(key, fb='\u2014'):
         """行情日期 YYYY-MM-DD。"""
@@ -359,88 +367,38 @@ def build_single_wechat_html(now=None):
             ))
         print(f'  🧩 微信推送：已加载 {len(communities)} 个动态社区源（来自 community_data.json，含核心量化指标）')
     else:
-        # 回退：内置兜底社区数据，但日期动态刷新为当天
-        # 使用当天日期生成动态内容，杜绝 8 月 12 日旧数据
-        now_m = now.month
-        now_d = now.day
-        hsi_last = qq('HSI','25,440.17')
-        hsi_pct = pct('HSI','−0.83%')
-        # 动态模板（与 community_data.py 保持一致的当天日期）
-        fallback_quotes = [
-            (f'平台深度热评：{now_m} 月 {now_d} 日恒指收报 {hsi_last} 点（{hsi_pct}），技术派指出 26,000 整数关连续受阻后短线动能转弱，需等待金叉才重新进场；资金派紧盯分时大单与南向净流向，强调“先看异动再做决策”。中长线声音则认为：即便回踩 25,200–25,400 箱体下沿，南向 7 月净买入 628.69 亿、8 月仍净流入，叠加盈利修复，明年上半年挑战 28,200 点的路径未被破坏。',
-             '短线偏空 · 中期偏多。26,000 失败后短线动能向下，需等待 30m/1h 金叉与放量站回 25,800；中期南向与盈利托底逻辑完好，箱体下沿反而是盈亏比更优的分批建仓区。'),
-            (f'热帖直指“恒指 26,000 关口压力重重，本轮是反弹还是反转”。{now_m} 月 {now_d} 日恒指收 {hsi_last}（{hsi_pct}），恒科同步震荡。球友对半导体“空头撤退股价仍跌”解读为被动出清；价值派强调南向持续流入与 31,000 点基准目标仍成立，主张高息底仓 + 新质生产力。',
-             '短线偏空 · 中期偏多。成长股出清尚未结束；但南向月度级回流与低估值高息底仓，为中期提供足够安全边际。'),
-            (f'跨境账户情绪：{now_m} 月 {now_d} 日港股震荡（恒指 {hsi_pct}），外资 trim China exposure 快于内资的格局仍在；地缘与油价扰动叠加华尔街科技回撤，亚洲时段反弹乏力。社区对折价配售仍敏感，操作共识是继续观望，等待金叉与 25,800 放量收复。',
-             '偏空观望。外资定价的离岸市场对地缘与美股映射更敏感，港股“先跌于 A 股”格局未改；在缺乏右侧信号前不宜抄底。'),
-            (f'股吧情绪：{now_m} 月 {now_d} 日恒指震荡 {hsi_pct}，科网与内房分化明显。讨论焦点从“五连阳还能不能追”转为“26,000 失败后会不会回踩 25,200”。内房脉冲被解读为政策博弈炒作而非趋势反转。',
-             '短线偏空。散户从狂热切换到观望，低开低走与科网兑现共振；内房脉冲难改大盘箱体下修的短线基调。'),
-            (f'席位与衍生品视角：{now_m} 月 {now_d} 日恒指牛熊街货比约 49:51，熊证重货区落在 26,200–26,299、牛证重货区在 25,200–25,299，与现货箱体高度吻合。收 {hsi_last}（{hsi_pct}），光通信获摩根大通加仓，芯片股逆市走强。',
-             '偏多 (结构性机遇)。街货比中性、机构在光通信与高息两端同时加仓，箱体内更适合用期权做结构，而不是裸空指数。'),
-            (f'宏观对冲盘聚焦：{now_m} 月 {now_d} 日恒指 {hsi_pct} 至 {hsi_last}，社区主流叙事仍是“全球资金从韩日美股拥挤多头再平衡至低估港股 + 国内政策托底”，但强调 26,000 失败后应以防守姿态做多：黄金与铜铝锂及高息低贝塔。',
-             '中性偏多 (防御姿态做多)。CPI 降温打开估值修复窗口，霍尔木兹与油价则封住上行斜率；适合用高息 + 贵金属底仓承接再平衡资金。'),
-            (f'本地炒鬼：{now_m} 月 {now_d} 日恒指 {hsi_pct}，共识是“又係 26,000 附近派货”。内房脉冲被当成政策消息博弈，多数人表示“睇得、唔好追”。共识仍是港股弱于 A 股、先跌后上，必须等金叉同南向持续净流入先至加仓。',
-             '中性。本土零售维持防守观望，内房脉冲难改仓位结构；右侧金叉出现前不宜激进加仓。'),
-            (f'连登交易员：{now_m} 月 {now_d} 日恒指 {hsi_pct}，未能放量突破 26,200–26,500，短线动能转弱。主流策略切到期权 / 牛熊证做波动率，街货比 49:51 被解读为多空打平、适合两边开仓；硬止损纪律被反复强调。',
-             '短线偏空 (超买回调兑现中)。26,000 失败后波动率交易优于方向单；未站回 25,800–26,000 前，杠杆多头盈亏比不佳。'),
-            (f'公募与港股通持仓透视：{now_m} 月 {now_d} 日恒指 {hsi_pct} 报 {hsi_last}，南向 7 月净买入 628.69 亿、8 月延续净流入；近一月主力流向资讯科技、原材料、医疗保健。机构共识未改：估值修复 + 科技盈利是 2026 主引擎，箱体震荡是机构完成高低切换的窗口。',
-             '偏多 (中期基本面驱动)。月度级南向与外资回流比单日指数涨跌更有信息量；箱体震荡是机构完成高低切换的窗口。'),
-            (f'基民社区：{now_m} 月 {now_d} 日恒指 {hsi_pct}，散户港股 ETF 申购与搜索热度随指数回踩降温，讨论从“还能不能追”转为“定投要不要暂停”。理财顾问仍主推高息红利、REITs、电信与公用事业作为底仓。',
-             '中性 (狂热降温)。散户 FOMO 消退降低了短线见顶压力，但尚未出现恐慌性申赎；适合把仓位从追涨切换回定投式防御底仓。'),
-            (f'英文社区：{now_m} 月 {now_d} 日恒指 {hsi_pct}，仍把港股当作投资中国核心资产最便利的离岸通道，VIE / ADR 等价性讨论未停。增量话题切到宏观：美国 CPI 与就业数据降低加息紧迫性；霍尔木兹和解预期反复、油价走高被视作主要外部扰动。',
-             '中性。外资认可通道与估值，但在地缘与政策细节落地前维持审慎评估，等待 CPI 后续路径与中概业绩季。'),
-            (f'图表派更新：{now_m} 月 {now_d} 日恒指收 {hsi_last}（{hsi_pct}），三周反弹后于 26,000 录得超买警报；EMA9/21 交叉约 25,978 / 25,471 仍托住升势，MACD 高位减速。新作战目标 26,500 / 延伸 27,044，移动止损上移至 25,124。',
-             '偏多 (结构完好、战术回调)。超买在 26,000 消化是健康的，均线带未坏；回踩 25,400–25,470 是加仓带，失守 25,124 才改方向。'),
-            (f'价投私密社区：{now_m} 月 {now_d} 日恒指 {hsi_pct}，并不把 26,000 失败当成逻辑破坏：港股相对欧美估值折价、中小盘私有化套利与控股股东折价仍是 2026 主引擎。基准情景维持恒指年底 28,000–29,000、乐观 31,000。',
-             '偏多 (价投标尺确立)。箱体回撤不改变折价修复路径；私有化与回购仍是中小盘的确定性事件驱动。'),
-            (f'FinTwit 宏观账户：{now_m} 月 {now_d} 日恒指 {hsi_pct} 至 {hsi_last}，仍把港股标成“再平衡避风港”，但语气从右侧突破转为“26,000 失败后的健康回撤”。CPI 降温与就业疲弱压低加息赔率，黄金与铜锂继续作为地缘对冲。',
-             '偏多 (国际资本仍在场)。再平衡 + CPI 降温仍是多头底盘；缺的是政策细则与放量收复 26,000，短线应降低进攻斜率。'),
-        ]
-        base = [
-            ('🐮', '1', '富途牛牛社区', '多空分歧', 'mixed'),
-            ('❄️', '2', '雪球网', '多空分歧', 'mixed'),
-            ('🐯', '3', '老虎社区', '偏空', 'bear'),
-            ('💰', '4', '东方财富港股股吧', '偏空', 'bear'),
-            ('📈', '5', '智通财经互动区', '偏多', 'bull'),
-            ('🌐', '6', '华尔街见闻社区', '偏多', 'bull'),
-            ('🇭🇰', '7', '香港讨论区财经版', '中性', 'neutral'),
-            ('🔥', '8', 'LIHKG 连登财经台', '偏空', 'bear'),
-            ('🥦', '9', '韭圈儿 / 红岸社区', '偏多', 'bull'),
-            ('🐜', '10', '蚂蚁财富港股社区', '中性', 'neutral'),
-            ('👾', '11', 'Reddit (r/ChinaStocks)', '中性', 'neutral'),
-            ('📊', '12', 'TradingView 香港板块', '偏多', 'bull'),
-            ('💎', '13', 'Value Investors Club', '偏多', 'bull'),
-            ('🐦', '14', 'Twitter / X (FinTwit)', '偏多', 'bull'),
-        ]
-        metas = [
-            '综合站内 10 条热门长帖与讨论',
-            '综合站内 10 条深度研报与讨论',
-            '综合站内 10 条热门跨境讨论',
-            '综合站内 10 条高互动主题帖',
-            '综合站内 10 条专业席位跟踪分析',
-            '综合站内 10 条宏观深度长文',
-            '综合站内 10 条粤语热门讨论贴',
-            '综合站内 10 条高频交易讨论链',
-            '综合站内 10 篇机构仓位拆解报告',
-            '综合站内 10 条基民热评与定投贴',
-            '综合站内 10 篇外文热门深度分析',
-            '综合站内 10 套专业技术分析图表与指标',
-            '综合站内 10 篇顶尖私密价值分析研报',
-            '综合站内 10 条海外基金经理核心观点',
-        ]
-        for i, ((icon,no,name,label,vclass), (q,v), meta_tpl) in enumerate(zip(base, fallback_quotes, metas)):
-            # 生成 fallback 量化指标
-            try:
-                raw_pct_val = float(pct('HSI','−0.83%').replace('%','').replace('−','-').replace('+','')) if 'HSI' in q else 0
-            except:
-                raw_pct_val = 0
-            quant = gen_quant_fallback(name, vclass, _community_fetch_date, raw_pct_val, q, "fallback")
-            communities.append((
-                icon, no, name, label, vclass, q, v,
-                quant,
-                f'{meta_tpl} · 最新读取 {_community_fetch_date}'
-            ))
-        print(f'  ⚠️ 微信推送：未找到 community_data.json，回退到动态模板（{len(communities)} 个源，日期已刷新为 {_community_fetch_date}，含量化指标）')
+        # 回退：未找到 community_data.json 时，复用 community_data.py 的**同一套**动态模板
+        # —— 单一事实源，避免在推送工具里再维护一份写死的 8 月旧叙事（这正是"红圈旧数据"复发的根因）。
+        try:
+            import community_data as cd
+        except Exception as e:  # noqa: BLE001
+            cd = None
+            print(f'  ⚠️ 微信推送：community_data 模块不可用({e})，社区节降级为最小模板')
+        _fd = (_community_fetch_date
+               if re.match(r'20\d{2}-\d{2}-\d{2}', str(_community_fetch_date))
+               else now.strftime('%Y-%m-%d'))
+        _fd_cn = f'{now.month} 月 {now.day} 日'
+        _facts = (cd.fmt_hsi(_md, _macro) if cd else
+                  {'last': '—', 'pct': '—', 'raw_pct': 0.0, 'as_of': '', 'has_tech': False})
+        for c in (cd.COMMUNITIES if cd else []):
+            _q = cd.generate_dynamic_quote(c, _facts, _fd, _fd_cn, live_snippet='', mode='fallback')
+            _v = cd.generate_verdict(c, _facts, _fd_cn)
+            _quant = cd.generate_quant_metrics(c, _facts, '', 'fallback', _fd)
+            communities.append((c['icon'], c['id'], c['name'], c['verdict_label'],
+                                c['verdict_class'], _q, _v, _quant,
+                                f"{c.get('meta_tpl', '综合站内 10 条讨论')} · 最新读取 {_fd}"))
+        if not communities:
+            # 连模块都不可用时的最小兜底：明确标注"未抓取"，不编造任何论坛内容
+            for i in range(EXPECTED_CHANNEL_COUNT):
+                communities.append((
+                    '📌', f'{i + 1:02d}', f'社区 {i + 1:02d}', '中性', 'neutral',
+                    f'{_fd_cn}未找到 community_data.json 且 community_data 模块不可用：'
+                    '本卡片无任何论坛内容，不作断言。',
+                    '数据缺失。请先执行 python3 community_data.py 再构建推送。',
+                    gen_quant_fallback(f'CH{i + 1:02d}', 'neutral', _fd, 0.0, '', 'missing'),
+                    f'综合站内 0 条（未抓取） · 最新读取 {_fd}'))
+        print(f'  ⚠️ 微信推送：未找到 community_data.json，回退到 community_data.py 动态模板'
+              f'（{len(communities)} 个源，抓取日期 {_fd}，正文不含写死的旧叙事）')
 
 
     community_html = '\n'.join(
@@ -517,6 +475,77 @@ def build_single_wechat_html(now=None):
         '• <strong>Twitter / X (FinTwit)</strong>：全球时效性最强的金融社群，宏观对冲基金经理实时发表港股多空观点。'
     )
 
+    # ---------- 02 节：宏观层数据驱动渲染（与网页端共用 macro_render，口径一致） ----------
+    macro_html = mr.render_wechat(mr.build_blocks(_macro, _md, today=now.date()), sub=sub, box=box)
+
+    # ---------- 时效护栏：所有数据层 + 每项指标 as_of 汇总（真校验，非恒真） ----------
+    _fresh = mr.freshness_report(_macro, _md, _cd, _sd, today=now.date(), now=now)
+    freshness_html = mr.render_freshness_wechat(_fresh)
+    banner_html = ('' if _fresh['pushable'] else
+                   f'<div style="background:#000;color:{NEON};border-radius:6px;padding:10px 14px;'
+                   f'margin:0 0 14px;font-size:12px;line-height:1.8;font-weight:700;">'
+                   f'⚠️ {_fresh["banner"]}</div>')
+
+    # ---------- 03 节总览：家数按本次抓取结果实时统计，"核心主线共识"不再写死 ----------
+    _cc = Counter(c[4] for c in communities)
+    _clabel = {'bull': '偏多', 'bear': '偏空', 'neutral': '中性', 'mixed': '多空分歧'}
+    _stat_txt = ' · '.join(f'{_clabel[k]} {_cc.get(k, 0)} 家' for k in ('bull', 'bear', 'neutral', 'mixed'))
+    _csum = _cd.get('summary') or {}
+    _hsi_n, _hsi_p, _hsi_a = mr.num(_md, 'HSI'), mr.pct(_md, 'HSI'), asof('HSI', '')
+    _tech = (_quotes.get('HSI') or {}).get('tech') or {}
+    _hkc = mr.indicator(_macro, 'hk_connect')
+    _ov = [f'<strong style="color:#000;font-size:13px;">AI 多空总览统计</strong> — 本次实际统计 '
+           f'{len(communities)} 个社区源：{_stat_txt}。']
+    if _hsi_n:
+        _ov.append(f'行情基准：恒生指数 <strong>{_hsi_n}</strong>'
+                   f'（{_hsi_p or "—"}，截至 {_hsi_a or "—"}）')
+    else:
+        _ov.append('行情基准：<strong>❌ 恒指行情未取到</strong>，本节不给出点位与涨跌断言')
+    if _tech:
+        _ov.append(f'技术面（market_data.py 按 6 个月日线实时计算，截至 {_tech.get("as_of")}）：'
+                   f'EMA9/21 {_tech.get("ema9")}/{_tech.get("ema21")}（{_tech.get("ema_state") or "—"}）· '
+                   f'RSI14 {_tech.get("rsi14")}（{_tech.get("rsi_state") or "—"}）· '
+                   f'近 20 日箱体 {_tech.get("box_low_20d")}–{_tech.get("box_high_20d")}')
+    if _hkc.get('value') is not None:
+        _ov.append(f'港股通成交额 {_hkc.get("display")}（{_hkc.get("as_of")}；'
+                   f'单日净买入额官方已停止公布，故不引用"南向净买入 XXX 亿"）')
+    if _sd and (_sd.get('market') or {}):
+        _smk = _sd['market']
+        _ov.append(f'舆情因子：温度计 {_smk.get("sent_temp", "—")}（{_smk.get("label", "—")}）· '
+                   f'净情感 {_smk.get("net_senti", "—")} · 数据日期 {_sd.get("fetch_date", "—")}')
+    _ok, _total = _csum.get('ok'), _csum.get('total')
+    if _ok is not None and _total and _ok < _total:
+        _ov.append(f'<strong>⚠️ 本次 {_ok}/{_total} 个社区源抓取成功</strong>，其余为动态模板回退'
+                   f'（非当日论坛原文），已在各卡片逐项标注')
+    elif not _cd:
+        _ov.append('<strong>⚠️ 未找到 community_data.json</strong>：以下为动态模板回退内容，'
+                   '非当日论坛原文，不得视为已核对的社区最新内容')
+    _ov.append(f'<span style="color:#7d838b;font-size:10px;">社区抓取日期 {_community_fetch_date} · '
+               f'{community_fetch_status()} · 总览家数由本次抓取结果实时统计，不再写死</span>')
+    overview_html = box('<br/>'.join(_ov))
+
+    # ---------- 05 节：数据获取与时效核对（如实说明哪些是实时/人工/缺失） ----------
+    telemetry_html = box(
+        '<strong>时间核对：' + ts_full + '</strong> — 下表逐项列出每个数据层的抓取日期与每项指标的'
+        '数据日期（as_of）；凡陈旧或缺失项均已在正文标注，<strong>不再声称"正文所有时间戳均为最新"</strong>。<br/>'
+        f'<strong>本次核对结果：{_fresh["banner"]}</strong><br/>' + freshness_html + '<br/>'
+        '<strong>动态管线（每次构建/推送前重跑，不复用历史结果）：</strong><br/>'
+        '• <strong>market_data.py</strong> → 11 项行情（Yahoo Finance → Stooq 回退）+ 6 个月日线动态计算 '
+        'EMA9/21、MA50、RSI14、近 20 日箱体与 5 日/1 月/3 月涨跌（技术位不再写死）；<br/>'
+        '• <strong>macro_data.py</strong> → 02 节宏观层（FRED 联邦基金利率/CPI/核心 CPI/非农/10 年期/铜、'
+        '东方财富数据中心中国 CPI 与港股通、世界银行全球增速），"下一观察点"由事件日历按当日动态推导；<br/>'
+        '• <strong>macro_manual_inputs.json</strong> → 无公开接口的人工项（IMF WEO / 碳酸锂 / 大行目标价 / 地缘判断），'
+        '每项必须带 vintage 日期，超期自动判陈旧并在正文打标；<br/>'
+        '• <strong>community_data.py</strong> → 14 大社区（HTTP GET + 模板回退，回退时明确标注非原文）；<br/>'
+        '• <strong>sentiment_factors.py</strong> → 舆情/新闻因子（平台现成因子优先，降级路径逐项标注）。<br/>'
+        '<strong>诚实性约定：</strong>取不到的数据不编造、不用旧值兜底、不冒充当天；'
+        '港股通单日净买入额自 2024-08 起官方停止公布，本报告不再引用该口径。')
+
+    # ---------- 07 节：核心结论全部由数据推导，缺失即标注"未取到" ----------
+    # 与网页 07 节共用 macro_render.verdict_items()（单一口径，不再各写一套模板）
+    _v_items = mr.verdict_items(_macro, _md, _sd, today=now.date())
+    verdict_html = box(mr.render_verdict_wechat(_v_items))
+
     html = f'''<div style="background:#eef0f2;color:#141414;font-family:'黑体','SimHei','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;font-size:12px;line-height:1.85;padding:16px 12px;">
 
   <!-- 顶部标题 -->
@@ -525,6 +554,8 @@ def build_single_wechat_html(now=None):
     <div style="color:{NEON};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
   </div>
 
+  {banner_html}
+
   {h('01 / 底层模型与全景推理机制 (Multi-Model Alliance)')}
   {box(
     key('全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。'))}
@@ -532,34 +563,10 @@ def build_single_wechat_html(now=None):
   {quant_block}
 
   {h('02 / 全球经济与财经动态 (Global Macro & HK Battlefield)')}
-  {box(
-    sub('◆ 宏观 — IMF 与全球经济增速') +
-    '根据 2026 年 7 月 8 日 IMF 更新的《世界经济展望》，全球经济增长预期下调至 ' + key('3.0%') + '（4 月预测 3.1%），显著低于 2025 年的 3.5%。主要拖累仍是中东地缘与霍尔木兹海峡航运风险。8 月 12 日美伊和解预期再度降温、油价升至一周高位，叠加中国 7 月 CPI 回落至 0.5%（6 月 1.0%），全球“增长放缓 + 能源溢价”组合尚未解除。<br/><br/>' +
-    sub('◆ 美联储利率路径与离岸流动性') +
-    '7 月 29 日 FOMC 以 9-3 维持联邦基金利率 ' + key('3.50% – 3.75%') + '（克利夫兰、明尼阿波利斯、达拉斯三位主席主张加 25BP）。8 月 12 日公布的 7 月 CPI 同比 ' + key('3.4%') + '（前值 3.5%）、核心 2.5%，叠加 7 月非农录得净减 2.3 万人，市场显著下调 9 月加息概率。下一观察点：8 月 19 日纪要、8 月 27–28 日杰克逊霍尔、9 月议息。<br/><br/>' +
-    sub('◆ 港股市场 — 26,000 受阻后的箱体消化') +
-    dq() + '恒生指数收报 ' + key(qq('HSI', '25,440.17')) + ' 点，' + chg_desc() + '（' + key(pct('HSI', '−0.83%')) + '），恒生科技指数 ' + pct('HSTECH', '−0.99%') + ' 报 ' + qq('HSTECH', '4,776.44') + '。8 月初五连阳冲击 26,000–26,200 后连续受阻，近两周锁定 25,400–26,200 箱体。科网普跌（网易跌超 5%、阿里跌超 3%），光通信与内房午后走强（中际旭创涨超 8%、中国金茂涨超 13%）。南向 7 月净买入 ' + key('628.69 亿港元') + '，8 月延续净流入（8 月 4 日单日 +25.70 亿）。<br/><br/>' +
-    sub('◆ 行情快照 (Live Quotes · 构建时自动抓取)') +
-    '恒指 <b>' + qq('HSI') + '</b>（' + pct('HSI') + '）· 恒科 <b>' + qq('HSTECH') + '</b>（' + pct('HSTECH') + '）· 恒生国企 ' + qq('HSCE') + '<br/>' +
-    '标普 ' + qq('SPX') + '（' + pct('SPX') + '）· 纳指 ' + qq('NDQ') + '（' + pct('NDQ') + '）· 道指 ' + qq('DJI') + '（' + pct('DJI') + '）<br/>' +
-    '黄金 <b>' + qq('GOLD') + '</b> 美元/盎司 · WTI ' + qq('WTI') + ' · 布伦特 ' + qq('BRENT') + ' · 美元/离岸人民币 ' + qq('USDCNH') + '<br/>' +
-    '<span style="color:#7d838b;font-size:10px;">行情日期 ' + asof('HSI') + ' · Yahoo Finance / Stooq 多源回退 · ' + fetch_status() + ' · ' + community_fetch_status() + '</span><br/><br/>' +
-    sub('◆ 大宗商品与全球供应链风险矩阵') +
-    '• <strong>原油</strong>：WTI 约 ' + qq('WTI', '82.7') + '、布伦特约 ' + qq('BRENT', '89') + ' 美元，霍尔木兹和解预期降温推升一周高位；<br/>' +
-    '• <strong>黄金</strong>：' + dq() + '现货约 ' + key(qq('GOLD', '4,400') + ' 美元/盎司') + '，月涨近 10%、同比 +31%，继续刷新历史高位；<br/>' +
-    '• <strong>铜、铝、锂</strong>：铜约 6.59 美元/磅（同比 +47%），锂碳酸盐约 14.8 万元/吨，战略矿产仍是对冲地缘与再通胀的核心底仓。<br/><br/>' +
-    sub('◆ 主要国际与中资大行对恒指目标价预测（2026 基准情景）') +
-    '• <strong>富途证券</strong>：基准情景 ' + key('31,000 点') + '；乐观情景在内需政策共振下可达 ' + key('34,000 点') + '。<br/>' +
-    '• <strong>星展银行 (DBS)</strong>：基本情景 ' + key('30,000 点') + '；极乐观牛市情景 ' + key('36,500 点') + '，极悲观熊市底线 23,000 点。<br/>' +
-    '• <strong>中金公司 (CICC)</strong>：基准预测区间 ' + key('28,000–29,000 点') + '，依托盈利修复支撑估值均值回归。<br/>' +
-    '• <strong>渣打银行 (StanChart)</strong>：核心区间 ' + key('28,000–30,000 点') + '，看好高股息底仓与中资科技龙头的双轮驱动。')}
+  {macro_html}
 
   {h('03 / 社区论坛热评 (14 大平台详尽深入全景研判 · 每日动态抓取)')}
-  {box(
-    '<strong style="color:#000;font-size:13px;">AI 多空总览统计</strong> — 综合 14 个境内外核心社区信号：<br/>' +
-    key('偏多 6 家') + ' · <strong style="color:#333;font-weight:700;">偏空 3 家</strong> · <strong style="color:#333;font-weight:700;">中性 3 家</strong> · ' + key('多空分歧 2 家') + '。<br/>' +
-    '<strong style="color:#141414;">核心主线共识</strong>：8 月初五连阳冲击 26,000–26,200 后连续受阻，短线进入箱体消化（' + dq() + '收 ' + qq('HSI', '25,440') + '，' + pct('HSI', '−0.83%') + '）；南向 7 月净买入 628.69 亿、8 月仍净流入，中期“估值修复 + 政策托底”未被证伪。跨平台配置答案：进攻端切向光通信 / AI 硬科技与内房政策博弈，互联网龙头高位兑现；防御端继续重仓高息、REITs、电信与公用事业，并以黄金（约 ' + qq('GOLD', '4,400') + ' 美元）与铜锂对冲霍尔木兹溢价。<br/>' +
-    f'<span style="color:#7d838b;font-size:10px;">社区抓取日期 {_community_fetch_date} · {community_fetch_status()} · 14 源动态抓取已上线，每次构建自动刷新</span>')}
+  {overview_html}
 
   {community_html}
 
@@ -569,17 +576,8 @@ def build_single_wechat_html(now=None):
   {h('04 / 监测平台列表与雷达矩阵 (Tactical Radar List)')}
   {box(platforms)}
 
-  {h('05 / 数据获取与时间核对 (Telemetry & Timestamps)')}
-  {box(
-    '<strong>时间核对：' + ts_full + '</strong> — 本次推送前已重新抓取各平台数据（不复用历史抓取结果），并逐条核对 14 个频道的「最新读取」标记，正文所有时间戳均为最新；报告时间精确到秒，所有引用内容均严格标注读取时间戳。<br/>' +
-    '<strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/>' +
-    '若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。<br/>' +
-    '市场行情由 <strong>market_data.py</strong> 每次构建/推送前自动抓取（Yahoo Finance / Stooq 多源回退），行情快照与正文数字同步刷新；单品抓取失败自动降级显示 —，不阻断推送。<br/>' +
-    '社区研判由 <strong>community_data.py</strong> 每次构建/推送前自动抓取 14 大社区最新热评（HTTP GET + 动态模板回退），正文 14 个社区内容与「最新读取」日期全部动态刷新，杜绝旧数据残留。<br/>'
-    '舆情/新闻因子由 <strong>sentiment_factors.py</strong> 分层取数合成（优先米筐 <code>news.get_stock_news</code>、'
-    '优矿 <code>sentimentIndex/heatIndex</code> 等平台现成因子；权限未开通时降级到东财千股千评关注指数、'
-    '金十微博人气与东财/Tushare 新闻文本 + 自建中文金融词库），单源失败不阻断推送；'
-    '接口可用性评测由 <strong>tools/probe_sentiment_apis.py</strong> 生成。')}
+  {h('05 / 数据获取与时效核对 (Telemetry & Freshness Audit)')}
+  {telemetry_html}
 
   {h('06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)')}
   {box(
@@ -589,12 +587,7 @@ def build_single_wechat_html(now=None):
     '<strong>单页协议：</strong>微信推送采用<strong>一对多群组推送</strong>（群组编码 oai.1，推送到群内全部关注成员微信），并采用<strong>单页完整卡片</strong>格式，全篇 8 大章节（含 03B 舆情·新闻因子实测节点）与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
 
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
-  {box(
-    '• <strong>全球宏观面</strong>：IMF 维持全球增速 3.0%；美联储 3.50%–3.75% 按兵不动，7 月 CPI 同比 3.4%、就业意外净减，9 月加息概率下降；霍尔木兹和解预期降温、油价一周高位仍是核心系统性风险；<br/>' +
-    '• <strong>港股市场面</strong>：' + dq() + '恒指收 ' + qq('HSI', '25,440.17') + '（' + pct('HSI', '−0.83%') + '），8 月初五连阳冲击 26,000–26,200 后进入箱体；南向 7 月净买入 628.69 亿、8 月仍净流入，资金面并未转空；<br/>' +
-    '• <strong>技术指标面</strong>：RSI 曾在 26,000 见 72.58 超买，现回踩 EMA9/21（约 25,978 / 25,471）；守住 25,200–25,400 视为健康回撤，失守 25,124 则箱体下破，重点盯 ALMA 与 30m/1h 金叉；<br/>' +
-    '• <strong>板块战术策略</strong>：进攻端从互联网贝塔切向光通信 / AI 硬科技与政策博弈内房；防御底仓仍是高息、REITs、电信与公用事业；黄金约 ' + qq('GOLD', '4,400') + ' 美元 + 铜铝锂对冲地缘与再通胀；<br/>' +
-    '• <strong>情绪指标</strong>：散户 FOMO 随 26,000 失败明显降温，反向见顶警报部分解除；短线切忌在箱体上沿追高，宜在 25,400 附近分批承接。')}
+  {verdict_html}
   <div style="background:#eceef0;border-left:3px solid #141414;border-radius:4px;padding:10px 14px;margin-top:10px;font-size:12px;color:#333;line-height:1.8;">
     <strong style="color:#0a0a0a;">⚠️ 风险提示与免责声明：</strong>本报告所有内容仅供信息交流与学习参考，不构成任何形式的投资建议或操作指引。资本市场有风险，投资决策需谨慎。数据来源于公开网络信息，可能存在延迟或统计误差，实际投资操作前请务必核实最新实时市场数据。
   </div>
@@ -607,10 +600,12 @@ def build_single_wechat_html(now=None):
   </div>
 
 </div>'''
-    # 14 大社区「最新读取」日期统一刷新为当日抓取日期（动态抓取真正上线）
-    html = re.sub(r'(最新读取\s+)(20\d{2}-\d{2}-\d{2})',
-                  lambda m: m.group(1) + _fetch_date, html)
-    return html.strip(), ts, ts_full
+    # 「最新读取」日期改写为**数据文件自带的抓取日**（不是今天）——
+    # 这样推送前的时效核对才有意义；无抓取日期时保留原样并由护栏判为缺失。
+    if _community_fetch_date and re.match(r'20\d{2}-\d{2}-\d{2}', str(_community_fetch_date)):
+        html = re.sub(r'(最新读取\s+)(20\d{2}-\d{2}-\d{2})',
+                      lambda m: m.group(1) + _community_fetch_date, html)
+    return html.strip(), ts, ts_full, _fresh
 
 def extract_fetch_dates(text):
     """抽出正文中「最新读取 YYYY-MM-DD」的抓取日期。"""
@@ -645,12 +640,65 @@ def assert_fetch_dates_are_today(parts, now, strict=True):
     else:
         print(f'📅 频道最新内容核对: {len(reads)}/{EXPECTED_CHANNEL_COUNT} 条均已逐条检查，读取日期为 {today}，允许推送')
 
+def assert_content_freshness(parts, fresh, now, strict=True, allow_stale=False):
+    """推送前的**真**时效核对（取代旧版恒真检查）。
+
+    核对三件事：
+      1. 每个数据层（行情/社区/宏观/舆情）的 fetch_date 是否为当天、是否为 live 模式；
+      2. 每项指标与人工项的 as_of 是否在其频率上限内（日频 7 天 / 月频 45 天 / 年频 400 天 / 人工项各自上限）；
+      3. 渲染后的正文里是否还残留过期的中文绝对日期（防止宏观叙事再次固化）。
+
+    strict=True（手动 --push）：任一不通过即退出码 6，不推送。
+    strict=False（--push --scheduled）：只警告，保证 09:00 定时任务不中断，但正文已带 ⚠️ 标注。
+    allow_stale=True：显式知情放行（仍打印全部问题）。
+    """
+    problems = []
+    if fresh.get('stale'):
+        def _fmt_stale(i):
+            age = i.get('age_days')
+            age_txt = '' if age is None else f', {age} 天'
+            return f"{i.get('name')}({i.get('as_of') or '—'}{age_txt})"
+        items = '、'.join(_fmt_stale(i) for i in fresh['stale'][:12])
+        problems.append(f"{len(fresh['stale'])} 项数据陈旧: {items}")
+    if fresh.get('missing'):
+        items = '、'.join(f"{i['name']}" for i in fresh['missing'][:12])
+        problems.append(f"{len(fresh['missing'])} 项数据缺失: {items}")
+    narrative = []
+    for _t, content in parts:
+        narrative.extend(mr.scan_narrative_dates(content, today=now.date()))
+    if narrative:
+        uniq = sorted({n['text'] for n in narrative})
+        problems.append(f"正文残留 {len(narrative)} 处过期绝对日期: {'、'.join(uniq[:10])}")
+
+    if not problems:
+        print(f"✅ 时效核对: {fresh.get('ok')}/{fresh.get('total')} 项均在时效内，"
+              f"正文无过期日期引用，允许推送")
+        return True
+    for msg in problems:
+        if strict and not allow_stale:
+            print(f'错误: {msg}', file=sys.stderr)
+        else:
+            print(f'⚠️ 警告: {msg}')
+    print(f"📅 时效核对结果: {fresh.get('banner')}")
+    if strict and not allow_stale:
+        print('错误: 存在陈旧/缺失数据或过期叙事，手动推送已拒绝。'
+              '请先重跑 market_data.py / macro_data.py / community_data.py；'
+              '确需推送请加 --allow-stale（正文会保留 ⚠️ 标注），'
+              '定时任务用 --push --scheduled（仅警告）。', file=sys.stderr)
+        sys.exit(6)
+    print('⚠️ 定时/放行模式：继续推送，正文已逐项标注数据日期与陈旧状态')
+    return False
+
+
 def build_articles(source_html=SOURCE_HTML, now=None):
-    """返回 (parts, ts, ts_full): parts 为 [(title, content)] 包含 1 条单页完整推送。"""
-    content, ts, ts_full = build_single_wechat_html(now)
+    """返回 (parts, ts, ts_full, freshness): parts 为 [(title, content)] 单页完整推送。
+
+    freshness 为 macro_render.freshness_report() 的结果，供推送前的**真**时效核对使用。
+    """
+    content, ts, ts_full, fresh = build_single_wechat_html(now)
     title = TITLE
     parts = [(title, content)]
-    return parts, ts, ts_full
+    return parts, ts, ts_full, fresh
 
 EMBED_BEGIN = '<!-- WECHAT-EMBED:BEGIN -->'
 EMBED_END = '<!-- WECHAT-EMBED:END -->'
@@ -742,16 +790,24 @@ def main():
     ap.add_argument('--token', default='', help='PushPlus token (可选)')
     ap.add_argument('--topic', default='', help='PushPlus 群组编码 (可选, 默认取 report.html 的 PUSHPLUS_TOPIC, 当前 oai.1; 留空则回退一对一)')
     ap.add_argument('--dry-run', action='store_true', help='只转换, 打印字数统计与预览')
+    ap.add_argument('--allow-stale', action='store_true',
+                    help='知情放行: 存在陈旧/缺失数据时仍推送 (正文保留 ⚠️ 标注)')
     args = ap.parse_args()
 
-    parts, ts, ts_full = build_articles(args.source)
-    print(f'⏰ 时间核对: {ts_full} — 已按当前最新时间生成, 正文全部时间戳已刷新')
+    parts, ts, ts_full, fresh = build_articles(args.source)
+    print(f'⏰ 时间核对: {ts_full} — 生成时间已按当前时间刷新；'
+          f'正文各数据项按各自 as_of 标注，未统一冒称"当天最新"')
     fetch_dates = extract_fetch_dates(parts[0][1])
     fetch_dates_str = ", ".join(fetch_dates) if fetch_dates else "(未标注)"
-    print(f'📅 抓取日期: {fetch_dates_str}')
+    print(f'📅 社区抓取日期: {fetch_dates_str}')
+    print(f'📊 数据时效: {fresh.get("banner")}')
     if args.push:
-        # 手动推送为严格校验 (非当天拒绝); 定时自动推送为宽松校验 (仅警告, 保证 09:00 可运行)
-        assert_fetch_dates_are_today(parts, datetime.now(timezone.utc), strict=not args.scheduled)
+        now = datetime.now(timezone.utc)
+        # 频道「最新读取」标记核对（现在标记取数据文件真实抓取日，不再是恒真检查）
+        assert_fetch_dates_are_today(parts, now, strict=not (args.scheduled or args.allow_stale))
+        # 全量时效核对：数据层 + 每项指标 as_of + 正文过期日期
+        assert_content_freshness(parts, fresh, now,
+                                 strict=not args.scheduled, allow_stale=args.allow_stale)
     print(f'转换完成: 共 {len(parts)} 条消息 (单页完整版, 上限 {CONTENT_LIMIT}/条, 安全线 {CONTENT_SAFE_LIMIT})')
     for i, (t, c) in enumerate(parts, 1):
         print(f'  [{i}/{len(parts)}] {len(c)} 字符  {t}')
@@ -764,6 +820,12 @@ def main():
         'parts': [{'title': t, 'content': c} for t, c in parts],
         'pages_url': PAGES_URL,
         'generated_at': ts,
+        'freshness': {
+            'today': fresh.get('today'),
+            'banner': fresh.get('banner'),
+            'ok': fresh.get('ok'), 'total': fresh.get('total'),
+            'stale': fresh.get('stale'), 'missing': fresh.get('missing'),
+        },
         'mode': 'one-to-many',
     }
 
