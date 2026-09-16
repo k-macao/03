@@ -86,6 +86,23 @@ def load_community_data():
         return {}
 
 
+def load_sentiment_data():
+    """读取 sentiment_factors.py 生成的 sentiment_data.json（量化平台舆情/新闻因子）。
+
+    路径可用环境变量 SENTIMENT_DATA 覆盖；缺失/损坏时返回 {}，
+    此时 03B 节点降级为一行说明，不影响推送（与行情、社区相同的容错策略）。
+    """
+    path = os.environ.get('SENTIMENT_DATA', os.path.join(REPO_ROOT, 'sentiment_data.json'))
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        print(f'⚠️ 警告: sentiment_data.json 读取失败，舆情因子节点降级: {e}', file=sys.stderr)
+        return {}
+
+
 def build_single_wechat_html(now=None):
     """构建单页完整的微信 HTML 推送卡片。
 
@@ -109,6 +126,8 @@ def build_single_wechat_html(now=None):
 
     # ---------- 动态社区注入 (community_data.json) ----------
     _cd = load_community_data()
+    # ---------- 动态舆情因子注入 (sentiment_data.json) ----------
+    _sd = load_sentiment_data()
     _communities_raw = _cd.get('communities') or []
     # 社区抓取日期优先取社区数据的 fetch_date，否则取行情的 fetch_date
     _community_fetch_date = _cd.get('fetch_date') or _fetch_date
@@ -333,6 +352,58 @@ def build_single_wechat_html(now=None):
         for icon, no, name, label, vclass, quote, verdict, meta in communities
     )
 
+    # ---------- 03B 舆情/新闻因子节点（sentiment_data.json 动态注入） ----------
+    def sentiment_block():
+        if not _sd:
+            return box('<strong style="color:#000;">AI 多空总览统计</strong> 舆情因子节点待接入：'
+                       '在境内出口执行 <strong>python3 sentiment_factors.py --live</strong>'
+                       '（或 <strong>--mock</strong> 离线回放）后重建即可注入本节点。')
+        m = _sd.get('market') or {}
+        sm = _sd.get('summary') or {}
+        rows = []
+        rows.append(
+            '<div style="background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;'
+            'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;line-height:1.85;">'
+            + sub('◆ 市场舆情因子读数（可回测口径，非论坛印象）')
+            + key(f"舆情温度计 {m.get('sent_temp', '—')} · {m.get('label', '—')}")
+            + f"　净情感 {m.get('net_senti', '—')}　负面占比 {m.get('neg_share', '—')}%"
+              f"　热度 {m.get('heat_z', '—')}σ　风险分 {m.get('risk_score', '—')}"
+              f"<br/>关联新闻 <strong>{m.get('news_count', 0)}</strong> 条，其中平台现成因子 "
+              f"<strong>{m.get('platform_native', 0)}</strong> 条、自建词库打分 "
+              f"<strong>{m.get('self_built', 0)}</strong> 条"
+              f"<br/><span style=\"color:#7d838b;font-size:10px;\">数据日期 {_sd.get('fetch_date', '—')} · "
+              f"接口 {sm.get('ok', '—')}/{sm.get('total', '—')} 可用"
+              + (f" · 降级：{'、'.join(sm.get('failed') or [])}" if sm.get('failed') else '')
+              + f" · {'离线回放（fixtures）' if _sd.get('mode') == 'mock' else '联网实测'}</span></div>")
+
+        def row(icon, title, body):
+            return ('<div style="background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;'
+                    'padding:9px 12px;margin:8px 0;font-size:11.5px;color:#141414;line-height:1.8;">'
+                    f'<strong style="color:#000;">{icon} {title}</strong>　{body}</div>')
+
+        for st in (_sd.get('stocks') or [])[:5]:
+            rows.append(row(st.get('symbol', ''),
+                            f"{st.get('name') or st.get('symbol')}",
+                            f"关注指数 {'—' if st.get('heat') is None else format(float(st['heat']), ',.0f')}"
+                            f"　热度Z {st.get('heat_z')}　净情感 {st.get('net_senti')}"
+                            f"　新闻 {st.get('news_count')} 条　风险 {st.get('risk_score')}"))
+        for e in (m.get('events') or [])[:3]:
+            rows.append(row('⚠️', '风险事件',
+                            f"{(e.get('title') or '')[:60]}　命中 {'、'.join(e.get('terms') or [])}"
+                            f"（{e.get('risk_score')} 分）"))
+        ev = _sd.get('api_eval') or {}
+        if ev.get('ranking'):
+            cells = '<br/>' + '<br/>'.join(
+                f"· <strong>{r.get('platform', '').split('（')[0]}</strong>·"
+                f"{(r.get('name') or r.get('id', ''))[:26]}　{r.get('verdict_label')}"
+                f"　<strong style=\"color:#007a35;\">{r.get('score')}</strong> 分" for r in ev['ranking'][:6])
+            rows.append(box(sub('◆ 量化平台现成舆情/新闻因子接入评测（9 阶段实测）') + cells
+                            + f"<br/><span style=\"color:#7d838b;font-size:10px;\">评测生成于 "
+                              f"{ev.get('generated_at', '—')}；完整矩阵与上线方案见 docs/sentiment-api-eval.md"
+                              f"；掘金无舆情接口（平台能力缺失，非故障）</span>"))
+        return '\n'.join(rows)
+
+
     platforms = (
         '• <strong>富途牛牛社区</strong>：华语圈最大的港股散户大本营，实时个股讨论与资金流向反馈最快。<br/>'
         '• <strong>雪球网</strong>：深度价值投资社区，盛产港股财报拆解、长文分析与中长期基本面研究。<br/>'
@@ -396,6 +467,9 @@ def build_single_wechat_html(now=None):
 
   {community_html}
 
+  {h('03B / 舆情·新闻因子接入实测 (Sentiment & News Factor API Bench · 聚宽 米筐 掘金 优矿)')}
+  {sentiment_block()}
+
   {h('04 / 监测平台列表与雷达矩阵 (Tactical Radar List)')}
   {box(platforms)}
 
@@ -405,14 +479,18 @@ def build_single_wechat_html(now=None):
     '<strong>多模态数据获取方式：</strong>非 API 读取时，采用 <strong>浏览器网页直接抓取（Web 浏览）</strong> + <strong>CLI 模式</strong> 组合方式获取内容；遇到图片图表文字内容时，结合 <strong>截图后 OCR 提取文字内容</strong>（如论坛截图、走势图截图、社区公告等），确保信息完整性与时效性。<br/>' +
     '若某境外平台内容无法直接读取（如反爬机制、登录墙限制、区域网络波动），则取国内社交媒体平台最新可读取镜像内容作为替代，确保全景报告不间断推送。<br/>' +
     '市场行情由 <strong>market_data.py</strong> 每次构建/推送前自动抓取（Yahoo Finance / Stooq 多源回退），行情快照与正文数字同步刷新；单品抓取失败自动降级显示 —，不阻断推送。<br/>' +
-    '社区研判由 <strong>community_data.py</strong> 每次构建/推送前自动抓取 14 大社区最新热评（HTTP GET + 动态模板回退），正文 14 个社区内容与「最新读取」日期全部动态刷新，杜绝旧数据残留。')}
+    '社区研判由 <strong>community_data.py</strong> 每次构建/推送前自动抓取 14 大社区最新热评（HTTP GET + 动态模板回退），正文 14 个社区内容与「最新读取」日期全部动态刷新，杜绝旧数据残留。<br/>'
+    '舆情/新闻因子由 <strong>sentiment_factors.py</strong> 分层取数合成（优先米筐 <code>news.get_stock_news</code>、'
+    '优矿 <code>sentimentIndex/heatIndex</code> 等平台现成因子；权限未开通时降级到东财千股千评关注指数、'
+    '金十微博人气与东财/Tushare 新闻文本 + 自建中文金融词库），单源失败不阻断推送；'
+    '接口可用性评测由 <strong>tools/probe_sentiment_apis.py</strong> 生成。')}
 
   {h('06 / 排版风格与推送协议规范 (Editorial E-Ink Spec)')}
   {box(
     '本报告采用 <strong>电子杂志 × 电子墨水</strong>（Guizang PPT Skill · Style A）调色纪律：浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14），重点文字为荧光绿字 + 黑色底，装饰线深绿。<br/>' +
     '<strong>字体与字号规范：</strong>全文统一使用<strong>黑体</strong>（SimHei / 微软雅黑 / 苹方 / Noto Sans SC 黑体栈），正文 12px 紧凑小字号，标题加粗分级。<br/>' +
     '<strong>推送时间协议：</strong>每一次推送前先核对当前时间，标题与正文中的“生成时间 / 时间核对”等全部时间戳<strong>实时刷新为最新时间</strong>后再发送。<br/>' +
-    '<strong>单页协议：</strong>微信推送采用<strong>一对多群组推送</strong>（群组编码 oai.1，推送到群内全部关注成员微信），并采用<strong>单页完整卡片</strong>格式，全篇 7 大章节与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
+    '<strong>单页协议：</strong>微信推送采用<strong>一对多群组推送</strong>（群组编码 oai.1，推送到群内全部关注成员微信），并采用<strong>单页完整卡片</strong>格式，全篇 8 大章节（含 03B 舆情·新闻因子实测节点）与 14 大社区深度长文研判一次性完整呈现，零拆分、零等待。')}
 
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
   {box(

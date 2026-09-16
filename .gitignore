@@ -4,3 +4,8 @@ _site/
 index.html
 market_data.json
 community_data.json
+
+# 舆情/新闻因子层构建产物（每次构建生成，不入库；评测结论见 docs/sentiment-api-eval.md）
+sentiment_data.json
+sentiment_history.json
+api_probe_report.json
