@@ -1,0 +1,57 @@
+# 应用方式（需 repo 成员或有 workflows 权限的账号）:
+#   git apply docs/macro-ci-workflow.patch && git commit -am "ci: 接入 macro_data.py 宏观快讯抓取步骤"
+# 说明: Arena Agent 的 GitHub App 缺 workflows 权限，含 .github/workflows/** 的提交会被远端直接 reject，
+#       故 workflow 改动以补丁随 PR 交付（同 .github_workflow_new.yml 的历史做法）。
+
+--- a/.github/workflows/m.yml
++++ b/.github/workflows/m.yml
+@@ -11,6 +11,7 @@
+ #   community_data.py   → community_data.json   (14 大社区 HTTP GET + 动态模板回退，每次刷新当天日期)
+ #   tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md (量化平台舆情接口实测评分)
+ #   sentiment_factors.py → sentiment_data.json (聚宽/米筐/掘金/优矿 + 免费兜底源舆情·新闻因子；境内取不到则 --mock 降级)
++#   macro_data.py       → macro_data.json     (微信 02 栏宏观/财经快讯：Google News RSS + 美联储官方 RSS + 东财检索，只保留 7 天内的条目；抓不到则 02 栏标注未获取，不回填旧文)
+ #   build_site.py       → report.html           (把行情+社区+抓取日期注入页面与推送内容)
+ #   wechat_push.py --embed                       (把最新推送负载内嵌进 report.html)
+ #   wechat_push.py --emit _site/wechat.json
+@@ -58,6 +59,13 @@
+       - name: 🗣️ 动态抓取社区 (community_data.py → community_data.json · 14 源)
+         run: python3 community_data.py
+ 
++      - name: 📰 动态抓取宏观/财经快讯 (macro_data.py → macro_data.json · 微信 02 栏数据源)
++        run: |
++          timeout 240 python3 macro_data.py --json macro_data.json --days 7 --text > macro_summary.txt 2>&1 \
++            || echo "⚠️ 宏观快讯当次抓取失败：02 栏将显示「今日未获取」，不复用历史文案（推送不因此中断）"
++          cat macro_summary.txt
++          { echo '### 📰 微信 02 栏宏观快讯（仅保留 7 天内、日期可解析的条目）'; echo '```'; cat macro_summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
++
+       - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
+         run: python3 tools/probe_sentiment_apis.py --mock
+ 
+@@ -131,6 +139,13 @@
+       - name: 🗣️ 动态抓取社区 (community_data.py · 14 源)
+         run: python3 community_data.py
+ 
++      - name: 📰 动态抓取宏观/财经快讯 (macro_data.py → macro_data.json · 微信 02 栏数据源)
++        run: |
++          timeout 240 python3 macro_data.py --json macro_data.json --days 7 --text > macro_summary.txt 2>&1 \
++            || echo "⚠️ 宏观快讯当次抓取失败：02 栏将显示「今日未获取」，不复用历史文案（推送不因此中断）"
++          cat macro_summary.txt
++          { echo '### 📰 微信 02 栏宏观快讯（仅保留 7 天内、日期可解析的条目）'; echo '```'; cat macro_summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
++
+       - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
+         run: python3 tools/probe_sentiment_apis.py --mock
+ 
+@@ -184,6 +199,13 @@
+       - name: 🗣️ 动态抓取社区 (community_data.py · 14 源)
+         run: python3 community_data.py
+ 
++      - name: 📰 动态抓取宏观/财经快讯 (macro_data.py → macro_data.json · 微信 02 栏数据源)
++        run: |
++          timeout 240 python3 macro_data.py --json macro_data.json --days 7 --text > macro_summary.txt 2>&1 \
++            || echo "⚠️ 宏观快讯当次抓取失败：02 栏将显示「今日未获取」，不复用历史文案（推送不因此中断）"
++          cat macro_summary.txt
++          { echo '### 📰 微信 02 栏宏观快讯（仅保留 7 天内、日期可解析的条目）'; echo '```'; cat macro_summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
++
+       - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
+         run: python3 tools/probe_sentiment_apis.py --mock
+ 

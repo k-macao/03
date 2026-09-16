@@ -10,6 +10,7 @@
 ```bash
 python3 market_data.py               # ① 动态抓取行情 → market_data.json (Yahoo→Stooq回退)
 python3 community_data.py            # ② 动态抓取14社区 → community_data.json (HTTP GET+模板回退，每次刷新当天日期)
+python3 macro_data.py                  # ②′ 动态抓取宏观/财经快讯 → macro_data.json (微信 02 栏正文；只保留 7 天内、发布日期可解析的条目)
 python3 build_site.py                # ③ 动态建站 → report.html (注入行情+社区+日期/时间戳，14源动态注入)
 python3 tools/wechat_push.py --embed # ④ 内嵌最新推送负载进 report.html
 python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微信
@@ -19,6 +20,8 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 - **社区源**：14 大社区（富途牛牛/雪球/老虎/东方财富/智通财经/华尔街见闻/香港讨论区/LIHKG/韭圈儿/蚂蚁财富/Reddit/TradingView/VIC/FinTwit）**每次构建均 HTTP GET 尝试抓取**，提取文本片段作为活数据佐证，结合最新行情动态生成研判；单源失败自动降级为基于最新行情的动态模板，保证 14 源永远齐全，**正文日期永远为当天**。
 - **覆盖标的**：恒指 / 恒生科技 / 恒生国企 / 标普 500 / 纳斯达克 / 道琼斯 / 现货黄金 / WTI / 布伦特 / 美元离岸与在岸人民币。
 - **失败降级**：单品行情/单社区抓取失败自动降级（行情显示 "—"，社区显示动态模板），并在页面标注，**不阻断构建与推送**，保证 09:00 定时任务永不中断。
+- **02 栏（全球经济与财经动态）已改为快讯驱动**：`macro_data.py` 每次构建现抓 Google News RSS（中/英分主题）+ 美联储官方新闻稿 RSS + 东财财经快讯检索，按「宏观 / 美联储 / 港股 / 大宗商品 / 大行目标价」五类归组后渲染，**每条快讯自带发布日期**；超窗或无日期的条目在数据层就被丢弃（`stale_dropped` / `undated_dropped`）。**修复背景（2026-09-16 核查）**：这一栏原本是写死在 `tools/wechat_push.py` 里的固定文案（IMF 7 月 WEO、7 月 29 日 FOMC、8 月 12 日 CPI、南向 628.69 亿、各行恒指目标价…），构建时原样重播、页脚却盖当天时间戳，导致「生成时间是当天、正文停在 8 月 12 日」；现在抓不到快讯时 02 栏明确显示「今日未获取」+ 实时行情，**绝不回填历史叙事**（回归防线：`tests/test_wechat_push_macro.py` 断言正文不得再出现任何写死的历史事实）。
+- **CI 接入待人工应用一次**：`macro_data.py` 的构建步骤以 `docs/macro-ci-workflow.patch` 随本仓库交付（Agent 的 GitHub App 缺 `workflows` 权限，含 `.github/workflows/**` 的提交会被远端 reject）。在有权限的账号执行 `git apply docs/macro-ci-workflow.patch` 并合并之前，构建不会产出 `macro_data.json`，02 栏会稳定显示「今日未获取」+ 实时行情（而不是重播旧文案）——这是刻意选择的降级方向。
 - **日期联动**：14 大社区「最新读取」日期与正文中的“8 月 X 日”日期均随抓取日自动刷新（`community_data.py` 生成当天日期），推送前日期核对（`--push` 严格 / `--scheduled` 宽松）逻辑保持不变。
 - 本地联调可用 `python3 market_data.py --demo && python3 community_data.py --demo` 生成模拟行情+社区。
 
@@ -80,6 +83,9 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 |---|---|
 | `market_data.py` | **动态行情抓取**：多源回退抓取最新行情，生成 `market_data.json`（构建产物，不入库） |
 | `sentiment_data.json` / `sentiment_history.json` | 舆情因子当日结果与新闻条数历史（供 `NEWS_HEAT_Z` 基线），均为构建产物，不入库 |
+| `macro_data.py` | **宏观/财经快讯抓取**：8 个免密钥公开源（Google News RSS 中英分主题 / 美联储官方 RSS / 东财检索）→ 归一去重 → **时效过滤** → 按 02 栏五个小节归类，生成 `macro_data.json`（构建产物，不入库）；`--days` 收紧窗口、`--mock` 离线回放 `tests/fixtures/MACRO_MIX.json`、`--offline` 沿用上次结果、`--text` 输出 CI Step Summary；单源失败不阻断 |
+| `tests/test_macro_data.py` | 快讯层测试（16 项，零联网）：RSS/JSONP 解析、跨源去重、分类路由（IMF+关税 必须落宏观而非大宗）、超窗与无日期拦截、`--mock` 输出契约 |
+| `tests/test_wechat_push_macro.py` | 推送渲染回归：02 栏必须渲染当次快讯且每条带日期；快讯缺失时降级为「今日未获取」；正文禁止再出现 628.69 亿、8 月 12 日、25,440.17 等写死历史内容 |
 | `community_data.py` | **动态社区抓取**：14 大社区 HTTP GET + 动态模板回退，生成 `community_data.json`（构建产物，不入库），每次刷新当天日期与研判正文 |
 | `sentiment_sources.py` | **接口注册表**：11 个量化平台/公开源舆情·新闻因子的能力口径（端点、字段、时效、历史、额度、成本、局限）+ 因子定义 + 9 个评测阶段与 6 维评分权重；`python3 sentiment_sources.py` 打印清单与凭据/依赖状态 |
 | `sentiment_adapters.py` | **接入适配器**：每源一个 `call_*`（live 取数）+ `parse_*`（报文 → 统一结构 `{news, series, meta}`），全部纯标准库；`--mode mock` 用 `tests/fixtures` 录制报文离线校验解析链路 |
