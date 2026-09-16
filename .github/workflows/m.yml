@@ -59,4 +59,140 @@ jobs:
         run: python3 community_data.py
 
       - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
-        run: python3 
+        run: python3 tools/probe_sentiment_apis.py --mock
+
+      - name: 🗞️ 舆情/新闻因子合成 (sentiment_factors.py → sentiment_data.json · 平台现成因子优先)
+        run: |
+          set +e
+          timeout 240 python3 sentiment_factors.py --live --timeout 8
+          if python3 -c "import json,sys;d=json.load(open('sentiment_data.json',encoding='utf-8'));sys.exit(0 if (d.get('summary') or {}).get('ok') else 1)"; then
+            echo "✅ 舆情因子：境内数据源联网实测可用（平台现成因子优先）"
+          else
+            echo "⚠️ 舆情因子：GitHub 海外出口取不到境内数据域（聚宽/米筐等按 IP 拒绝）→ 降级离线回放 --mock，页面与推送显示降级说明"
+            python3 sentiment_factors.py --mock
+          fi
+          set -e
+
+      - name: 🧪 舆情层自检 (词库规则 + 11 源解析 + 站点占位符)
+        run: |
+          python3 sentiment_nlp.py --self-test
+          python3 sentiment_adapters.py --mode mock >/dev/null
+          python3 -m unittest discover -s tests
+
+      - name: 🏗️ 动态构建报告 (build_site.py → report.html · 行情+社区双注入)
+        run: python3 build_site.py
+
+      - name: 🧩 内嵌微信推送负载 (wechat-parts → report.html)
+        run: python3 tools/wechat_push.py --embed
+
+      - name: 📁 准备部署目录
+        run: |
+          mkdir -p _site
+          cp report.html _site/index.html
+          cp market_data.json _site/market_data.json
+          cp community_data.json _site/community_data.json || echo "community_data.json not found, skip"
+          cp sentiment_data.json _site/sentiment_data.json || echo "sentiment_data.json not found, skip"
+          cp -r docs _site/docs 2>/dev/null || echo "docs/ not found, skip"
+
+      - name: 🧩 生成微信推送内容 (wechat.json)
+        run: python3 tools/wechat_push.py --emit _site/wechat.json
+
+      - name: ⚙️ 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 📤 上传产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 🚀 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ---------- 任务 2: 动态抓取 + 推送完整报告到微信 (push / 手动触发) ----------
+  # 独立任务:Pages 部署成功后再推送;推送失败不影响网站部署状态
+  # 每次运行先重新抓取行情+社区并重建报告, 确保推送内容永远是最新动态数据;
+  # --scheduled 宽松校验: 抓取日期非当天仅警告不阻断, 单品行情/社区失败也不阻断推送。
+  wechat:
+    needs: deploy
+    if: ${{ github.event_name == 'push' || inputs.wechat_push }}
+    runs-on: ubuntu-latest
+    env:
+      # 可选:在仓库 Settings → Secrets 配置 PUSHPLUS_TOKEN 可覆盖
+      # report.html 中的 token;不配置时自动从 report.html 读取
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - name: 📥 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 🌐 动态抓取行情 (market_data.py)
+        run: python3 market_data.py
+
+      - name: 🗣️ 动态抓取社区 (community_data.py · 14 源)
+        run: python3 community_data.py
+
+      - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
+        run: python3 tools/probe_sentiment_apis.py --mock
+
+      - name: 🗞️ 舆情/新闻因子合成 (sentiment_factors.py → sentiment_data.json · 平台现成因子优先)
+        run: |
+          set +e
+          timeout 240 python3 sentiment_factors.py --live --timeout 8
+          if python3 -c "import json,sys;d=json.load(open('sentiment_data.json',encoding='utf-8'));sys.exit(0 if (d.get('summary') or {}).get('ok') else 1)"; then
+            echo "✅ 舆情因子：境内数据源联网实测可用（平台现成因子优先）"
+          else
+            echo "⚠️ 舆情因子：GitHub 海外出口取不到境内数据域（聚宽/米筐等按 IP 拒绝）→ 降级离线回放 --mock，页面与推送显示降级说明"
+            python3 sentiment_factors.py --mock
+          fi
+          set -e
+
+      - name: 🏗️ 动态构建报告 (build_site.py · 行情+社区双注入)
+        run: python3 build_site.py
+
+      - name: 🧩 内嵌微信推送负载
+        run: python3 tools/wechat_push.py --embed
+
+      - name: 📲 推送完整报告到微信 (PushPlus)
+        run: |
+          set +e
+          OUT=$(python3 tools/wechat_push.py --push --scheduled 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT"
+          {
+            echo '### 📲 微信推送结果'
+            echo '```text'
+            echo "$OUT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $CODE
+
+  # ---------- 任务 3: 每天北京时间 09:00 定时自动抓取 + 重建 + 推送 ----------
+  # 仅 schedule 触发时运行, 避免 push/手动触发时与 wechat 任务重复推送
+  daily:
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    env:
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - name: 📥 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 🌐 动态抓取行情 (market_data.py)
+        run: python3 market_data.py
+
+      - name: 🗣️ 动态抓取社区 (community_data.py · 14 源)
+        run: python3 community_data.py
+
+      - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
+        run: python3 tools/probe_sentiment_apis.py --mock
+
+      - name: 🗞️ 舆情/新闻因子合成 (sentiment_factors.py → sentiment_data.json · 平台现成因子优先)
+        run: |
+          set +e
+          timeout 240 python3 sentiment_factors.py --live --timeout 8
+          if python3 -c "import json,sys;d=json.load(open('sentiment_data.json',encoding='utf-8'));sys.exit(0 if (d.get('summary') or {}).get('ok') else 1)"; then
+            echo "✅ 舆情因子：境内数据源联网实测可用（平台现成因子优先）"
+          else
+            echo "⚠️ 舆情因子：GitHub 海外出口取不到境内数据域（聚宽/米筐等按 IP 拒绝）→ 降级离线回放 --mock，页面与推送显示降级说明"
+            python3 sentiment_factors.py --mock
