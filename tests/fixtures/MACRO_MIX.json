@@ -1,0 +1,111 @@
+{
+  "recorded_from": "macro_data.py 离线回放样本（构造报文，非真实抓包；--mock 与单元测试使用）",
+  "note": "日期字段由 _redate_for_demo() 改写为「今天往前第 n 天」，保证演示数据不会被时效过滤清空；超窗/无日期条目被拦截的行为由 tests/test_macro_data.py 直接对 filter_stale() 断言",
+  "items": [
+    {
+      "title": "IMF 下调 2026 年全球经济增速预期至 3.1% 关税与地缘风险拖累贸易量 — 财联社",
+      "url": "https://example.com/macro-imf",
+      "published_raw": "2026-09-10 08:00:00",
+      "summary": "基金组织称关税壁垒与霍尔木兹航运风险是主要下行风险，亚洲新兴市场经济性相对突出。",
+      "publisher": "财联社"
+    },
+    {
+      "title": "美国 8 月 CPI 同比 3.1% 核心通胀回落至 2.4% 低于市场预期 — 华尔街见闻",
+      "url": "https://example.com/macro-cpi",
+      "published_raw": "2026-09-11 20:30:00",
+      "summary": "能源价格环比走低是主要拖累，住房服务仍在抬升，市场对季度末降息的定价上调。",
+      "publisher": "华尔街见闻"
+    },
+    {
+      "title": "8 月非农就业净增 8.4 万人 失业率 4.3% 劳动力市场继续降温 — 金十数据",
+      "url": "https://example.com/macro-nfp",
+      "published_raw": "2026-09-05 20:15:00",
+      "summary": "服务业吸纳就业为主，制造业连续三个月净减员，时薪同比增速回落。",
+      "publisher": "金十数据"
+    },
+    {
+      "title": "美联储 9 月议息维持利率不变 两位委员支持降息 25 个基点 — 彭博社",
+      "url": "https://example.com/fed-sept",
+      "published_raw": "2026-09-17 02:00:00",
+      "summary": "决议声明删除进一步紧缩倾向，点阵图显示年内仍有一次降息空间。",
+      "publisher": "Bloomberg"
+    },
+    {
+      "title": "鲍威尔：通胀回落趋势确立 但降息节奏取决于数据 — 路透",
+      "url": "https://example.com/fed-powell",
+      "published_raw": "2026-09-12 21:40:00",
+      "summary": "他在智库活动上强调实际利率仍处限制性区间，对劳动力市场走软保持警惕。",
+      "publisher": "Reuters"
+    },
+    {
+      "title": "10 年期美债收益率回落至 4.12% 美元指数创六周新低 — 东方财富",
+      "url": "https://example.com/fed-bond",
+      "published_raw": "2026-09-15 05:10:00",
+      "summary": "降息预期升温推动离岸流动性改善，新兴市场股债同步走强。",
+      "publisher": "东方财富"
+    },
+    {
+      "title": "美联储官方新闻稿：联邦公开市场委员会一致维持联邦基金利率目标区间",
+      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm",
+      "published_raw": "2026-09-16 18:00:00",
+      "summary": "FOMC 声明全文与表决情况、经济预测摘要更新。",
+      "publisher": "Federal Reserve Board"
+    },
+    {
+      "title": "恒指收涨 182 点重上两万五 南向资金连续三日净流入 — 智通财经",
+      "url": "https://example.com/hk-hsi",
+      "published_raw": "2026-09-16 16:20:00",
+      "summary": "科网与高息股双双走强，成交较前一日放大，AH 溢价收窄。",
+      "publisher": "智通财经"
+    },
+    {
+      "title": "港股通 9 月净买入 412 亿港元 机构加仓电信与公用事业 — 富途牛牛",
+      "url": "https://example.com/hk-southbound",
+      "published_raw": "2026-09-15 17:30:00",
+      "summary": "高股息品种仍是南向主力，内房板块短线博弈政策。",
+      "publisher": "富途"
+    },
+    {
+      "title": "恒生科技指数周涨 3.4% 光通信与 AI 硬科技领涨 — 格隆汇",
+      "url": "https://example.com/hk-hstechnology",
+      "published_raw": "2026-09-14 19:05:00",
+      "summary": "市场对算力资本开支上修保持乐观，互联网龙头高位震荡。",
+      "publisher": "格隆汇"
+    },
+    {
+      "title": "OPEC+ 宣布延续减产至年底 布伦特原油站上 92 美元 —  CNBC",
+      "url": "https://example.com/comm-oil",
+      "published_raw": "2026-09-13 22:00:00",
+      "summary": "霍尔木兹航运保险费率上行，油轮绕行推高运价。",
+      "publisher": "CNBC"
+    },
+    {
+      "title": "现货黄金再创历史高位 铜价随供给扰动走强 — 新浪财经",
+      "url": "https://example.com/comm-gold",
+      "published_raw": "2026-09-16 09:45:00",
+      "summary": "避险与实际利率下行双轮驱动，锂盐价格继续在低位震荡。",
+      "publisher": "新浪财经"
+    },
+    {
+      "title": "星展银行上调恒指目标价至 31,500 点 称盈利修复尚未被充分定价 — 智通财经",
+      "url": "https://example.com/bank-dbs",
+      "published_raw": "2026-09-15 11:20:00",
+      "summary": "报告将高股息与中资科技列为双主线，悲观情景底线 23,500 点。",
+      "publisher": "智通财经"
+    },
+    {
+      "title": "中金公司与渣打银行维持港股超配 恒指基准目标区间 29,000 至 30,500 点 — 财联社",
+      "url": "https://example.com/bank-cicc",
+      "published_raw": "2026-09-11 10:05:00",
+      "summary": "两家机构均认为估值均值回归仍需政策端配合。",
+      "publisher": "财联社"
+    },
+    {
+      "title": "某新能源车企发布新一代固态电池 2027 年量产 — 界面新闻",
+      "url": "https://example.com/misc-ev",
+      "published_raw": "2026-09-16 12:00:00",
+      "summary": "与日报标的相关性低的产业新闻，用于验证 misc 归类会被 02 栏过滤。",
+      "publisher": "界面新闻"
+    }
+  ]
+}

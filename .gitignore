@@ -2,8 +2,12 @@ __pycache__/
 *.pyc
 _site/
 index.html
+
+# 行情/社区/快讯层构建产物（每次构建生成，不入库）
 market_data.json
 community_data.json
+macro_data.json
+macro_summary.txt
 
 # 舆情/新闻因子层构建产物（每次构建生成，不入库；评测结论见 docs/sentiment-api-eval.md）
 sentiment_data.json
