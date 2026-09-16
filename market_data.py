@@ -84,6 +84,56 @@ def http_get(url, timeout=10):
         return resp.read().decode('utf-8', errors='replace')
 
 
+def parse_yahoo_chart(payload):
+    """解析 Yahoo chart API JSON → (last, prev_close, as_of) 或 None。
+
+    ⚠️ 前收盘语义（2026-09-16 修复）:
+      range=5d 时 meta.chartPreviousClose 是「5 日窗口首根 K 线之前」的收盘价
+      （≈ 5 个交易日前），用它算涨跌会得到 5 日累计涨跌而非当日涨跌。
+      例: 2026-09-16 恒指收 24,713.78, chartPreviousClose=25,274.96(9/9 收盘),
+      误算成 −561.18/−2.22%, 实际当日 +46.54/+0.19%(前收 24,667.24)。
+
+      prev 解析优先级:
+        1. meta.fulldayChange            → prev = last − fulldayChange（Yahoo 官方当日涨跌额）
+        2. 日线 closes 倒数第二根         → 前一交易日收盘价
+        3. meta.previousClose / meta.chartPreviousClose（兜底, 语义可能为 N 日前）
+    """
+    try:
+        result = ((payload or {}).get('chart') or {}).get('result')
+    except AttributeError:
+        return None
+    if not result:
+        return None
+    meta = result[0].get('meta') or {}
+    last = meta.get('regularMarketPrice')
+    if last is None:
+        return None
+    last = float(last)
+
+    ts = meta.get('regularMarketTime')
+    if ts is None:
+        stamps = result[0].get('timestamp') or []
+        ts = stamps[-1] if stamps else None
+    as_of = datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d') if ts else None
+
+    prev = None
+    fullday = meta.get('fulldayChange')
+    if fullday is not None:
+        try:
+            prev = last - float(fullday)
+        except (TypeError, ValueError):
+            prev = None
+    if prev is None:
+        closes = (((result[0].get('indicators') or {}).get('quote') or [{}])[0].get('close')) or []
+        valid = [float(c) for c in closes if c is not None]
+        if len(valid) >= 2:
+            prev = valid[-2]
+    if prev is None:
+        p = meta.get('previousClose') or meta.get('chartPreviousClose')
+        prev = float(p) if p is not None else None
+    return (last, prev, as_of)
+
+
 def fetch_yahoo(yahoo_sym, timeout=10):
     """Yahoo Finance chart API → (last, prev_close, as_of) 或 None。"""
     if not yahoo_sym:
@@ -91,20 +141,7 @@ def fetch_yahoo(yahoo_sym, timeout=10):
     url = YAHOO_BASE.format(sym=urllib.parse.quote(yahoo_sym, safe=''))
     raw = http_get(url, timeout=timeout)
     data = json.loads(raw)
-    result = (data.get('chart') or {}).get('result')
-    if not result:
-        return None
-    meta = result[0].get('meta') or {}
-    last = meta.get('regularMarketPrice')
-    prev = meta.get('chartPreviousClose') or meta.get('previousClose')
-    ts = meta.get('regularMarketTime')
-    if ts is None:
-        stamps = result[0].get('timestamp') or []
-        ts = stamps[-1] if stamps else None
-    as_of = datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d') if ts else None
-    if last is None:
-        return None
-    return (float(last), float(prev) if prev is not None else None, as_of)
+    return parse_yahoo_chart(data)
 
 
 def fetch_stooq(stooq_sym, timeout=10):
@@ -144,11 +181,55 @@ def make_quote(key, name, unit, decimals, last, prev, as_of, source):
         'unit': unit,
         'decimals': decimals,
         'last': last,
+        'prev_close': prev,
         'chg': chg,
         'pct': pct,
         'as_of': as_of,
         'source': source,
     }
+
+
+# 多源校正阈值: 主源与副源收盘价相对偏差超过该百分比(%)即判为不一致并告警
+CROSS_CHECK_TOL_PCT = 0.3
+
+
+def cross_check_stooq(quotes, timeout=10):
+    """多源校正: 对 Yahoo 已成功的标的用 Stooq 收盘价做水平交叉校验（非回退）。
+
+    与「Yahoo 失败才用 Stooq」的故障回退不同, 这里 Yahoo 成功也会再取 Stooq 收盘
+    比对价格水平; 偏差 > CROSS_CHECK_TOL_PCT 时打告警并在 quote.cross_check 标记。
+    Stooq 仅提供收盘价(无前收), 故只校验点位水平, 不校验涨跌幅。
+    任何失败静默跳过, 不阻断构建。返回 (checked, agreed)。
+    """
+    tol = float(os.environ.get('CROSS_CHECK_TOL_PCT', str(CROSS_CHECK_TOL_PCT)))
+    checked = agreed = 0
+    for key, name, _unit, _ysym, stooq_sym, dec in SYMBOLS:
+        q = quotes.get(key) or {}
+        if q.get('source') != 'yahoo' or not stooq_sym or q.get('last') is None:
+            continue
+        try:
+            r = fetch_stooq(stooq_sym, timeout)
+        except Exception:  # noqa: BLE001 - 校验失败不影响主数据
+            continue
+        if not r or r[0] is None:
+            continue
+        s_last, _s_prev, s_asof = r
+        s_last = float(s_last)
+        rel = abs(s_last - float(q['last'])) / float(q['last']) * 100
+        checked += 1
+        agree = rel <= tol
+        agreed += 1 if agree else 0
+        q['cross_check'] = {
+            'source2': 'stooq',
+            'last2': round(s_last, dec),
+            'as_of2': s_asof,
+            'rel_diff_pct': round(rel, 3),
+            'agree': agree,
+        }
+        if not agree:
+            print(f'  ⚠️ 多源校正: {name} Yahoo {q["last"]:,.{dec}f} vs '
+                  f'Stooq {s_last:,.{dec}f} 偏差 {rel:.2f}% (> {tol}%)', file=sys.stderr)
+    return checked, agreed
 
 
 def main():
@@ -179,6 +260,7 @@ def main():
 
     quotes = {}
     failed = []
+    ck_checked = ck_agreed = 0
 
     if args.demo:
         for key, name, unit, _y, _s, dec in SYMBOLS:
@@ -219,6 +301,15 @@ def main():
             quotes[key] = q
             time.sleep(0.2)
 
+        # 多源校正: Yahoo 成功项再用 Stooq 收盘价交叉比对（失败不影响主数据）
+        ck_checked = ck_agreed = 0
+        try:
+            ck_checked, ck_agreed = cross_check_stooq(quotes, args.timeout)
+            if ck_checked:
+                print(f'  🔁 多源校正: Stooq 交叉比对 {ck_checked} 项, 一致 {ck_agreed} 项')
+        except Exception as e:  # noqa: BLE001
+            print(f'  ⚠️ 多源校正异常(跳过): {e}', file=sys.stderr)
+
     data = {
         'generated_at': now_full,
         'fetch_date': fetch_date,
@@ -228,9 +319,14 @@ def main():
             'ok': len(SYMBOLS) - len(failed),
             'total': len(SYMBOLS),
             'failed': failed,
+            'cross_check': {'checked': ck_checked, 'agree': ck_agreed},
         },
         'notes': [
-            '由 market_data.py 构建时自动抓取 (Yahoo Finance → Stooq 多源回退)',
+            '由 market_data.py 构建时自动抓取 (Yahoo Finance 主源 → Stooq 回退 + 交叉校正)',
+            '涨跌额/涨跌幅基于「前一交易日收盘」计算 (fulldayChange/日线倒数第二根, '
+            '而非 range=5d 的 chartPreviousClose——那是约 5 个交易日前的收盘, 语义为窗口前收)',
+            '多源校正: Yahoo 成功项用 Stooq 收盘价水平比对, 偏差 > '
+            f'{CROSS_CHECK_TOL_PCT}% 记入 cross_check.disagree 并告警',
             '单品抓取失败降级显示 "—"，不阻断构建与推送',
         ],
     }

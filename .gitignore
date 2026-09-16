@@ -9,3 +9,5 @@ community_data.json
 sentiment_data.json
 sentiment_history.json
 api_probe_report.json
+verify_report.json
+verify_summary.txt

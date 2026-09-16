@@ -728,6 +728,24 @@ def push_to_wechat(title, content, token, topic='', retries=MAX_PUSH_RETRIES):
             return {'code': -1, 'msg': '非 JSON 响应', 'raw': raw[:500]}
     return {'code': -1, 'msg': '网络错误'}
 
+def run_push_preflight(strict=False, timeout=8, report_path=None):
+    """推送前全来源数据准确性校验 (verify_quotes.py)。
+
+    对 market_data.json 全部标的做 Yahoo×Stooq×ECB 多源交叉校验:
+      返回 True  = 数据可信, 允许推送
+      返回 False = 校验 FAIL (或 strict 下 WARN), 调用方必须中止推送
+    模块不可用等基础设施异常时放行 (不因校验器自身故障阻断业务), 但打印告警。
+    """
+    try:
+        import verify_quotes as vq  # noqa: PLC0415 — 延迟导入, 离线环境也可跳过
+    except Exception as e:  # noqa: BLE001
+        print(f'⚠️ 校验模块不可用, 跳过推送前预检: {e}', file=sys.stderr)
+        return True
+    data_path = os.environ.get('MARKET_DATA', os.path.join(REPO_ROOT, 'market_data.json'))
+    return vq.run_preflight(data_path=data_path, timeout=timeout,
+                            strict=strict, report_path=report_path)
+
+
 def main():
     ap = argparse.ArgumentParser(description='章鱼 AI — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 14 源动态)')
     ap.add_argument('--source', default=SOURCE_HTML, help='报告 HTML 文件路径')
@@ -748,8 +766,18 @@ def main():
     fetch_dates_str = ", ".join(fetch_dates) if fetch_dates else "(未标注)"
     print(f'📅 抓取日期: {fetch_dates_str}')
     if args.push:
-        # 手动推送为严格校验 (非当天拒绝); 定时自动推送为宽松校验 (仅警告, 保证 09:00 可运行)
+        # 手动推送为严格日期校验 (非当天拒绝); 定时自动推送为宽松校验 (仅警告, 保证 09:00 可运行)
         assert_fetch_dates_are_today(parts, datetime.now(timezone.utc), strict=not args.scheduled)
+
+    if args.push and not args.skip_verify:
+        # 🧪 推送前全来源数据准确性校验: Yahoo×Stooq×ECB 多源交叉验证行情数字,
+        #    FAIL 时立即退出 (exit 5), 绝不把错误数据推给读者。
+        ok = run_push_preflight(strict=args.verify_strict,
+                                report_path=os.path.join(REPO_ROOT, 'verify_report.json'))
+        if not ok:
+            print('错误: 推送前数据校验未通过, 已阻断推送 (如需强制推送请加 --skip-verify)。',
+                  file=sys.stderr)
+            sys.exit(5)
     print(f'转换完成: 共 {len(parts)} 条消息 (单页完整版, 上限 {CONTENT_LIMIT}/条, 安全线 {CONTENT_SAFE_LIMIT})')
     for i, (t, c) in enumerate(parts, 1):
         print(f'  [{i}/{len(parts)}] {len(c)} 字符  {t}')
