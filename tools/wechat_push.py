@@ -31,6 +31,7 @@ Token 解析顺序: --token 参数 > 环境变量 PUSHPLUS_TOKEN > report.html �
 """
 import argparse
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -770,6 +771,10 @@ def main():
     ap.add_argument('--token', default='', help='PushPlus token (可选)')
     ap.add_argument('--topic', default='', help='PushPlus 群组编码 (可选, 默认取 report.html 的 PUSHPLUS_TOPIC, 当前 oai.1; 留空则回退一对一)')
     ap.add_argument('--dry-run', action='store_true', help='只转换, 打印字数统计与预览')
+    ap.add_argument('--skip-verify', action='store_true',
+                    help='跳过推送前全来源数据校验 (不推荐; 校验 FAIL 默认阻断推送)')
+    ap.add_argument('--verify-strict', action='store_true',
+                    help='严格校验: 多源校验出现 WARN 也阻断推送 (默认仅 FAIL 阻断)')
     args = ap.parse_args()
 
     parts, ts, ts_full = build_articles(args.source)
