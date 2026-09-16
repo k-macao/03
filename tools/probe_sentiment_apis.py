@@ -283,6 +283,12 @@ def render_markdown(items, meta):
     A(f"> 生成时间：{meta['generated_at']}　·　运行模式：**{'联网实测 live' if live else '离线回放 mock（文档基线）'}**　"
       f"·　数据源：{len(items)} 个　·　由 `tools/probe_sentiment_apis.py` 自动生成，请勿手工编辑")
     A('')
+    A('> **对外展示策略（内部档案）**：本文件不在网页与微信推送中展示 —— 03B 节**不渲染**该评测矩阵，'
+      '且**不显示数据来源平台**（平台名 / 接口 ID / 域名 / 凭据与依赖提示由 `sentiment_match.redact()` '
+      '统一遮成「量化平台」，逐源明细表默认不出）。对外只展示采集合成后的因子读数与'
+      '「舆情因子 × 日报标的」匹配结果。临时恢复内部视图：'
+      '`SENTIMENT_SHOW_API_EVAL=1`（评测矩阵）、`SENTIMENT_SHOW_SOURCE=1`（来源明细）。')
+    A('')
     A('## 一、结论速览')
     A('')
     A('| 排名 | 平台 / 接口 | 现成因子 | 时效 | 评分 | 接入判定 |')

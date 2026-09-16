@@ -561,9 +561,12 @@ def call_em_comment(source, timeout, symbols, factors, days):
     return json.loads(text), [ms]
 
 
-def call_em_news(source, timeout, symbols, factors, days):
-    """东财 search-api：关键词 → 个股新闻（本项目自建情感层的主力免费文本源）。"""
-    kw = symbols[0] if symbols else '恒生指数'
+# 关键词检索型源：一次构建按日报标的跑多个关键词，保证「采集 → 匹配」覆盖日报正文
+EM_NEWS_MAX_KEYWORDS = 3
+
+
+def _em_news_payload(kw, timeout):
+    """单个关键词 → (search-api JSONP 报文, 本次延迟 ms)。"""
     inner = {'uid': '', 'keyword': kw, 'type': ['cmsArticleWebOld'], 'client': 'web',
              'clientType': 'web', 'clientVersion': 'curr',
              'param': {'cmsArticleWebOld': {'searchScope': 'default', 'sort': 'default',
@@ -574,7 +577,60 @@ def call_em_news(source, timeout, symbols, factors, days):
     url = 'https://search-api-web.eastmoney.com/search/jsonp?' + urllib.parse.urlencode(params)
     text, ms = http_request(url, timeout=timeout, headers={'Referer': 'https://so.eastmoney.com/'})
     body = re.sub(r'^[^(]*\(', '', text.strip())[:-1]
-    return json.loads(body), [ms]
+    return json.loads(body), ms
+
+
+def _em_news_merge(base, extra):
+    """多关键词报文合并（按 url/标题去重）；任一报文结构异常时保守返回已有结果。"""
+    if not base:
+        return extra
+    if not extra:
+        return base
+    rows_b = ((base.get('result') or {}).get('cmsArticleWebOld'))
+    rows_e = ((extra.get('result') or {}).get('cmsArticleWebOld'))
+    if rows_b is None or rows_e is None:
+        return base
+    seen, merged = set(), list(rows_b)
+    for r in rows_b:
+        seen.add(r.get('url') or r.get('title') or '')
+    for r in rows_e:
+        k = r.get('url') or r.get('title') or ''
+        if k in seen:
+            continue
+        seen.add(k)
+        merged.append(r)
+    out = dict(base)
+    res = dict(out.get('result') or {})
+    res['cmsArticleWebOld'] = merged
+    res['hitsTotal'] = len(merged)
+    out['result'] = res
+    return out
+
+
+def call_em_news(source, timeout, symbols, factors, days):
+    """关键词 → 新闻检索（本项目自建情感层的主力免费文本源）。
+
+    symbols 允许传多个关键词（见 sentiment_match.search_keywords()）：逐个检索后合并去重，
+    使采集面覆盖日报标的（恒指/港股/黄金/原油/美联储…），下游才能做「匹配显示」。
+    单个关键词失败不影响其余关键词。
+    """
+    kws = [str(k).strip() for k in (symbols or []) if str(k).strip()][:EM_NEWS_MAX_KEYWORDS] \
+        or ['恒生指数']
+    payload, lats, used = None, [], []
+    for kw in kws:
+        try:
+            p, ms = _em_news_payload(kw, timeout)
+        except Exception:  # noqa: BLE001 — 单关键词失败跳过，其余关键词继续
+            if payload is None and kw == kws[0]:
+                raise                      # 第一个关键词就失败 → 交给 fetch() 归类到对应阶段
+            continue
+        payload = _em_news_merge(payload, p)
+        lats.append(ms)
+        used.append(kw)
+    if payload is None:                      # 理论上不可达（首词失败已抛出），保守给空报文
+        payload = {'result': {'cmsArticleWebOld': [], 'hitsTotal': 0}}
+    payload['keywords'] = used or kws
+    return payload, (lats or [0.0])
 
 
 def call_jin10(source, timeout, symbols, factors, days):

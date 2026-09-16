@@ -7,6 +7,11 @@
 把「量化平台现成舆情因子 + 自建情感打分层」的结果统一成 sentiment_data.json，
 供 build_site.py（网页 03B 节）与 tools/wechat_push.py（微信推送）动态注入。
 
+采集回来的新闻舆情会经 sentiment_match.py **匹配到日报标的与主题**（恒指/恒科/国企/标普/纳指/
+道指/黄金/原油/人民币 + 美联储、内房、高息防御、地缘供应链），结果写入 `matches` 字段；
+对外输出（网页 + 微信推送）**不显示数据来源**：平台名/接口 ID/凭据与依赖提示只留在
+本文件产出的 `sources[]` 等内部字段与 docs/sentiment-api-eval.md 里。
+
 取数优先级（高优先者可用即覆盖低优先者，全部失败仍产出，绝不阻断 09:00 推送）：
   T0 现成因子  RQ_SDK / RQ_HTTP（米筐新闻情绪）→ UQER_HTTP（优矿 sentimentIndex/heatIndex）
   T1 热度因子  EM_COMMENT（东财千股千评关注指数）→ JIN10_WEIBO（金十微博人气）
@@ -33,6 +38,7 @@ import sys
 from datetime import datetime, timezone
 
 import sentiment_adapters as ad
+import sentiment_match as smatch
 import sentiment_nlp as nlp
 import sentiment_sources as reg
 
@@ -52,9 +58,10 @@ PRIORITY = [
 WATCHLIST_DEFAULT = list(reg.WATCHLIST)          # 样本池集中在注册表，便于 CLI 与 CI 复用
 
 # 各家"情绪指数"口径不同，必须随值一起标注，否则页面读数会误导
+# 口径说明对外展示，因此写成不含平台名的中性表述（来源仍记录在 series[].source 内部字段）
 INDEX_CALIBRE = {
-    'UQER_HTTP': '优矿 sentimentIndex ∈ [-1, 1]，当日关联新闻情感均值',
-    'CHINASCOPE': '数库市场情绪指数，基期 = 1.0，>1 偏乐观、<1 偏悲观',
+    'UQER_HTTP': '平台现成情感指数 ∈ [-1, 1]，当日关联新闻情感均值',
+    'CHINASCOPE': '市场情绪指数，基期 = 1.0，>1 偏乐观、<1 偏悲观',
 }
 
 
@@ -129,9 +136,17 @@ def collect(mode, only=None, watchlist=None, timeout=ad.DEFAULT_TIMEOUT, verbose
 
 
 def _symbols_for(src, watchlist):
-    """把统一 watchlist 映射成各平台代码格式。"""
+    """把统一 watchlist / 日报标的关键词映射成各平台的取数入参。
+
+    关键词检索型源（em_search_api）改用 sentiment_match.search_keywords()：
+    采集面与日报正文标的对齐（恒指 / 港股 / 黄金 / 原油 / 美联储…），
+    采集回来的新闻才可能与 02 节行情标的「匹配显示」。
+    """
     cov = src.get('coverage') or ''
-    if src.get('kind') == 'em_search_api' or src.get('kind') == 'em_datacenter':
+    kind = src.get('kind')
+    if kind == 'em_search_api':
+        return smatch.search_keywords()
+    if kind == 'em_datacenter':
         return [w.split('.')[0] for w in watchlist]
     if 'A 股' in cov or '沪深' in cov:
         if src.get('id', '').startswith('JQ'):
@@ -141,7 +156,7 @@ def _symbols_for(src, watchlist):
             return [f"{c}.{('XSHG' if ex == 'SH' else 'XSHE')}" for c, ex in
                     (w.split('.') for w in watchlist)]
         return list(watchlist)
-    return ['恒生指数']
+    return smatch.search_keywords()[:1] or ['恒生指数']
 
 
 def _history_counts(today_count, path=None, keep=20):
@@ -223,6 +238,11 @@ def build_factors(results, news, series, heat_snap, quota_notes, mode, watchlist
         })
     idx_series.sort(key=lambda r: (r['date'], r['name']))
 
+    # 采集 → 匹配：把新闻舆情按关键词对齐到日报标的与主题（02 节行情标的同一套 key），
+    # 输出层不含任何来源信息（平台名/接口 ID 只留在 sources[] 内部字段里）
+    matches = smatch.build_matches(news, series=idx_series,
+                                   keywords_used=smatch.search_keywords())
+
     ok = [r for r in results if r['ok']]
     failed = [r['id'] for r in results if not r['ok']]
     factors = {}
@@ -259,6 +279,7 @@ def build_factors(results, news, series, heat_snap, quota_notes, mode, watchlist
         'factors': factors,
         'series': idx_series[-30:],
         'stocks': stocks[:10],
+        'matches': matches,
         'watchlist': watchlist,
         'sources': results,
         'quota_notes': quota_notes,
@@ -327,6 +348,12 @@ def run(mode='live', only=None, watchlist=None, timeout=ad.DEFAULT_TIMEOUT,
         print(f"   数据源: {s.get('ok')}/{s.get('total')} 可用"
               + (f" · 失败: {'、'.join(s.get('failed') or [])}" if s.get('failed') else ''))
         print(f"   平台现成情感条数: {m.get('platform_native')} · 自建词库打分: {m.get('self_built')}")
+        mm = data.get('matches') or {}
+        if mm.get('total_news'):
+            tops = '、'.join(f"{t['name']}({t['hits']})" for t in (mm.get('targets') or [])[:6])
+            print(f"   标的匹配: {mm.get('matched_news')}/{mm.get('total_news')} 条命中日报标的"
+                  f"（匹配率 {(mm.get('coverage') or 0) * 100:.1f}%）· {tops or '无命中'}"
+                  f" · 对外不显示数据来源")
         print(f"   已写入 {os.path.relpath(out_path, REPO_ROOT)}")
     return data
 

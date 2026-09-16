@@ -455,26 +455,31 @@ body {
 <!-- COMMUNITY_LIST:END -->
     </div>
 
-    <h2 class="pub-heading">03B / 舆情·新闻因子接入实测 (Sentiment &amp; News Factor API Bench)</h2>
+    <h2 class="pub-heading">03B / 舆情·新闻因子：多平台采集 → 标的匹配 (Sentiment &amp; News Factor Bench)</h2>
     <div class="pub-box">
-      <div class="pub-sub">◆ 现成因子口径与本次读数（聚宽 · 米筐 · 掘金 · 优矿 · Tushare · 免费公开源）</div>
+      <div class="pub-sub">◆ 现成因子口径与本次读数（多量化平台合并采集 · 对外不显示数据来源）</div>
       <p style="margin:0 0 8px;">本节点不是论坛印象，而是<strong>可回测的因子数值</strong>：由
-        <code>sentiment_factors.py</code> 每次构建前抓取并合成 —— 优先采用平台<strong>现成舆情因子</strong>
-        （米筐 <code>news.get_stock_news</code> 三档情感权重 + 公司相关度、优矿 <code>sentimentIndex/heatIndex</code>），
-        权限未开通时自动降级到<strong>免费热度源 + 自建中文金融词库</strong>（东财千股千评关注指数、
-        金十微博人气、东财/Tushare 新闻文本），全链路纯标准库、单源失败不阻断。</p>
+        <code>sentiment_factors.py</code> 每次构建前从多家量化平台采集<strong>现成舆情 / 新闻因子</strong>并合成 ——
+        平台已给<strong>原生情感字段</strong>（情感方向 + 正 / 中 / 负权重 + 主体相关度）时优先采用平台口径，
+        权限未开通时自动降级到<strong>热度类因子 + 自建中文金融词库</strong>打分；
+        采集回来的每条新闻再按关键词<strong>匹配到 02 节的行情标的与日报主题</strong>
+        （恒指 / 恒科 / 国企 / 标普 / 纳指 / 道指 / 黄金 / 原油 / 人民币，
+        以及美联储与美元流动性、内房与政策、高息防御、地缘与供应链四个主题），匹配结果见下表。
+        全链路纯标准库、单接口失败自动降级不阻断；<strong>数据来源不在对外输出中展示</strong>
+        （来源明细仅保留在仓库内部构建产物与评测档案里）。</p>
       <p style="margin:0;">
         <span class="lead">舆情温度计 {{SENT_TEMP}} · {{SENT_LABEL}}</span>&nbsp;
         净情感 {{SENT_NET}} · 负面占比 {{SENT_NEG}} · 热度 {{SENT_HEATZ}} · 风险分 {{SENT_RISK}} ·
-        关联新闻 {{SENT_NEWS}} 条（其中平台现成因子 {{SENT_NATIVE}} 条）<br/>
-        <span style="color:#7d838b;font-size:10.5px;">数据日期 {{SENT_DATE}} · 接口状态 {{SENT_SOURCE_STATUS}} · 模式 {{SENT_MODE}} · {{SENT_STATUS}}</span>
+        采集新闻 {{SENT_NEWS}} 条（平台现成因子 {{SENT_NATIVE}} 条）→
+        匹配日报标的 {{SENT_MATCH_HITS}} 条（匹配率 {{SENT_MATCH_RATE}}）<br/>
+        <span style="color:#7d838b;font-size:10.5px;">数据日期 {{SENT_DATE}} · 采集状态 {{SENT_SOURCE_STATUS}} · 模式 {{SENT_MODE}} · {{SENT_STATUS}}</span>
       </p>
     </div>
 <!-- SENTIMENT_LIST:BEGIN -->
     <div class="pub-box"><div class="pub-sub">◆ 舆情因子节点待生成</div>
       运行 <code>python3 sentiment_factors.py --live</code>（境内出口 + 凭据）或
-      <code>python3 sentiment_factors.py --mock</code>（离线回放）后重新构建即可注入。
-      接口评测细节见 <code>docs/sentiment-api-eval.md</code>。</div>
+      <code>python3 sentiment_factors.py --mock</code>（离线回放）后重新构建，
+      即可注入「标的匹配 + 因子读数」（对外不显示数据来源）。</div>
 <!-- SENTIMENT_LIST:END -->
 
 
