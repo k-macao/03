@@ -715,8 +715,11 @@ def push_to_wechat(title, content, token, topic='', retries=MAX_PUSH_RETRIES):
     for attempt in range(1, retries + 1):
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
-                raw = resp.read().decode('utf-8')
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
+                raw = resp.read().decode('utf-8', errors='replace')
+        except (urllib.error.URLError, TimeoutError, OSError,
+                http.client.HTTPException) as e:
+            # http.client.HTTPException: IncompleteRead/BadStatusLine 等不继承 OSError,
+            # 不捕获会让整个推送进程以未捕获异常 (exit 1) 崩溃
             if attempt < retries:
                 print(f'网络异常, {3 * attempt}s 后重试({attempt}/{retries}): {e}', file=sys.stderr)
                 time.sleep(3 * attempt)
