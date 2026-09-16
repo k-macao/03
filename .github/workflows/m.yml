@@ -59,7 +59,4 @@ jobs:
         run: python3 community_data.py
 
       - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
-        run: python3 tools/probe_sentiment_apis.py --mock
-
-      - name: 🗞️ 舆情/新闻因子合成 (sentiment_factors.py → sentiment_data.json · 平台现成因子优先)
-        run: |
+        run: python3 
