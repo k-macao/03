@@ -174,6 +174,25 @@ body {
   .main { padding:6px 16px 20px; }
   .footer { padding:16px 16px 22px; }
 }
+
+.stat-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:14px 0;
+}
+.stat-card {
+  background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px;
+}
+.stat-title { color:var(--muted); font-size:11px; font-weight:700; margin-bottom:6px; }
+.stat-val { color:var(--green); font-size:18px; font-weight:700; margin-bottom:8px; line-height:1.3; }
+.stat-desc { font-size:12px; color:var(--ink); line-height:1.7; }
+.pub-box .lead {
+  background:#000;color:var(--neon);padding:3px 8px;font-size:12.5px;
+}
+.quant-box {
+  background:var(--card); border:1px solid var(--border); border-left:3px solid var(--green);
+  border-radius:8px; padding:16px 18px; margin:14px 0;
+}
+.q-off { color:var(--muted); }
+
 </style>
 </head>
 <body>
@@ -436,6 +455,29 @@ body {
 <!-- COMMUNITY_LIST:END -->
     </div>
 
+    <h2 class="pub-heading">03B / 舆情·新闻因子接入实测 (Sentiment &amp; News Factor API Bench)</h2>
+    <div class="pub-box">
+      <div class="pub-sub">◆ 现成因子口径与本次读数（聚宽 · 米筐 · 掘金 · 优矿 · Tushare · 免费公开源）</div>
+      <p style="margin:0 0 8px;">本节点不是论坛印象，而是<strong>可回测的因子数值</strong>：由
+        <code>sentiment_factors.py</code> 每次构建前抓取并合成 —— 优先采用平台<strong>现成舆情因子</strong>
+        （米筐 <code>news.get_stock_news</code> 三档情感权重 + 公司相关度、优矿 <code>sentimentIndex/heatIndex</code>），
+        权限未开通时自动降级到<strong>免费热度源 + 自建中文金融词库</strong>（东财千股千评关注指数、
+        金十微博人气、东财/Tushare 新闻文本），全链路纯标准库、单源失败不阻断。</p>
+      <p style="margin:0;">
+        <span class="lead">舆情温度计 {{SENT_TEMP}} · {{SENT_LABEL}}</span>&nbsp;
+        净情感 {{SENT_NET}} · 负面占比 {{SENT_NEG}} · 热度 {{SENT_HEATZ}} · 风险分 {{SENT_RISK}} ·
+        关联新闻 {{SENT_NEWS}} 条（其中平台现成因子 {{SENT_NATIVE}} 条）<br/>
+        <span style="color:#7d838b;font-size:10.5px;">数据日期 {{SENT_DATE}} · 接口状态 {{SENT_SOURCE_STATUS}} · 模式 {{SENT_MODE}} · {{SENT_STATUS}}</span>
+      </p>
+    </div>
+<!-- SENTIMENT_LIST:BEGIN -->
+    <div class="pub-box"><div class="pub-sub">◆ 舆情因子节点待生成</div>
+      运行 <code>python3 sentiment_factors.py --live</code>（境内出口 + 凭据）或
+      <code>python3 sentiment_factors.py --mock</code>（离线回放）后重新构建即可注入。
+      接口评测细节见 <code>docs/sentiment-api-eval.md</code>。</div>
+<!-- SENTIMENT_LIST:END -->
+
+
     <h2 class="pub-heading">07 / 核心结论 (Boss Verdict)</h2>
     <div class="pub-box">
       <ul class="pixel-list">
@@ -460,7 +502,6 @@ body {
 
 
 <!-- WECHAT-EMBED:BEGIN -->
-<!-- WECHAT-EMBED:BEGIN -->
 <script id="wechat-parts" type="application/json">
 {
  "title": "章鱼 AI·全景分析（情绪因子分析）",
@@ -475,7 +516,6 @@ body {
  "mode": "one-to-many"
 }
 </script>
-<!-- WECHAT-EMBED:END -->
 <!-- WECHAT-EMBED:END -->
 <script>
   const PUSHPLUS_TOKEN = '507a6c0cf9cf46229f5f3c5107a967cc';
