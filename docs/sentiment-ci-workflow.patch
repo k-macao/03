@@ -1,5 +1,5 @@
 diff --git a/.github/workflows/m.yml b/.github/workflows/m.yml
-index ba6e27c..0b60530 100644
+index ba6e27c..d84da2b 100644
 --- a/.github/workflows/m.yml
 +++ b/.github/workflows/m.yml
 @@ -9,6 +9,8 @@
@@ -74,7 +74,6 @@ index ba6e27c..0b60530 100644
        - name: 🗣️ 动态抓取社区 (community_data.py · 14 源)
          run: python3 community_data.py
  
-+
 +      - name: 🔬 舆情接口实测 (tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md)
 +        run: python3 tools/probe_sentiment_apis.py --mock
 +
@@ -89,6 +88,7 @@ index ba6e27c..0b60530 100644
 +            python3 sentiment_factors.py --mock
 +          fi
 +          set -e
++
        - name: 🏗️ 动态构建报告 (build_site.py · 行情+社区双注入)
          run: python3 build_site.py
  
