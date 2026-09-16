@@ -5,6 +5,7 @@
 
 读取 market_data.json + community_data.json (+ sentiment_data.json)，把 report.html 模板中的
 {{占位符}} 替换为最新抓取数据，并动态注入 14 大社区最新研判与「舆情因子接入实测」区块，
+同时在每个社区卡片后追加核心量化指标（实体级情感、事件分类、相关性、新颖度），
 生成最终 report.html（页面源文件，供 GitHub Pages 部署与 wechat_push.py 内嵌）。
 
 占位符规则:
@@ -20,6 +21,10 @@
   - 若存在 community_data.json，则解析其中 14 条社区数据，生成最新社区 HTML 列表，
     替换模板中 <!-- COMMUNITY_LIST:BEGIN --> ... <!-- COMMUNITY_LIST:END --> 之间的内容
   - 若不存在，则保留模板原有静态社区内容（仅日期占位符会被刷新），保证向后兼容
+
+量化指标注入:
+  - 每条社区数据可携带 quant 字段，包含 sentiment/event/relevance/novelty
+  - build_community_html 会在 AI 研判后追加 quant-metrics 区块
 
 用法:
   python3 market_data.py && python3 community_data.py && python3 build_site.py   # 常规构建（行情+社区动态）
@@ -220,11 +225,41 @@ def find_leftovers(html):
     return sorted(set(re.findall(r'\{\{\s*[A-Za-z0-9_]+\s*\}\}', html)))
 
 
+def build_quant_html(quant):
+    """构建核心量化指标 HTML（网页版）—— 每条新闻/社区卡片后追加"""
+    if not quant:
+        return ""
+    sentiment = quant.get('sentiment', {})
+    event = quant.get('event', {})
+    relevance = quant.get('relevance', {})
+    novelty = quant.get('novelty', {})
+
+    s_display = sentiment.get('display', '—')
+    s_desc = sentiment.get('desc', '由新闻对应文本片段的情绪，排除无关主体干扰')
+    e_label = event.get('label', '综合')
+    e_desc = event.get('desc', '精准匹配业绩、并购、监管等场景')
+    r_display = relevance.get('display', '—')
+    r_desc = relevance.get('desc', '衡量新闻与标的的关联程度，过滤无效噪音')
+    n_display = novelty.get('display', '—')
+    n_desc = novelty.get('desc', '区分新闻首发与转载，识别信息冲击强度')
+
+    return (
+        f'  <div class="quant-metrics">\n'
+        f'    <div class="quant-metrics-title">◆ 核心量化指标</div>\n'
+        f'    <ul class="quant-metrics-list">\n'
+        f'      <li><strong>实体级情感得分：</strong>{s_display} — {s_desc}</li>\n'
+        f'      <li><strong>新闻细分事件分类：</strong>{e_label} — {e_desc}</li>\n'
+        f'      <li><strong>相关性得分：</strong>{r_display} — {r_desc}</li>\n'
+        f'      <li><strong>新颖度得分：</strong>{n_display} — {n_desc}</li>\n'
+        f'    </ul>\n'
+        f'  </div>'
+    )
+
+
 def build_community_html(communities):
-    """根据 community_data.json 生成 14 个社区的 HTML 列表"""
+    """根据 community_data.json 生成 14 个社区的 HTML 列表，包含核心量化指标"""
     html_parts = []
     for c in communities:
-        # 防御：确保必要字段存在
         icon = c.get('icon', '📌')
         cid = c.get('id', '01')
         name = c.get('name', '未知社区')
@@ -232,14 +267,15 @@ def build_community_html(communities):
         vclass = c.get('verdict_class', 'neutral')
         quote = c.get('quote', '')
         verdict = c.get('verdict', '')
+        quant = c.get('quant', {})
         meta = c.get('meta', f"综合站内 10 条讨论 · 最新读取 {c.get('fetch_date','')}")
-        # 转义？内容已是纯文本，保留 HTML 安全
-        # 构造 article
+        quant_html = build_quant_html(quant)
         article = (
             f'<article class="pub-card" data-verdict="{vclass}">\n'
             f'  <div class="pub-card-head"><span class="pub-name">{icon} {cid}. {name}</span><span class="pub-chip">{label}</span></div>\n'
             f'  <p class="pub-quote"><strong>平台深度热评：</strong>{quote}</p>\n'
             f'  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>{verdict}</div>\n'
+            f'{quant_html}\n'
             f'  <div class="pub-meta">{meta}</div>\n'
             f'</article>'
         )
@@ -256,12 +292,9 @@ def inject_community_list(template, community_html):
         if count:
             print(f'  🧩 已动态注入 {community_html.count("<article")} 个社区卡片（标记替换）')
             return new_html
-    # 兼容旧模板：尝试替换 <div id="communityList">...</div> 的内容
-    # 使用非贪婪匹配到下一个 <!-- 04 -->
     m = re.search(r'(<div id="communityList">)(.*?)(</div>\s*<!-- 04)', template, re.S)
     if m:
         new_block = m.group(1) + "\n" + COMMUNITY_LIST_BEGIN + "\n" + community_html + "\n" + COMMUNITY_LIST_END + "\n" + m.group(3)
-        # 只替换第一次
         new_html = template[:m.start()] + new_block + template[m.end():]
         print(f'  🧩 已动态注入 {community_html.count("<article")} 个社区卡片（兼容旧模板）')
         return new_html
@@ -284,7 +317,6 @@ def build_sentiment_html(s):
     sm = s.get('summary') or {}
     parts = []
 
-    # 1) 因子卡片
     def card(title, val, desc):
         return (f'<div class="stat-card"><div class="stat-title">{esc(title)}</div>'
                 f'<div class="stat-val">{val}</div><div class="stat-desc">{desc}</div></div>')
@@ -305,7 +337,6 @@ def build_sentiment_html(s):
     ]
     parts.append('<div class="stat-grid">' + ''.join(cards) + '</div>')
 
-    # 2) 平台接口评测矩阵
     ev = s.get('api_eval') or {}
     if ev.get('ranking'):
         rows = []
@@ -328,7 +359,6 @@ def build_sentiment_html(s):
             + '<div class="pub-meta">完整能力矩阵、阶段明细与上线方案见 <code>docs/sentiment-api-eval.md</code>'
               '（由 <code>tools/probe_sentiment_apis.py</code> 生成）。</div></div>')
 
-    # 3) 个股舆情热度榜
     stocks = (s.get('stocks') or [])[:8]
     if stocks:
         rows = []
@@ -347,7 +377,6 @@ def build_sentiment_html(s):
             '<div class="pub-meta">关注指数来自东财千股千评（小时/日频热度类因子，无极性）；'
             '净情感来自平台原生字段或自建词库打分。</div></div>')
 
-    # 4) 突发风险事件 + 高信噪情感样本
     events = (m.get('events') or [])[:5]
     if events:
         lis = ''.join(
@@ -363,7 +392,7 @@ def build_sentiment_html(s):
         def li(x, tag):
             hits = (x.get('hits') or {})
             kw = '、'.join((hits.get('neg') or [])[:3] + (hits.get('pos') or [])[:3])
-            return (f"<li><span style=\"background:#000;color:#39ff14;font-size:10px;"
+            return (f"<li><span style=\"background:#000;color:#39ff14;font-size:10px;\""
                     f"padding:1px 6px;margin-right:6px;\">{tag}</span>{esc(x.get('title') or '')}"
                     f"<span style=\"color:#7d838b;\"> · {esc(x.get('source') or '')} "
                     f"{esc(str(x.get('published_at') or ''))[:16]} · 情感 {x.get('sentiment')} · 命中 {esc(kw)}</span></li>")
@@ -371,7 +400,6 @@ def build_sentiment_html(s):
                      '<ul class="pixel-list">' + ''.join(li(x, '负面') for x in top_neg)
                      + ''.join(li(x, '正面') for x in top_pos) + '</ul></div>')
 
-    # 5) 各源取数明细
     srcs = s.get('sources') or []
     if srcs:
         rows = []
@@ -389,7 +417,6 @@ def build_sentiment_html(s):
             '<th>新闻/序列</th><th>最新日期</th><th>说明</th></tr>' + ''.join(rows) + '</table>'
             '<div class="pub-meta">单源失败自动降级、不阻断构建与推送；失败原因如实标注在此表。</div></div>')
 
-    # 6) 日频情绪指数序列（末 10 期）
     series = (s.get('series') or [])[-10:]
     if series:
         lis = ''.join(
@@ -406,7 +433,6 @@ def build_sentiment_html(s):
 
 
 def reg_verdict_hint(r):
-    """把逐源状态压成一句短语（页面表格用）。"""
     if r.get('ok'):
         native = r.get('native_sentiment') or 0
         return f"取数成功（原生情感 {native} 条）" if native else '取数成功（文本→自建打分）'
@@ -438,7 +464,7 @@ def inject_sentiment(template, block_html):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='章鱼 AI — 动态建站（行情+社区+舆情三动态）')
+    ap = argparse.ArgumentParser(description='章鱼 AI — 动态建站（行情+社区+舆情三动态+量化指标）')
     ap.add_argument('--data', default='market_data.json', help='行情数据 JSON 路径')
     ap.add_argument('--community', default='community_data.json', help='社区数据 JSON 路径')
     ap.add_argument('--sentiment', default='sentiment_data.json',
@@ -456,8 +482,6 @@ def main():
         template = f.read()
 
     leftovers = find_leftovers(template)
-    # 允许模板没有占位符的情况？但为了防止误提交构建产物，仍需检查
-    # 如果模板包含 COMMUNITY_LIST 标记但没有 {{}}，也认为是模板版本，允许
     if not leftovers and COMMUNITY_LIST_BEGIN not in template and SENTIMENT_LIST_BEGIN not in template:
         print(f'错误: {args.template} 中没有 {{占位符}}，疑似已构建过的产物。\n'
               f'仓库中的 report.html 应保持模板版本；恢复: git checkout -- report.html',
@@ -500,15 +524,12 @@ def main():
     now = datetime.now(timezone.utc)
     tokens = build_tokens(data, now, community_data, sentiment_data)
 
-    # 先处理占位符替换
-    # 但如果模板中包含社区列表标记，我们先注入社区 HTML，再替换占位符（社区 HTML 中可能也包含 {{}}？不会，但为了安全先注入后替换）
     if community_data and community_data.get('communities'):
         community_html = build_community_html(community_data['communities'])
         template = inject_community_list(template, community_html)
     else:
         print('  ℹ️ 社区数据为空，跳过动态注入，保留模板原有社区内容')
 
-    # 03B 舆情因子节点：无论有无数据都注入（缺数据时注入降级说明，避免旧内容残留）
     template = inject_sentiment(template, build_sentiment_html(sentiment_data))
 
     missing = sorted(set(find_leftovers(template)) - set(tokens))
