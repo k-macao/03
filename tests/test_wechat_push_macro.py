@@ -59,10 +59,14 @@ def _render(env):
 
 
 def _no_data_env(tmpdir):
-    """把行情/社区/舆情三类数据都指向不存在的文件，让渲染路径确定（不受本地残留 json 影响）。"""
+    """把行情/社区/舆情三类数据都指向不存在的文件，让渲染路径确定（不受本地残留 json 影响）。
+
+    MACRO_AUTO_FETCH=0：本文件断言的是「拿不到快讯时的降级形态」，必须锁死构建期
+    自动补抓（否则 CI 里 GITHUB_ACTIONS 存在会真的去联网抓一轮，判定就不确定了）。
+    """
     missing = os.path.join(tmpdir, 'missing.json')
     return {'MARKET_DATA': missing, 'COMMUNITY_DATA': missing, 'SENTIMENT_DATA': missing,
-            'MACRO_DATA': missing}
+            'MACRO_DATA': missing, 'MACRO_AUTO_FETCH': '0'}
 
 
 class TestMacroSection(unittest.TestCase):

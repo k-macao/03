@@ -462,14 +462,25 @@ def _redate_for_demo(raws, now):
 # 主流程
 # ---------------------------------------------------------------------------
 def build(max_age_days=MAX_AGE_DAYS_DEFAULT, limit=LIMIT_PER_CAT_DEFAULT,
-           timeout=10, mock=False, quiet=False):
-    """抓全部源 → 归一 → 去重 → 时效过滤 → 分类排序，返回 macro_data dict。"""
+          timeout=10, mock=False, quiet=False, deadline=None):
+    """抓全部源 → 归一 → 去重 → 时效过滤 → 分类排序，返回 macro_data dict。
+
+    deadline: 可选的墙钟截止时间（time.time() 秒）。构建期由 build_site.py 内联补抓时
+              用来给「整轮抓取」设上限（CI 里 8 个源最坏要 8×timeout，必须能掐断），
+              超时的源记为 skipped_deadline 而不是失败，其余流程照常产出。
+    """
     now = datetime.now(timezone.utc)
     sources_meta, all_items = [], []
     for src in SOURCES:
         sid = src['id']
         meta = {'id': sid, 'label': SOURCE_LABELS.get(sid, sid), 'kind': src['kind'],
                 'ok': False, 'items': 0, 'error': None}
+        if deadline is not None and time.time() >= deadline:
+            meta['error'] = 'skipped_deadline: 超出本轮抓取的墙钟预算，未请求'
+            if not quiet:
+                print(f'  ⏱️ {sid} 跳过：超出时间预算', file=sys.stderr)
+            sources_meta.append(meta)
+            continue
         try:
             raws, extra = fetch_source(src, timeout=timeout,
                                        fixture_dir=FIXTURE_DIR if mock else None, now=now)
@@ -599,6 +610,113 @@ def availability(data, now=None, snapshot_max_age_days=SNAPSHOT_MAX_AGE_DAYS):
                            f'当次抓取未执行或失败，{kept} 条旧闻按兜底口径不予展示')}
 
     return {'ok': True, 'reason': 'ok', 'kept': kept, 'snapshot_age_days': age, 'detail': ''}
+
+
+# ---------------------------------------------------------------------------
+# 构建期自动补抓（2026-09-17 核查结论的长期修复）
+#
+# 线上事实：`.github/workflows/m.yml` 里从来没有 `macro_data.py` 这一步
+# （改动以 docs/macro-ci-workflow.patch 交付，需要有 workflows 权限的账号手工
+#   git apply，至今未应用 —— 已用 `gh run view --job` 的 step 列表核实）。
+# 于是每次构建都不存在 macro_data.json，02 栏 / 微信 02 栏稳定停在
+# 「今日未获取 · 未读到 macro_data.json（no_file）」。
+#
+# 这里补一条**不依赖 workflow 权限**的通路：build_site.py 与 tools/wechat_push.py
+# 本来就在 deploy / wechat / daily 三个 job 里都会跑，让它们在读产物前先调 ensure()
+# —— 产物缺失 / 写坏 / 是旧快照时**就地补抓一次并落盘**，与 panorama.py
+# 「构建期直接调用、无需改 CI workflow」是同一套思路。
+#
+# 边界（都很重要，别随手放宽）：
+#   • 只有 no_file / bad_type / stale_snapshot 才补抓；no_items 说明当次已经抓过
+#     且公开源全挂，再抓一遍只会把构建时间烧掉，保持原判定即可；
+#   • 默认只在 CI 里自动补抓（GITHUB_ACTIONS 存在），本地/单测默认不联网，
+#     需要时 MACRO_AUTO_FETCH=1 显式打开、MACRO_AUTO_FETCH=0 显式关闭；
+#   • 补抓失败绝不抛异常、绝不阻断构建 —— 最坏情况退回原来的「今日未获取」；
+#   • 补抓产物一律落盘（哪怕 0 条），页面判定因此从 no_file 变成 no_items，
+#     运维能一眼区分「步骤没跑」和「源全挂」。
+# ---------------------------------------------------------------------------
+AUTO_FETCH_TIMEOUT = 6              # 补抓时的单请求超时（比 CLI 默认 10s 更紧，构建不能等）
+AUTO_FETCH_BUDGET_SECONDS = 70      # 补抓整轮的墙钟预算（8 源最坏情况也要能收口）
+REFETCH_REASONS = ('no_file', 'bad_type', 'stale_snapshot')
+
+
+def auto_fetch_enabled(explicit=None):
+    """补抓开关：显式入参 > 环境变量 MACRO_AUTO_FETCH > 「在 CI 里就开」。"""
+    if explicit is not None:
+        return bool(explicit)
+    raw = str(os.environ.get('MACRO_AUTO_FETCH', '')).strip().lower()
+    if raw in ('1', 'true', 'yes', 'on'):
+        return True
+    if raw in ('0', 'false', 'no', 'off'):
+        return False
+    return bool(os.environ.get('GITHUB_ACTIONS'))
+
+
+def load_json(path=DEFAULT_OUT):
+    """安全读产物：不存在 / 读不出 / 不是对象 → 返回 {}，交给 availability() 判原因。"""
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else data   # 非 dict 原样返回，让 availability 报 bad_type
+
+
+def ensure(path=DEFAULT_OUT, max_age_days=MAX_AGE_DAYS_DEFAULT, limit=LIMIT_PER_CAT_DEFAULT,
+           timeout=AUTO_FETCH_TIMEOUT, mock=False, quiet=True, now=None, allow_fetch=None,
+           budget_seconds=AUTO_FETCH_BUDGET_SECONDS):
+    """读取 macro_data.json；不可用且允许联网时就地补抓一次并落盘。
+
+    返回 dict:
+      data       产物内容（dict；补抓失败时可能是 0 条的产物或 {}）
+      action     fresh | fetched | refetch_unavailable | no_refetch | disabled | error
+      reason     最终的 availability().reason
+      kept       窗口内条目数
+      fetched    本轮是否真的发起了抓取
+      elapsed_ms 补抓耗时（未抓取为 0）
+    永不抛异常：任何意外都退化成「和调用前一样不可用」，构建照常继续。
+    """
+    t0 = time.time()
+    now = now or datetime.now(timezone.utc)
+    data = load_json(path)
+    avail = availability(data, now=now)
+    out = {'data': data, 'action': 'fresh', 'reason': avail['reason'], 'kept': avail['kept'],
+           'fetched': False, 'elapsed_ms': 0, 'path': path}
+    if avail['ok']:
+        return out
+
+    if avail['reason'] not in REFETCH_REASONS:
+        # no_items：当次已经抓过一轮且窗口内 0 条，重复抓取只会拖长构建
+        out['action'] = 'no_refetch'
+        return out
+    if not auto_fetch_enabled(allow_fetch):
+        out['action'] = 'disabled'
+        return out
+
+    try:
+        fresh = build(max_age_days=max_age_days, limit=limit, timeout=timeout, mock=mock,
+                      quiet=quiet, deadline=t0 + max(1, int(budget_seconds)))
+    except Exception as e:  # noqa: BLE001 — 补抓失败绝不阻断构建
+        out['action'] = 'error'
+        out['reason'] = avail['reason']
+        out['detail'] = f'{type(e).__name__}: {e}'[:200]
+        out['elapsed_ms'] = round((time.time() - t0) * 1000, 1)
+        print(f'  ⚠️ 宏观快讯构建期补抓失败（{out["detail"]}）→ 维持「今日未获取」兜底',
+              file=sys.stderr)
+        return out
+
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(fresh, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        # 落盘失败（只读目录等）不影响本次渲染，只是下次还得再抓
+        print(f'  ⚠️ 宏观快讯补抓产物写入失败（{e}）→ 本次仍用内存结果渲染', file=sys.stderr)
+
+    avail2 = availability(fresh, now=now)
+    out.update({'data': fresh, 'reason': avail2['reason'], 'kept': avail2['kept'],
+                'fetched': True, 'elapsed_ms': round((time.time() - t0) * 1000, 1),
+                'action': 'fetched' if avail2['ok'] else 'refetch_unavailable'})
+    return out
 
 
 def text_report(data):
