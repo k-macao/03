@@ -522,6 +522,85 @@ def build(max_age_days=MAX_AGE_DAYS_DEFAULT, limit=LIMIT_PER_CAT_DEFAULT,
     }
 
 
+# ---------------------------------------------------------------------------
+# 02 栏兜底保障：单一事实源判定「本次到底有没有可用快讯」
+#
+# 背景（2026-09-16 旧内容事故的延伸排查）：原先只有「macro_data.json 文件读不到」
+# 这一种情况会降级为「今日未获取」。但线上更常见的是下面几种"文件在、内容不能用"
+# 的形态，它们会静默渲染出一个空壳栏目，页脚还盖着当天时间戳：
+#   ① categories 有结构但窗口内 0 条（公开源当次全挂 / 全部超窗被拦截）
+#   ② 读到的 JSON 不是 dict（半截文件、写坏的产物）
+#   ③ 快照本身是前几天构建的（--offline 沿用旧结果，或 CI 抓取步骤被跳过）
+#      —— 这种最危险：条目"看起来"有日期，实际是几天前的旧闻
+# 统一在这里判定，网页与微信两端共用，避免两套渲染各写一套口径而漂移。
+# ---------------------------------------------------------------------------
+SNAPSHOT_MAX_AGE_DAYS = 1      # 快照（generated_at/fetch_date）超过这个天数即视为过期，必须重建
+
+
+def availability(data, now=None, snapshot_max_age_days=SNAPSHOT_MAX_AGE_DAYS):
+    """判定 02 栏这次能不能正常渲染。
+
+    返回 dict:
+      ok      bool  True = 有当次可用快讯，正常渲染；False = 走「今日未获取」兜底
+      reason  str   机器可读原因：no_file / bad_type / no_items / stale_snapshot
+      detail  str   给读者看的一句话，说明这次为什么没有快讯
+      kept    int   窗口内条目数
+      snapshot_age_days  float|None  快照距今天数（拿不到日期时为 None）
+    """
+    now = now or datetime.now(timezone.utc)
+
+    # 先判类型再判空：空列表 / 字符串等"解析得出来但结构不对"的产物属于 bad_type，
+    # 只有 None 与 {}（文件缺失时各加载器的默认值）才算 no_file。
+    if data is not None and not isinstance(data, dict):
+        return {'ok': False, 'reason': 'bad_type', 'kept': 0, 'snapshot_age_days': None,
+                'detail': 'macro_data.json 内容不是预期的对象结构（产物可能写坏或被截断）'}
+    if not data:
+        return {'ok': False, 'reason': 'no_file', 'kept': 0, 'snapshot_age_days': None,
+                'detail': '未读到 macro_data.json（构建步骤未执行，或产物未生成）'}
+
+    cats = data.get('categories') or {}
+    kept = sum(len(((blk or {}).get('items') or [])) for blk in cats.values())
+    summ = data.get('summary') or {}
+    ok_src, total_src = summ.get('ok'), summ.get('total')
+
+    # 快照时效：优先用 generated_at（精确到秒），退回 fetch_date
+    age = None
+    stamp = (data.get('generated_at') or '').strip()
+    m = re.match(r'(20\d{2}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})', stamp)
+    if m:
+        try:
+            built = datetime.strptime(f'{m.group(1)} {m.group(2)}',
+                                      '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+            age = (now - built).total_seconds() / 86400
+        except ValueError:
+            age = None
+    if age is None and re.match(r'20\d{2}-\d{2}-\d{2}$', str(data.get('fetch_date') or '')):
+        built = datetime.strptime(data['fetch_date'], '%Y-%m-%d').replace(tzinfo=timezone.utc)
+        age = (now - built).total_seconds() / 86400
+    age = round(age, 2) if age is not None else None
+
+    if not kept:
+        src = (f'当次 {ok_src}/{total_src} 个公开源可用，'
+               if ok_src is not None and total_src is not None else '')
+        dropped = []
+        if summ.get('stale_dropped'):
+            dropped.append(f'超窗 {summ["stale_dropped"]} 条')
+        if summ.get('undated_dropped'):
+            dropped.append(f'无日期 {summ["undated_dropped"]} 条')
+        tail = f'（已拦截 {" / ".join(dropped)}）' if dropped else ''
+        win = (data.get('window') or {}).get('max_age_days', '—')
+        return {'ok': False, 'reason': 'no_items', 'kept': 0, 'snapshot_age_days': age,
+                'detail': f'{src}时效窗口（{win} 天）内没有任何可核验的宏观快讯{tail}'}
+
+    if age is not None and age > snapshot_max_age_days:
+        return {'ok': False, 'reason': 'stale_snapshot', 'kept': kept, 'snapshot_age_days': age,
+                'detail': (f'读到的是 {age:.1f} 天前构建的旧快照（{stamp or data.get("fetch_date")}），'
+                           f'超过 {snapshot_max_age_days} 天新鲜度上限 —— '
+                           f'当次抓取未执行或失败，{kept} 条旧闻按兜底口径不予展示')}
+
+    return {'ok': True, 'reason': 'ok', 'kept': kept, 'snapshot_age_days': age, 'detail': ''}
+
+
 def text_report(data):
     """人读摘要（CI Step Summary / 终端）。"""
     s = data.get('summary') or {}

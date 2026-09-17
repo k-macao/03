@@ -10,6 +10,9 @@
   • 一对多群组推送: 默认推送至 oai.1 群组 (PUSHPLUS_TOPIC='oai.1')，群内所有关注成员同步接收。
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
   • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 14 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
+  • 01 栏每日全球全景扫描: 由 panorama.py 在推送前现算 —— 推动股价的 5 大力量（重点/次要/噪音 ·
+    利好/利空 · 0~100 力量分）、宏观事件/板块轮动/情绪变化三大关注面、以及「是否可以做多」的
+    合成分结论；四路数据全缺时降级为「本栏不编故事」，不回填历史叙事。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
   • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14）；
     重点文字为荧光绿字 + 黑色底，装饰线深绿，全部字号偏小，适合微信竖版长页面阅读。
@@ -19,6 +22,8 @@
       # ① 抓行情+社区+宏观快讯 → ② 建站 (report.html)
       # macro_data.py 是微信 02 栏「全球经济与财经动态」的唯一文案来源：
       # 只渲染 7 天窗口内、发布日期可解析的快讯；抓不到就显示「今日未获取」，不回填历史叙事
+      # 兜底口径由 macro_data.availability() 统一判定，覆盖四种形态：文件缺失 / 产物写坏 /
+      # 窗口内 0 条 / 读到前几天的旧快照；不可用时条目就地清空，旧闻不会从 01、07 栏漏出
   python3 tools/wechat_push.py --embed                       # ③ 把最新内容内嵌进 report.html
   python3 tools/wechat_push.py --push --scheduled            # ④ 推送 (正文自动注入最新行情/社区/抓取日期)
 
@@ -49,6 +54,8 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 import sentiment_match as smatch                          # noqa: E402  采集→匹配→脱敏展示层
+import panorama                                           # noqa: E402  01 栏「每日全球全景扫描」推理引擎
+import macro_data as macro_data_mod                       # noqa: E402  02 栏快讯可用性判定（兜底口径单一事实源）
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -135,10 +142,17 @@ def load_macro_data():
         return {}
     try:
         with open(path, encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
     except (OSError, ValueError) as e:
         print(f'⚠️ 警告: macro_data.json 读取失败，02 栏快讯降级: {e}', file=sys.stderr)
         return {}
+    if not isinstance(data, dict):
+        # 产物写坏/被截断时可能解析成 list 等结构；这里直接标成不可用，
+        # 交给 02 栏兜底文案处理，绝不让它带着错误类型流进渲染层（会整篇推送崩掉）。
+        print(f'⚠️ 警告: macro_data.json 结构异常（{type(data).__name__}），02 栏走「今日未获取」兜底',
+              file=sys.stderr)
+        return {}
+    return data
 
 
 def gen_quant_fallback(key, vclass, fetch_date, raw_pct, live_snippet="", source="fallback"):
@@ -245,6 +259,17 @@ def build_single_wechat_html(now=None):
     _sd = load_sentiment_data()
     # ---------- 动态宏观/财经快讯注入 (macro_data.json) — 02 栏唯一文案来源 ----------
     _xd = load_macro_data()
+    # 兜底保障（单一拦截点）：快讯不可用时把条目**就地清空**，而不是只在 02 栏渲染兜底文案。
+    # 否则一份过期快照仍会从 07 栏结论、01 栏全景扫描的证据链里漏出去 —— 兜底必须是全栏一致的。
+    _xd_avail = macro_data_mod.availability(_xd, now=now)
+    if not _xd_avail['ok'] and (_xd.get('categories') or {}):
+        _xd = dict(_xd)
+        _xd['categories'] = {k: {'label': (v or {}).get('label') or k, 'items': []}
+                             for k, v in (_xd.get('categories') or {}).items()}
+        _xd['summary'] = dict(_xd.get('summary') or {}, kept_items=0)
+        _xd['unavailable'] = _xd_avail
+        print(f'  🛟 微信推送：宏观快讯判定为不可用（{_xd_avail["reason"]}），'
+              f'已清空条目以免旧闻从 01/07 栏漏出；{_xd_avail["detail"]}')
     _communities_raw = _cd.get('communities') or []
     # 社区抓取日期优先取社区数据的 fetch_date，否则取行情的 fetch_date
     _community_fetch_date = _cd.get('fetch_date') or _fetch_date
@@ -620,13 +645,21 @@ def build_single_wechat_html(now=None):
         summ = _xd.get('summary') or {}
         win = _xd.get('window') or {}
         mode = _xd.get('mode') or ''
-        if not cats:
+        # 兜底口径与网页 02 节共用 macro_data.availability()：不只是「文件读不到」，
+        # 还覆盖产物写坏、窗口内 0 条、以及读到前几天旧快照（当次抓取未执行/失败）。
+        avail = macro_data_mod.availability(_xd, now=now)
+        if not avail['ok']:
+            print(f'  🛟 微信推送 02 栏：快讯不可用（{avail["reason"]}）→ 走「今日未获取」兜底，'
+                  f'只保留当次实时行情；{avail["detail"]}')
             return (sub('◆ 宏观快讯 — 今日未获取') +
                     '⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 '
                     '<code style="background:#eceef0;padding:1px 4px;">python3 macro_data.py</code> '
                     '未执行，或公开快讯源当次全部失败。<br/>'
                     '本栏<strong>不再回填历史叙事</strong>（旧文案写死在模板里正是上一版正文长期过期的根因），'
-                    '只保留下方当次抓取的实时行情；宏观结论以每次重建后的最新一版为准。<br/><br/>' +
+                    '只保留下方当次抓取的实时行情；宏观结论以每次重建后的最新一版为准。'
+                    + (f'<br/><span style="color:#7d838b;font-size:10px;">本次判定：{avail["detail"]}'
+                       f'（{avail["reason"]}）</span>' if avail.get('detail') else '')
+                    + '<br/><br/>' +
                     sub('◆ 港股市场 — 当次行情口径') + hsi_brief() + '<br/><br/>' + macro_live_quotes())
 
         parts = []
@@ -701,6 +734,13 @@ def build_single_wechat_html(now=None):
          if (_xd.get('summary') or {}).get('kept_items') else '未获取（02 栏已标注，未回填旧文）')
     )
 
+    # ---------- 01 栏：每日全球全景扫描（四路当次数据现算，零写死叙事） ----------
+    _scan = panorama.scan(market=_md, macro=_xd, sentiment=_sd, community=_cd, now=now)
+    panorama_block = panorama.render_wechat(_scan, neon=NEON, green=GR, ink=INK)
+    print(f'  🌍 微信推送 01 栏：全景扫描输出 {len(_scan["forces"])} 大力量 · '
+          f'噪音 {len(_scan["noise"])} 项 · 覆盖 {int(_scan["coverage"] * 100)}% · '
+          f'做多合成分 {_scan["verdict"]["long_score"]:+.1f}（{_scan["verdict"]["stance"]}）')
+
     community_thread_line = (
         hsi_brief() + ' ' + macro_top('hk', '宏观快讯窗口内无港股条目，社区叙事以各频道热评为准')
         + '；跨平台配置答案延续「进攻端看算力与硬科技、防御端看高息与公用事业」的框架，'
@@ -714,9 +754,13 @@ def build_single_wechat_html(now=None):
     <div style="color:{NEON};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
   </div>
 
-  {h('01 / 底层模型与全景推理机制 (Multi-Model Alliance)')}
+  {h('01 / 每日全球全景扫描 (Daily Global Panorama Scan · 5 大推动力量 · 每次构建现算)')}
   {box(
-    key('全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。'))}
+    key('扫一遍今天全球市场，总结推动股价的 5 大力量。')
+    + '重点关注宏观事件、板块轮动、情绪变化；逐条标注<strong>哪些是重点、哪些是噪音</strong>，'
+      '说明<strong>如何利好利空</strong>，并给出<strong>是否可以做多</strong>的规则化结论。'
+      '全部结论由当次抓取的行情 / 宏观快讯 / 舆情因子 / 社区研判现算，缺数据即标注未获取，不回填历史叙事。')}
+  {panorama_block}
 
   {quant_block}
 

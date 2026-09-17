@@ -19,6 +19,7 @@ import re
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for _p in (REPO_ROOT, os.path.join(REPO_ROOT, 'tools')):
@@ -153,6 +154,107 @@ class TestMacroSection(unittest.TestCase):
         self.assertIn('中性 1 家', html)
         self.assertIn('3 个境内外核心社区信号', html, '小节标题的源数应随实际社区数变化')
         self.assertNotIn('8 月初五连阳', html)
+
+
+# 「本次没有可用快讯」的四种形态 —— 原先只有 no_file 一种会降级，其余三种会静默渲染空壳
+UNAVAILABLE_CASES = {
+    'no_file': None,
+    'bad_type': [],
+    'no_items': {
+        'fetch_date': '2026-09-17', 'generated_at': '2026-09-17 02:00:00 UTC',
+        'categories': {'macro': {'label': '宏观 — 全球经济增速与主要央行', 'items': []},
+                       'fed': {'label': '美联储利率路径与离岸流动性', 'items': []}},
+        'summary': {'ok': 0, 'total': 8, 'kept_items': 0, 'stale_dropped': 12},
+        'window': {'max_age_days': 7, 'since': '2026-09-10'},
+    },
+    'stale_snapshot': {
+        'fetch_date': '2026-09-01', 'generated_at': '2026-09-01 00:00:00 UTC',
+        'categories': {'macro': {'label': '宏观 — 全球经济增速与主要央行',
+                                 'items': [{'title': '陈旧快照里的宏观旧闻 ABCXYZ',
+                                            'published_date': '2026-09-01'}]},
+                       'hk': {'label': '港股市场 — 恒指与南向资金',
+                              'items': [{'title': '陈旧快照里的港股旧闻 ABCXYZ',
+                                         'published_date': '2026-09-01'}]}},
+        'summary': {'ok': 8, 'total': 8, 'kept_items': 2},
+        'window': {'max_age_days': 7, 'since': '2026-08-25'},
+    },
+}
+
+NOW = datetime(2026, 9, 17, 8, 0, tzinfo=timezone.utc)
+
+
+class TestMacroAvailabilityFallback(unittest.TestCase):
+    """02 栏兜底保障：四种「没有可用快讯」的形态都必须落到同一段「今日未获取」文案。
+
+    此前只有「文件读不到」会降级；文件在但窗口内 0 条、产物写坏、或读到前几天的
+    旧快照时，02 栏会渲染成一个空壳（页脚还盖当天时间戳），旧闻还会从 01 / 07 栏漏出。
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+
+    def _macro_path(self, payload):
+        if payload is None:
+            return os.path.join(self._tmp.name, 'missing.json')
+        p = os.path.join(self._tmp.name, 'macro_data.json')
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False)
+        return p
+
+    def test_availability_classifies_every_failure_mode(self):
+        for reason, payload in UNAVAILABLE_CASES.items():
+            with self.subTest(reason=reason):
+                a = md.availability(payload if payload is not None else {}, now=NOW)
+                self.assertFalse(a['ok'], f'{reason} 必须判定为不可用')
+                self.assertEqual(a['reason'], reason)
+                self.assertTrue(a['detail'], '必须给出人能看懂的原因')
+
+    def test_availability_accepts_a_fresh_snapshot(self):
+        data = md.build(mock=True, quiet=True)
+        a = md.availability(data, now=datetime.now(timezone.utc))
+        self.assertTrue(a['ok'], f'当次刚构建的快讯应判定为可用: {a}')
+        self.assertGreater(a['kept'], 0)
+
+    def test_web_and_wechat_share_one_fallback_copy(self):
+        for reason, payload in UNAVAILABLE_CASES.items():
+            with self.subTest(reason=reason):
+                web = bs.build_macro_html(payload if payload is not None else {}, now=NOW)
+                self.assertIn('宏观快讯 — 今日未获取', web)
+                self.assertIn('不再回填历史叙事', web)
+                self.assertIn('python3 macro_data.py', web)
+                self.assertIn('只保留下方当次抓取的实时行情', web)
+                self.assertIn('以每次重建后的最新一版为准', web)
+
+                env = _no_data_env(self._tmp.name)
+                env['MACRO_DATA'] = self._macro_path(payload)
+                wx = _render(env)
+                self.assertIn('宏观快讯 — 今日未获取', wx)
+                self.assertIn('不再回填历史叙事', wx)
+                self.assertIn('python3 macro_data.py', wx)
+                self.assertIn('只保留下方当次抓取的实时行情', wx)
+
+    def test_stale_snapshot_never_leaks_into_other_sections(self):
+        """过期快照不能只在 02 栏挡住 —— 01 栏证据链与 07 栏结论也必须拿不到旧闻。"""
+        payload = UNAVAILABLE_CASES['stale_snapshot']
+        env = _no_data_env(self._tmp.name)
+        env['MACRO_DATA'] = self._macro_path(payload)
+        wx = _render(env)
+        self.assertNotIn('ABCXYZ', wx, '整篇推送都不得出现过期快照里的旧闻')
+
+        page = bs.inject_macro_list(
+            open(os.path.join(REPO_ROOT, 'report.html'), encoding='utf-8').read(),
+            bs.build_macro_html(payload, now=NOW))
+        self.assertNotIn('ABCXYZ', page, '网页 02 节注入区同样不得出现旧闻')
+
+    def test_fallback_states_why_this_time_failed(self):
+        """兜底文案要说明「这次为什么没有」，否则线上无从判断是没跑还是源挂了。"""
+        cases = {'no_items': '时效窗口', 'stale_snapshot': '旧快照'}
+        for reason, needle in cases.items():
+            with self.subTest(reason=reason):
+                web = bs.build_macro_html(UNAVAILABLE_CASES[reason], now=NOW)
+                self.assertIn(needle, web)
+                self.assertIn(reason, web, '机器可读的 reason 也要带上，便于排查')
 
 
 if __name__ == '__main__':

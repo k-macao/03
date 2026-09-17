@@ -4,8 +4,8 @@
 章鱼 AI 量化策略日报 — 动态建站 (build_site.py)
 
 读取 market_data.json + community_data.json (+ sentiment_data.json + macro_data.json)，
-把 report.html 模板中的 {{占位符}} 替换为最新抓取数据，并动态注入 14 大社区最新研判、
-02 节宏观/财经快讯与「舆情因子接入实测」区块，
+把 report.html 模板中的 {{占位符}} 替换为最新抓取数据，并动态注入 01 节每日全球全景扫描、
+14 大社区最新研判、02 节宏观/财经快讯与「舆情因子接入实测」区块，
 同时在每个社区卡片后追加核心量化指标（实体级情感、事件分类、相关性、新颖度），
 生成最终 report.html（页面源文件，供 GitHub Pages 部署与 wechat_push.py 内嵌）。
 
@@ -22,6 +22,13 @@
   - 若存在 community_data.json，则解析其中 14 条社区数据，生成最新社区 HTML 列表，
     替换模板中 <!-- COMMUNITY_LIST:BEGIN --> ... <!-- COMMUNITY_LIST:END --> 之间的内容
   - 若不存在，则保留模板原有静态社区内容（仅日期占位符会被刷新），保证向后兼容
+
+全景扫描注入 (01 节):
+  - 由 panorama.py 用当次四路数据（行情 / 宏观快讯 / 舆情因子 / 社区研判）现算：
+    推动股价的 5 大力量（重点 / 次要 / 噪音 · 利好 / 利空 · 0~100 力量分）、
+    宏观事件 / 板块轮动 / 情绪变化三大关注面、以及「是否可以做多」的合成分结论，
+    注入模板中 <!-- PANORAMA --> 占位处（尾部留 <!-- /PANORAMA --> 哨兵保证幂等）
+  - 四路数据全缺时渲染为「今日未获取 —— 本栏不编故事」，绝不回填历史叙事
 
 宏观快讯注入 (02 节):
   - 若存在 macro_data.json（macro_data.py 构建时现抓），则渲染各分类快讯（每条自带发布日期）
@@ -54,6 +61,8 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 import sentiment_match as smatch                           # noqa: E402  采集→匹配→脱敏展示层
+import panorama                                            # noqa: E402  01 节「每日全球全景扫描」推理引擎
+import macro_data as macro_data_mod                        # noqa: E402  02 节快讯可用性判定（兜底口径单一事实源）
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -78,6 +87,11 @@ MACROLIST_MARK = '<!-- MACROLIST -->'
 MACROLIST_BEGIN = '<!-- MACROLIST:BEGIN -->'
 MACROLIST_END = '<!-- MACROLIST:END -->'
 MACROLIST_CLOSE = '<!-- /MACROLIST -->'
+# 01 节每日全球全景扫描占位区（写法与 MACROLIST 一致：单标记 + 结束哨兵，保证重复构建幂等）
+PANORAMA_MARK = '<!-- PANORAMA -->'
+PANORAMA_BEGIN = '<!-- PANORAMA:BEGIN -->'
+PANORAMA_END = '<!-- PANORAMA:END -->'
+PANORAMA_CLOSE = '<!-- /PANORAMA -->'
 
 def fmt_last(q, nd=None):
     """最新价 → "25,440.17"；缺失 → "—"。GOLD 且 >=1000 时取整数。"""
@@ -355,30 +369,54 @@ def _md_cn(date_str):
     return f'{int(m.group(1))} 月 {int(m.group(2))} 日'
 
 
-def build_macro_html(macro_data):
+def build_macro_unavailable_html(avail):
+    """02 节兜底区块 —— 本次没有可用快讯时的唯一出口（网页版）。
+
+    四种触发形态（reason）：
+      no_file        macro_data.json 读不到（构建步骤未执行 / 产物未生成）
+      bad_type       产物写坏、被截断，解析出来不是预期结构
+      no_items       文件在、结构对，但时效窗口内 0 条（公开源当次全挂或全部超窗）
+      stale_snapshot 读到的是前几天构建的旧快照（当次抓取未执行或失败）
+
+    无论哪种，都只说明「这次没有」，绝不回填任何历史叙事。
+    """
+    reason = avail.get('reason')
+    detail = avail.get('detail') or ''
+    return (
+        '<div class="pub-sub">◆ 宏观快讯 — 今日未获取</div>\n'
+        '<div style="font-size:11.5px;line-height:1.8;color:#0a0a0a;">\n'
+        '  ⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 '
+        '<code style="background:#eceef0;padding:1px 4px;">python3 macro_data.py</code> 未执行，'
+        '或公开快讯源当次全部失败。<br/>\n'
+        '  本栏<strong>不再回填历史叙事</strong>（旧文案写死在模板里正是上一版正文长期过期的根因），'
+        '只保留下方当次抓取的实时行情；宏观结论以每次重建后的最新一版为准。\n'
+        + (f'  <div class="pub-meta" style="margin-top:6px;">本次判定：{_esc(detail)}'
+           f'（{_esc(reason)}）· 恢复命令：'
+           '<code style="background:#eceef0;padding:1px 4px;">'
+           'python3 macro_data.py --json macro_data.json --days 7 --text</code></div>\n'
+           if detail else '')
+        + '</div>'
+    )
+
+
+def build_macro_html(macro_data, now=None):
     """02 节宏观/财经快讯区块（macro_data.json 驱动，条目自带发布日期）。
 
     对外**不显示数据来源**（与舆情层同一脱敏口径，只给公开源可用数）；
     抓不到快讯时显示「今日未获取」+ 恢复命令，绝不回填历史叙事
     （2026-09-16 旧内容事故根因：正文写死 8 月 12 日等旧事实）。
+
+    兜底口径由 `macro_data.availability()` 统一判定（网页/微信共用同一事实源），
+    覆盖四种「本次没有可用快讯」的形态：文件缺失、产物写坏、窗口内 0 条、快照过期。
     """
+    avail = macro_data_mod.availability(macro_data, now=now)
+    if not avail['ok']:
+        return build_macro_unavailable_html(avail)
+    # 走到这里 availability 已保证 macro_data 是 dict 且窗口内有条目
     cats = (macro_data or {}).get('categories') or {}
     summ = (macro_data or {}).get('summary') or {}
     win = (macro_data or {}).get('window') or {}
     mode = (macro_data or {}).get('mode') or ''
-
-    if not cats:
-        return (
-            '<div class="pub-sub">◆ 宏观快讯 — 今日未获取</div>\n'
-            '<div style="font-size:11.5px;line-height:1.8;color:#0a0a0a;">\n'
-            '  ⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 '
-            '<code style="background:#eceef0;padding:1px 4px;">'
-            'python3 macro_data.py --json macro_data.json --days 7 --text</code> 未执行，'
-            '或公开快讯源当次全部失败。<br/>\n'
-            '  本栏<strong>不再回填历史叙事</strong>（旧文案写死在模板里正是正文长期过期的根因），'
-            '上方行情快照与 03 / 03B 节仍为当次抓取结果，宏观结论以每次重建后的最新一版为准。\n'
-            '</div>'
-        )
 
     note = (
         f'宏观快讯 {summ.get("kept_items", 0)} 条入库 · 时效窗口 {win.get("max_age_days", "—")} 天'
@@ -450,6 +488,39 @@ def inject_macro_list(template, macro_html):
         print('  📰 已动态注入 02 节宏观快讯（单标记插入）')
         return template.replace(MACROLIST_MARK, block, 1)
     print('  ⚠️ 未找到 MACROLIST 标记，跳过宏观快讯注入', file=sys.stderr)
+    return template
+
+
+def build_panorama_html(market_data, macro_data, sentiment_data, community_data, now=None):
+    """01 节「每日全球全景扫描」：四路当次数据 → 5 大推动力量 / 噪音清单 / 做多结论。
+
+    推理规则集中在 panorama.py（可单测、可回测），本函数只负责取数与渲染；
+    四路数据全缺时渲染为「今日未获取」，与 02 / 03B 节同一反陈旧口径。
+    """
+    scan = panorama.scan(market=market_data, macro=macro_data,
+                         sentiment=sentiment_data, community=community_data, now=now)
+    print(f'  🌍 已动态注入 01 节全景扫描：{len(scan["forces"])} 大力量 · '
+          f'噪音 {len(scan["noise"])} 项 · 覆盖 {int(scan["coverage"] * 100)}% · '
+          f'做多合成分 {scan["verdict"]["long_score"]:+.1f}（{scan["verdict"]["stance"]}）')
+    return panorama.render_web(scan)
+
+
+def inject_panorama(template, panorama_html):
+    """把全景扫描注入模板 01 节的 PANORAMA 标记处（与 inject_macro_list 同一幂等写法）。"""
+    block = f'{PANORAMA_MARK}\n{panorama_html}\n{PANORAMA_CLOSE}'
+    if PANORAMA_BEGIN in template and PANORAMA_END in template:
+        pattern = re.compile(re.escape(PANORAMA_BEGIN) + r'.*?' + re.escape(PANORAMA_END), re.S)
+        new_html, count = pattern.subn(lambda _m: block, template, count=1)
+        if count:
+            return new_html
+    if PANORAMA_MARK in template:
+        if PANORAMA_CLOSE in template:
+            pattern = re.compile(re.escape(PANORAMA_MARK) + r'.*?' + re.escape(PANORAMA_CLOSE), re.S)
+            new_html, count = pattern.subn(lambda _m: block, template, count=1)
+            if count:
+                return new_html
+        return template.replace(PANORAMA_MARK, block, 1)
+    print('  ⚠️ 未找到 PANORAMA 标记，跳过 01 节全景扫描注入', file=sys.stderr)
     return template
 
 
@@ -704,7 +775,8 @@ def main():
     leftovers = find_leftovers(template)
     if (not leftovers and COMMUNITY_LIST_BEGIN not in template
             and SENTIMENT_LIST_BEGIN not in template and MACROLIST_MARK not in template
-            and MACROLIST_BEGIN not in template):
+            and MACROLIST_BEGIN not in template and PANORAMA_MARK not in template
+            and PANORAMA_BEGIN not in template):
         print(f'错误: {args.template} 中没有 {{占位符}}，疑似已构建过的产物。\n'
               f'仓库中的 report.html 应保持模板版本；恢复: git checkout -- report.html',
               file=sys.stderr)
@@ -748,6 +820,11 @@ def main():
         try:
             with open(args.macro, encoding='utf-8') as f:
                 macro_data = json.load(f)
+            if not isinstance(macro_data, dict):
+                # 写坏/截断的产物可能解析成 list，带进渲染层会直接崩；按不可用处理
+                print(f'警告: {args.macro} 结构异常（{type(macro_data).__name__}），'
+                      '02 节走「今日未获取」兜底', file=sys.stderr)
+                macro_data = {}
         except ValueError as e:
             print(f'警告: {args.macro} 解析失败({e})，02 节宏观快讯显示降级说明', file=sys.stderr)
     else:
@@ -755,6 +832,19 @@ def main():
               '可先运行 python3 macro_data.py --mock 生成', file=sys.stderr)
 
     now = datetime.now(timezone.utc)
+
+    # 兜底保障（单一拦截点，与微信推送同一口径）：快讯不可用时就地清空条目，
+    # 保证 02 节兜底文案之外，01 节全景扫描也拿不到旧闻当证据。
+    macro_avail = macro_data_mod.availability(macro_data, now=now)
+    if not macro_avail['ok'] and (macro_data or {}).get('categories'):
+        macro_data = dict(macro_data)
+        macro_data['categories'] = {k: {'label': (v or {}).get('label') or k, 'items': []}
+                                    for k, v in (macro_data.get('categories') or {}).items()}
+        macro_data['summary'] = dict(macro_data.get('summary') or {}, kept_items=0)
+        macro_data['unavailable'] = macro_avail
+        print(f'  🛟 宏观快讯判定为不可用（{macro_avail["reason"]}），已清空条目走兜底：'
+              f'{macro_avail["detail"]}')
+
     tokens = build_tokens(data, now, community_data, sentiment_data)
 
     if community_data and community_data.get('communities'):
@@ -763,7 +853,9 @@ def main():
     else:
         print('  ℹ️ 社区数据为空，跳过动态注入，保留模板原有社区内容')
 
-    template = inject_macro_list(template, build_macro_html(macro_data))
+    template = inject_panorama(template, build_panorama_html(
+        data, macro_data, sentiment_data, community_data, now=now))
+    template = inject_macro_list(template, build_macro_html(macro_data, now=now))
     template = inject_sentiment(template, build_sentiment_html(sentiment_data))
 
     missing = sorted(set(find_leftovers(template)) - set(tokens))
