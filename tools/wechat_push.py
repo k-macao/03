@@ -758,11 +758,6 @@ def build_single_wechat_html(now=None):
   </div>
 
   {h('01 / 每日全球全景扫描 (Daily Global Panorama Scan · 5 大推动力量 · 每次构建现算)')}
-  {box(
-    key('扫一遍今天全球市场，总结推动股价的 5 大力量。')
-    + '重点关注宏观事件、板块轮动、情绪变化；逐条标注<strong>哪些是重点、哪些是噪音</strong>，'
-      '说明<strong>如何利好利空</strong>，并给出<strong>是否可以做多</strong>的规则化结论。'
-      '全部结论由当次抓取的行情 / 宏观快讯 / 舆情因子 / 社区研判现算，缺数据即标注未获取，不回填历史叙事。')}
   {panorama_block}
 
   {h('02 / 全球经济与财经动态 (Global Macro & HK Battlefield · 快讯每次构建现抓)')}
