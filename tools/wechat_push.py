@@ -132,27 +132,36 @@ def load_sentiment_data():
 def load_macro_data():
     """读取 macro_data.py 生成的 macro_data.json（02 栏宏观/财经快讯，每次构建现抓）。
 
-    路径可用环境变量 MACRO_DATA 覆盖。缺失/损坏时返回 {}，此时 02 栏渲染为
-    「今日宏观快讯未获取」+ 实时行情快照 —— 绝不回填历史文案（2026-09-16 旧内容事故根因）。
+    路径可用环境变量 MACRO_DATA 覆盖。产物缺失 / 写坏 / 是旧快照时，走
+    `macro_data.ensure()` 就地补抓一次（默认只在 CI 里自动联网，MACRO_AUTO_FETCH=1
+    本地也能开）；补抓仍拿不到就返回 {}，此时 02 栏渲染为「今日宏观快讯未获取」
+    + 实时行情快照 —— 绝不回填历史文案（2026-09-16 旧内容事故根因）。
     """
     path = os.environ.get('MACRO_DATA', os.path.join(REPO_ROOT, 'macro_data.json'))
-    if not os.path.exists(path):
+    res = macro_data_mod.ensure(path)
+    if res['action'] == 'fetched':
+        print(f'  🔄 微信推送：构建期补抓宏观快讯 {res["kept"]} 条 '
+              f'（{res["elapsed_ms"]} ms）→ {path}', file=sys.stderr)
+        return res['data']
+    if res['action'] == 'refetch_unavailable':
+        print(f'  ⚠️ 微信推送：宏观快讯补抓后仍无可用条目（{res["reason"]}）'
+              ' → 02 栏降级为「快讯未获取 + 实时行情」', file=sys.stderr)
+        return {}
+    if res['action'] == 'disabled':
         print('  ⚠️ 微信推送：未找到 macro_data.json → 02 栏降级为「快讯未获取 + 实时行情」',
               file=sys.stderr)
         return {}
-    try:
-        with open(path, encoding='utf-8') as f:
-            data = json.load(f)
-    except (OSError, ValueError) as e:
-        print(f'⚠️ 警告: macro_data.json 读取失败，02 栏快讯降级: {e}', file=sys.stderr)
-        return {}
-    if not isinstance(data, dict):
-        # 产物写坏/被截断时可能解析成 list 等结构；这里直接标成不可用，
-        # 交给 02 栏兜底文案处理，绝不让它带着错误类型流进渲染层（会整篇推送崩掉）。
-        print(f'⚠️ 警告: macro_data.json 结构异常（{type(data).__name__}），02 栏走「今日未获取」兜底',
+    if res['action'] == 'error':
+        print(f'⚠️ 警告: macro_data.json 读取/补抓异常（{res.get("detail")}），02 栏快讯降级',
               file=sys.stderr)
         return {}
-    return data
+    if res['reason'] != 'ok':
+        # no_items：当次抓过但窗口内 0 条（或产物结构不对），交给 02 栏兜底文案，
+        # 绝不让错误类型流进渲染层（会整篇推送崩掉）。
+        print(f'  ⚠️ 微信推送：宏观快讯不可用（{res["reason"]}）→ 02 栏走「今日未获取」兜底',
+              file=sys.stderr)
+        return {}
+    return res['data']
 
 
 def gen_quant_fallback(key, vclass, fetch_date, raw_pct, live_snippet="", source="fallback"):

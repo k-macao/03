@@ -23,7 +23,10 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 - **失败降级**：单品行情/单社区抓取失败自动降级（行情显示 "—"，社区显示动态模板），并在页面标注，**不阻断构建与推送**，保证 09:00 定时任务永不中断。
 - **02 栏（全球经济与财经动态）已改为快讯驱动**：`macro_data.py` 每次构建现抓 Google News RSS（中/英分主题）+ 美联储官方新闻稿 RSS + 东财财经快讯检索，按「宏观 / 美联储 / 港股 / 大宗商品 / 大行目标价」五类归组后渲染，**每条快讯自带发布日期**；超窗或无日期的条目在数据层就被丢弃（`stale_dropped` / `undated_dropped`）。**修复背景（2026-09-16 核查）**：这一栏原本是写死在 `tools/wechat_push.py` 里的固定文案（IMF 7 月 WEO、7 月 29 日 FOMC、8 月 12 日 CPI、南向 628.69 亿、各行恒指目标价…），构建时原样重播、页脚却盖当天时间戳，导致「生成时间是当天、正文停在 8 月 12 日」；现在抓不到快讯时 02 栏明确显示「今日未获取」+ 实时行情，**绝不回填历史叙事**（回归防线：`tests/test_wechat_push_macro.py` 断言正文不得再出现任何写死的历史事实）。
 - **网页 02 节同步接入宏观快讯**：`report.html` 的 02 节（行情快照）新增 `<!-- MACROLIST -->` 占位区，`build_site.py` 从**同一个** `macro_data.json` 注入五类快讯（每条自带发布日期，注入区尾部留 `<!-- /MACROLIST -->` 哨兵保证重复构建幂等）；缺 `macro_data.json` 时网页同样显示「今日未获取」+ `python3 macro_data.py …` 恢复命令，**绝不回填历史叙事** —— 网页与微信推送共用一套数据与时效口径（回归防线同上：`tests/test_wechat_push_macro.py` 同时断言网页注入区不含任何写死的历史事实）。
-- **CI 接入待人工应用一次**：`macro_data.py` 的构建步骤、以及 `verify_quotes.py` 的推送门禁（`#43` 声称但从未生效的部分：Pages 阶段 `|| true` 不阻断 + `verify_report.json` 随站点公开，推送阶段 FAIL 直接阻断）都以 `docs/macro-ci-workflow.patch` 随本仓库交付（Agent 的 GitHub App 缺 `workflows` 权限，含 `.github/workflows/**` 的提交会被远端 reject）。在有权限的账号执行 `git apply docs/macro-ci-workflow.patch` 并合并之前，构建不会产出 `macro_data.json`，02 栏会稳定显示「今日未获取」+ 实时行情（而不是重播旧文案）——这是刻意选择的降级方向。
+- **构建期自动补抓（2026-09-17 修复「今日未获取」的长期根因）**：线上核查确认 `.github/workflows/m.yml` 从来没有 `macro_data.py` 这一步（改动此前只以 `docs/macro-ci-workflow.patch` 交付、需要有 `workflows` 权限的账号手工 `git apply`，一直未应用；已用 `gh run view --job` 的 step 列表核实），所以每次构建都不存在 `macro_data.json`，网页 02 节与微信 02 栏**稳定**停在「今日未获取 · `no_file`」。现在有两条独立通路，任一条生效即可产出快讯：
+  1. **`build_site.py` / `tools/wechat_push.py` 内部补抓**（不需要 `workflows` 权限，与 `panorama.py`「构建期直接调用、无需改 CI workflow」同一思路）：读产物前先调 `macro_data.ensure()`，产物**缺失 / 写坏 / 是旧快照**时就地抓一轮并落盘，`deploy`/`wechat`/`daily` 三个 job 全部受益；只在 `no_file`/`bad_type`/`stale_snapshot` 时补抓，`no_items`（当次已抓过但窗口内 0 条）不重复烧网络；补抓失败绝不抛异常、绝不阻断构建。开关：默认**只在 CI 里自动开**（`GITHUB_ACTIONS` 存在），本地/单测默认不联网，`MACRO_AUTO_FETCH=1|0` 显式覆盖，CLI 另有 `--macro-fetch` / `--macro-no-fetch` / `--macro-mock` / `--macro-days` / `--macro-timeout`（`--check` 纯校验模式永不联网）。回归防线：`tests/test_macro_bootstrap.py`。
+  2. **workflow 里显式的抓取步骤**（待人工应用一次）：三个 job 各加一步 `macro_data.py --json macro_data.json --days 7 --text`（失败不阻断，逐源摘要写入 Step Summary），作为「补抓通路」之外的一手数据源与可观测入口。Agent 的 GitHub App 缺 `workflows` 权限已**实测确认**（`git push` 直接被远端 reject：`refusing to allow a GitHub App to create or update workflow ... without workflows permission`），因此以 `docs/macro-ci-step-only.patch` 交付，在有权限的账号执行 `git apply docs/macro-ci-step-only.patch` 即可（该补丁**只含快讯步骤**，不含 `verify_quotes.py` 门禁）。
+- **`verify_quotes.py` 的推送门禁仍待人工应用**：`#43` 声称但从未生效的部分（Pages 阶段 `|| true` 不阻断 + `verify_report.json` 随站点公开，推送阶段 FAIL 直接阻断）仍以 `docs/macro-ci-workflow.patch` 交付；这次**没有**把它一起接进 workflow —— 当前校验对恒指口径判 FAIL（`python3 verify_quotes.py` 实测 `pass 0 / warn 10 / fail 1`），若直接启用「推送阶段 FAIL 阻断」会把每日 09:00 推送整条掐断，需要先修校验口径再开门禁。
 - **日期联动**：14 大社区「最新读取」日期与正文中的“8 月 X 日”日期均随抓取日自动刷新（`community_data.py` 生成当天日期），推送前日期核对（`--push` 严格 / `--scheduled` 宽松）逻辑保持不变。
 - 本地联调可用 `python3 market_data.py --demo && python3 community_data.py --demo` 生成模拟行情+社区。
 
@@ -97,7 +100,7 @@ python3 -m unittest tests.test_panorama   # 13 项回归
 
 | `reason` | 形态 | 说明 |
 |---|---|---|
-| `no_file` | 文件读不到 | 构建步骤未执行，或产物未生成 |
+| `no_file` | 文件读不到 | 构建步骤未执行，或产物未生成（2026-09-17 起：`build_site.py` / `tools/wechat_push.py` 会先走 `macro_data.ensure()` 补抓，正常路径下不该再出现；仍出现说明补抓被关掉了 —— 查 `MACRO_AUTO_FETCH` / `--macro-no-fetch`） |
 | `bad_type` | 产物写坏 / 被截断 | 解析出来不是预期的对象结构（此前会让整篇推送崩掉） |
 | `no_items` | 窗口内 0 条 | 文件在、结构对，但公开源当次全挂或条目全部超窗被拦截 |
 | `stale_snapshot` | 读到旧快照 | `generated_at` 距今超过 `SNAPSHOT_MAX_AGE_DAYS`（默认 1 天），即当次抓取未执行/失败 |
@@ -169,7 +172,7 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 |---|---|
 | `market_data.py` | **动态行情抓取**：多源回退抓取最新行情，生成 `market_data.json`（构建产物，不入库） |
 | `sentiment_data.json` / `sentiment_history.json` | 舆情因子当日结果与新闻条数历史（供 `NEWS_HEAT_Z` 基线），均为构建产物，不入库 |
-| `macro_data.py` | **宏观/财经快讯抓取**：8 个免密钥公开源（Google News RSS 中英分主题 / 美联储官方 RSS / 东财检索）→ 归一去重 → **时效过滤** → 按 02 栏五个小节归类，生成 `macro_data.json`（构建产物，不入库）；`--days` 收紧窗口、`--mock` 离线回放 `tests/fixtures/MACRO_MIX.json`、`--offline` 沿用上次结果、`--text` 输出 CI Step Summary；单源失败不阻断 |
+| `macro_data.py` | **宏观/财经快讯抓取**：8 个免密钥公开源（Google News RSS 中英分主题 / 美联储官方 RSS / 东财检索）→ 归一去重 → **时效过滤** → 按 02 栏五个小节归类，生成 `macro_data.json`（构建产物，不入库）；`--days` 收紧窗口、`--mock` 离线回放 `tests/fixtures/MACRO_MIX.json`、`--offline` 沿用上次结果、`--text` 输出 CI Step Summary；单源失败不阻断。另导出 `availability()`（四种不可用形态的统一判定）与 **`ensure()`**（构建期补抓：产物缺失/写坏/旧快照时就地抓一轮并落盘，被 `build_site.py` 与 `tools/wechat_push.py` 调用，因此不改 CI workflow 也能拿到快讯；`MACRO_AUTO_FETCH=1|0` 控制开关，默认仅 CI 内自动开） |
 | `macro_data.availability()` | **02 栏兜底口径的单一事实源**：判定本次到底有没有可用快讯，返回 `reason` ∈ `no_file`（文件读不到）/ `bad_type`（产物写坏被截断）/ `no_items`（窗口内 0 条，公开源全挂或全部超窗）/ `stale_snapshot`（读到前几天构建的旧快照，超过 `SNAPSHOT_MAX_AGE_DAYS=1`）。网页与微信两端共用，避免两套渲染各写一套口径而漂移 |
 | `tests/test_macro_data.py` | 快讯层测试（16 项，零联网）：RSS/JSONP 解析、跨源去重、分类路由（IMF+关税 必须落宏观而非大宗）、超窗与无日期拦截、`--mock` 输出契约 |
 | `tests/test_wechat_push_macro.py` | 宏观快讯渲染回归（推送 02 栏 + 网页 02 节，9 项）：必须渲染当次快讯且每条带日期；**四种不可用形态都要落到同一段「今日未获取」兜底文案**；过期快照不得从 01 / 07 栏漏出；网页 `MACROLIST` 注入幂等；正文/注入区禁止再出现 628.69 亿、8 月 12 日、25,440.17 等写死历史内容 |

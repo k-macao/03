@@ -760,6 +760,16 @@ def main():
                     help='舆情因子数据 JSON 路径（sentiment_factors.py 生成）')
     ap.add_argument('--macro', default='macro_data.json',
                     help='宏观/财经快讯 JSON 路径（macro_data.py 生成，02 节 MACROLIST 注入源）')
+    ap.add_argument('--macro-days', type=int, default=macro_data_mod.MAX_AGE_DAYS_DEFAULT,
+                    help='快讯时效窗口（天），构建期补抓时使用')
+    ap.add_argument('--macro-timeout', type=int, default=macro_data_mod.AUTO_FETCH_TIMEOUT,
+                    help='构建期补抓的单请求超时秒数')
+    ap.add_argument('--macro-no-fetch', action='store_true',
+                    help='禁用构建期自动补抓（产物缺失时直接显示「今日未获取」）')
+    ap.add_argument('--macro-fetch', action='store_true',
+                    help='强制开启构建期自动补抓（本地默认不联网，CI 默认开）')
+    ap.add_argument('--macro-mock', action='store_true',
+                    help='构建期补抓走离线回放 tests/fixtures（联调用）')
     ap.add_argument('--template', default='report.html', help='模板文件路径')
     ap.add_argument('--out', default='report.html', help='输出文件路径')
     ap.add_argument('--check', action='store_true', help='只校验占位符，不写文件')
@@ -815,23 +825,34 @@ def main():
         print('提示: 未找到 sentiment_data.json，03B 舆情因子节点显示降级说明；'
               '可先运行 python3 sentiment_factors.py --mock 生成', file=sys.stderr)
 
-    macro_data = {}
-    if os.path.exists(args.macro):
-        try:
-            with open(args.macro, encoding='utf-8') as f:
-                macro_data = json.load(f)
-            if not isinstance(macro_data, dict):
-                # 写坏/截断的产物可能解析成 list，带进渲染层会直接崩；按不可用处理
-                print(f'警告: {args.macro} 结构异常（{type(macro_data).__name__}），'
-                      '02 节走「今日未获取」兜底', file=sys.stderr)
-                macro_data = {}
-        except ValueError as e:
-            print(f'警告: {args.macro} 解析失败({e})，02 节宏观快讯显示降级说明', file=sys.stderr)
-    else:
-        print('提示: 未找到 macro_data.json，02 节宏观快讯显示「今日未获取」；'
-              '可先运行 python3 macro_data.py --mock 生成', file=sys.stderr)
-
     now = datetime.now(timezone.utc)
+
+    # 02 节快讯产物：缺失 / 写坏 / 旧快照时**就地补抓一次**（构建期兜底）。
+    # 线上 workflow 至今没有 macro_data.py 这一步（补丁待有 workflows 权限的账号应用），
+    # 这里在 build_site 内部补上通路，deploy / wechat / daily 三个 job 都自动受益。
+    # --check 是纯校验模式，绝不联网。
+    macro_allow = False if (args.check or args.macro_no_fetch) else (
+        True if args.macro_fetch else None)
+    macro_res = macro_data_mod.ensure(
+        args.macro, max_age_days=args.macro_days, timeout=args.macro_timeout,
+        mock=args.macro_mock, quiet=False, now=now, allow_fetch=macro_allow)
+    macro_data = macro_res['data'] or {}
+    if not isinstance(macro_data, dict):
+        print(f'警告: {args.macro} 结构异常（{type(macro_data).__name__}），'
+              '02 节走「今日未获取」兜底', file=sys.stderr)
+        macro_data = {}
+    if macro_res['action'] == 'fetched':
+        print(f'  🔄 构建期补抓宏观快讯成功：{macro_res["kept"]} 条入库 '
+              f'（{macro_res["elapsed_ms"]} ms）→ {args.macro}')
+    elif macro_res['action'] == 'refetch_unavailable':
+        print(f'  ⚠️ 构建期补抓宏观快讯：{macro_res["elapsed_ms"]} ms 后仍无可用条目'
+              f'（{macro_res["reason"]}）→ 02 节显示「今日未获取」，不回填历史叙事')
+    elif macro_res['action'] == 'no_refetch':
+        print('  ℹ️ 宏观快讯当次已抓取过但窗口内 0 条，跳过重复补抓')
+    elif macro_res['action'] == 'disabled':
+        print('提示: 未找到 macro_data.json，02 节宏观快讯显示「今日未获取」；'
+              '可先运行 python3 macro_data.py --mock 生成，'
+              '或用 --macro-fetch / MACRO_AUTO_FETCH=1 开启构建期补抓', file=sys.stderr)
 
     # 兜底保障（单一拦截点，与微信推送同一口径）：快讯不可用时就地清空条目，
     # 保证 02 节兜底文案之外，01 节全景扫描也拿不到旧闻当证据。
