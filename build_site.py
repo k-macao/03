@@ -3,8 +3,9 @@
 """
 章鱼 AI 量化策略日报 — 动态建站 (build_site.py)
 
-读取 market_data.json + community_data.json (+ sentiment_data.json)，把 report.html 模板中的
-{{占位符}} 替换为最新抓取数据，并动态注入 14 大社区最新研判与「舆情因子接入实测」区块，
+读取 market_data.json + community_data.json (+ sentiment_data.json + macro_data.json)，
+把 report.html 模板中的 {{占位符}} 替换为最新抓取数据，并动态注入 14 大社区最新研判、
+02 节宏观/财经快讯与「舆情因子接入实测」区块，
 同时在每个社区卡片后追加核心量化指标（实体级情感、事件分类、相关性、新颖度），
 生成最终 report.html（页面源文件，供 GitHub Pages 部署与 wechat_push.py 内嵌）。
 
@@ -22,12 +23,19 @@
     替换模板中 <!-- COMMUNITY_LIST:BEGIN --> ... <!-- COMMUNITY_LIST:END --> 之间的内容
   - 若不存在，则保留模板原有静态社区内容（仅日期占位符会被刷新），保证向后兼容
 
+宏观快讯注入 (02 节):
+  - 若存在 macro_data.json（macro_data.py 构建时现抓），则渲染各分类快讯（每条自带发布日期）
+    注入模板中 <!-- MACROLIST --> 占位处（也兼容 <!-- MACROLIST:BEGIN/END --> 成对标记）
+  - 若不存在或窗口内无快讯，则显示「今日未获取」+ 恢复命令，绝不回填历史叙事
+    （2026-09-16 旧内容事故根因：正文写死 8 月 12 日等旧事实，时效由 macro_data.py 保证）
+
 量化指标注入:
   - 每条社区数据可携带 quant 字段，包含 sentiment/event/relevance/novelty
   - build_community_html 会在 AI 研判后追加 quant-metrics 区块
 
 用法:
-  python3 market_data.py && python3 community_data.py && python3 build_site.py   # 常规构建（行情+社区动态）
+  python3 market_data.py && python3 community_data.py && python3 macro_data.py && python3 build_site.py
+                                                       # 常规构建（行情+社区+宏观快讯动态）
   python3 build_site.py --check                        # 只校验占位符是否齐全，不写文件
   python3 build_site.py --data market_data.json --community community_data.json --out report.html
 
@@ -65,6 +73,11 @@ COMMUNITY_LIST_BEGIN = '<!-- COMMUNITY_LIST:BEGIN -->'
 COMMUNITY_LIST_END = '<!-- COMMUNITY_LIST:END -->'
 SENTIMENT_LIST_BEGIN = '<!-- SENTIMENT_LIST:BEGIN -->'
 SENTIMENT_LIST_END = '<!-- SENTIMENT_LIST:END -->'
+# 02 节宏观快讯占位区（主标记单点；成对标记与结束哨兵用于幂等重建）
+MACROLIST_MARK = '<!-- MACROLIST -->'
+MACROLIST_BEGIN = '<!-- MACROLIST:BEGIN -->'
+MACROLIST_END = '<!-- MACROLIST:END -->'
+MACROLIST_CLOSE = '<!-- /MACROLIST -->'
 
 def fmt_last(q, nd=None):
     """最新价 → "25,440.17"；缺失 → "—"。GOLD 且 >=1000 时取整数。"""
@@ -232,6 +245,20 @@ def _community_fetch_status(cdata):
     return f'{ok}/{total} 个社区同步成功，{names} 降级为动态模板 · 抓取于 {gen} · 抓取日期 {fetch_date}'
 
 
+def _macro_status(mdata):
+    """02 节宏观快讯状态文案（对外不显示数据来源，只给可用源数与时效应答）。"""
+    if not mdata or not mdata.get('categories'):
+        return '未找到 macro_data.json，02 节显示「今日未获取」（请先运行 python3 macro_data.py）'
+    summ = mdata.get('summary') or {}
+    win = mdata.get('window') or {}
+    txt = (f'{summ.get("kept_items", 0)} 条入库 · 公开源 {summ.get("ok", 0)}/{summ.get("total", 0)} 可用 · '
+           f'时效窗口 {win.get("max_age_days", "—")} 天（{win.get("since") or "—"} 起）· '
+           f'抓取于 {mdata.get("generated_at") or "—"}')
+    if not (summ.get('kept_items') or 0):
+        txt += ' · 窗口内无可核验快讯 → 02 节标注未获取，不回填旧文'
+    return txt
+
+
 def substitute(template, tokens):
     out = template
     for token, value in tokens.items():
@@ -317,6 +344,112 @@ def inject_community_list(template, community_html):
         print(f'  🧩 已动态注入 {community_html.count("<article")} 个社区卡片（兼容旧模板）')
         return new_html
     print('  ⚠️ 未找到社区列表标记，跳过动态注入（将保留模板原有社区内容）', file=sys.stderr)
+    return template
+
+
+def _md_cn(date_str):
+    """'2026-09-16' → '9 月 16 日'；异常输入原样返回。"""
+    m = re.match(r'20\d{2}-(\d{2})-(\d{2})$', str(date_str or ''))
+    if not m:
+        return date_str or '日期未标注'
+    return f'{int(m.group(1))} 月 {int(m.group(2))} 日'
+
+
+def build_macro_html(macro_data):
+    """02 节宏观/财经快讯区块（macro_data.json 驱动，条目自带发布日期）。
+
+    对外**不显示数据来源**（与舆情层同一脱敏口径，只给公开源可用数）；
+    抓不到快讯时显示「今日未获取」+ 恢复命令，绝不回填历史叙事
+    （2026-09-16 旧内容事故根因：正文写死 8 月 12 日等旧事实）。
+    """
+    cats = (macro_data or {}).get('categories') or {}
+    summ = (macro_data or {}).get('summary') or {}
+    win = (macro_data or {}).get('window') or {}
+    mode = (macro_data or {}).get('mode') or ''
+
+    if not cats:
+        return (
+            '<div class="pub-sub">◆ 宏观快讯 — 今日未获取</div>\n'
+            '<div style="font-size:11.5px;line-height:1.8;color:#0a0a0a;">\n'
+            '  ⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 '
+            '<code style="background:#eceef0;padding:1px 4px;">'
+            'python3 macro_data.py --json macro_data.json --days 7 --text</code> 未执行，'
+            '或公开快讯源当次全部失败。<br/>\n'
+            '  本栏<strong>不再回填历史叙事</strong>（旧文案写死在模板里正是正文长期过期的根因），'
+            '上方行情快照与 03 / 03B 节仍为当次抓取结果，宏观结论以每次重建后的最新一版为准。\n'
+            '</div>'
+        )
+
+    note = (
+        f'宏观快讯 {summ.get("kept_items", 0)} 条入库 · 时效窗口 {win.get("max_age_days", "—")} 天'
+        f'（{win.get("since") or "—"} 起）· 公开源 {summ.get("ok", 0)}/{summ.get("total", 0)} 可用'
+        + (f' · 已拦截超窗 {summ.get("stale_dropped", 0)} 条 / 无日期 {summ.get("undated_dropped", 0)} 条'
+           if (summ.get('stale_dropped') or summ.get('undated_dropped')) else '')
+        + f' · 抓取于 {macro_data.get("generated_at") or "—"}'
+        + (f' · 模式 {mode}' if mode and mode != 'live' else '')
+        + ' · 不显示数据来源（与舆情层同一脱敏口径）'
+    )
+    parts = ['<div class="pub-sub">◆ 宏观快讯 — 每次构建现抓 · 发布日期见每条前缀</div>',
+             f'<div class="pub-meta" style="margin:2px 0 8px;">{_esc(note)}</div>']
+
+    empty_labels = []
+    for ckey, blk in cats.items():
+        label = (blk or {}).get('label') or ckey
+        items = (blk or {}).get('items') or []
+        if not items:
+            empty_labels.append(label.replace(' — ', '·').split('（')[0])
+            continue
+        rows = []
+        for it in items:
+            ttl = _esc((it.get('title') or '').strip())
+            snip = _esc((it.get('snippet') or '').strip()[:72])
+            rows.append(
+                f'  <li><strong style="color:#000;">[{_esc(_md_cn(it.get("published_date")))}]</strong> {ttl}'
+                + (f' <span style="color:var(--muted);font-size:11px;">{snip}</span>' if snip else '')
+                + '</li>'
+            )
+        parts.append(f'<div class="pub-sub" style="margin-top:10px;">◆ {_esc(label)}</div>')
+        parts.append('<ul class="pixel-list" style="margin:6px 0 0;">\n' + '\n'.join(rows) + '\n</ul>')
+
+    if not (summ.get('kept_items') or 0):
+        parts.append(
+            '<div style="background:#eceef0;border-left:3px solid #141414;border-radius:4px;'
+            'padding:8px 10px;margin:8px 0;font-size:11.5px;color:#0a0a0a;">'
+            f'⚠️ 当次 {summ.get("ok", 0)}/{summ.get("total", 0)} 个公开源可用，窗口（'
+            f'{win.get("max_age_days", "—")} 天）内没有任何可核验的宏观快讯 —— '
+            '本栏不复用任何历史叙事，宏观结论请以行情快照与 03 / 03B 节当次数据为准。</div>'
+        )
+    elif empty_labels:
+        parts.append(
+            '<div class="pub-meta" style="margin-top:8px;">窗口内无匹配快讯的小节：'
+            + _esc('、'.join(empty_labels)) + '（按时效留空，不回填旧文）</div>'
+        )
+    return '\n'.join(parts)
+
+
+def inject_macro_list(template, macro_html):
+    """把宏观快讯注入模板 02 节的 MACROLIST 标记处（照 community / sentiment 的注入写法）。
+
+    主标记为 `<!-- MACROLIST -->`；兼容 `<!-- MACROLIST:BEGIN/END -->` 成对标记；
+    注入时在内容尾部留下 `<!-- /MACROLIST -->` 哨兵，重复构建时原地替换而非追加。
+    """
+    block = f'{MACROLIST_MARK}\n{macro_html}\n{MACROLIST_CLOSE}'
+    if MACROLIST_BEGIN in template and MACROLIST_END in template:
+        pattern = re.compile(re.escape(MACROLIST_BEGIN) + r'.*?' + re.escape(MACROLIST_END), re.S)
+        new_html, count = pattern.subn(lambda _m: block, template, count=1)
+        if count:
+            print('  📰 已动态注入 02 节宏观快讯（成对标记替换）')
+            return new_html
+    if MACROLIST_MARK in template:
+        if MACROLIST_CLOSE in template:
+            pattern = re.compile(re.escape(MACROLIST_MARK) + r'.*?' + re.escape(MACROLIST_CLOSE), re.S)
+            new_html, count = pattern.subn(lambda _m: block, template, count=1)
+            if count:
+                print('  📰 已动态注入 02 节宏观快讯（单标记替换）')
+                return new_html
+        print('  📰 已动态注入 02 节宏观快讯（单标记插入）')
+        return template.replace(MACROLIST_MARK, block, 1)
+    print('  ⚠️ 未找到 MACROLIST 标记，跳过宏观快讯注入', file=sys.stderr)
     return template
 
 
@@ -554,6 +687,8 @@ def main():
     ap.add_argument('--community', default='community_data.json', help='社区数据 JSON 路径')
     ap.add_argument('--sentiment', default='sentiment_data.json',
                     help='舆情因子数据 JSON 路径（sentiment_factors.py 生成）')
+    ap.add_argument('--macro', default='macro_data.json',
+                    help='宏观/财经快讯 JSON 路径（macro_data.py 生成，02 节 MACROLIST 注入源）')
     ap.add_argument('--template', default='report.html', help='模板文件路径')
     ap.add_argument('--out', default='report.html', help='输出文件路径')
     ap.add_argument('--check', action='store_true', help='只校验占位符，不写文件')
@@ -567,7 +702,9 @@ def main():
         template = f.read()
 
     leftovers = find_leftovers(template)
-    if not leftovers and COMMUNITY_LIST_BEGIN not in template and SENTIMENT_LIST_BEGIN not in template:
+    if (not leftovers and COMMUNITY_LIST_BEGIN not in template
+            and SENTIMENT_LIST_BEGIN not in template and MACROLIST_MARK not in template
+            and MACROLIST_BEGIN not in template):
         print(f'错误: {args.template} 中没有 {{占位符}}，疑似已构建过的产物。\n'
               f'仓库中的 report.html 应保持模板版本；恢复: git checkout -- report.html',
               file=sys.stderr)
@@ -606,6 +743,17 @@ def main():
         print('提示: 未找到 sentiment_data.json，03B 舆情因子节点显示降级说明；'
               '可先运行 python3 sentiment_factors.py --mock 生成', file=sys.stderr)
 
+    macro_data = {}
+    if os.path.exists(args.macro):
+        try:
+            with open(args.macro, encoding='utf-8') as f:
+                macro_data = json.load(f)
+        except ValueError as e:
+            print(f'警告: {args.macro} 解析失败({e})，02 节宏观快讯显示降级说明', file=sys.stderr)
+    else:
+        print('提示: 未找到 macro_data.json，02 节宏观快讯显示「今日未获取」；'
+              '可先运行 python3 macro_data.py --mock 生成', file=sys.stderr)
+
     now = datetime.now(timezone.utc)
     tokens = build_tokens(data, now, community_data, sentiment_data)
 
@@ -615,6 +763,7 @@ def main():
     else:
         print('  ℹ️ 社区数据为空，跳过动态注入，保留模板原有社区内容')
 
+    template = inject_macro_list(template, build_macro_html(macro_data))
     template = inject_sentiment(template, build_sentiment_html(sentiment_data))
 
     missing = sorted(set(find_leftovers(template)) - set(tokens))
@@ -649,6 +798,9 @@ def main():
     print(f'   社区状态: {community_status_token}')
     print(f"   舆情状态: {tokens.get('{{SENT_SOURCE_STATUS}}')} · 温度计 {tokens.get('{{SENT_TEMP}}')}"
           f"（{tokens.get('{{SENT_LABEL}}')}）· {tokens.get('{{SENT_MODE}}')}")
+    macro_summ = (macro_data or {}).get('summary') or {}
+    print(f"   宏观快讯: {_macro_status(macro_data)}"
+          + (f" · 入库 {macro_summ.get('kept_items')} 条" if macro_data else ''))
 
 
 if __name__ == '__main__':

@@ -25,6 +25,7 @@ for _p in (REPO_ROOT, os.path.join(REPO_ROOT, 'tools')):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import build_site as bs                       # noqa: E402  网页 02 节 MACROLIST 注入
 import macro_data as md                       # noqa: E402
 import wechat_push as wp                      # noqa: E402
 
@@ -80,6 +81,11 @@ class TestMacroSection(unittest.TestCase):
         self.assertIn('macro_data.py', html, '降级提示要直接给出恢复命令')
         self.assertIn('不再回填历史叙事', html)
         self.assertIn('行情未获取', html, '行情缺失应直说，而不是显示兜底点位')
+        # 网页 02 节走同一降级方向：缺 macro_data.json 时标注「今日未获取」，不摆历史叙事
+        web = bs.build_macro_html({})
+        self.assertIn('今日未获取', web)
+        self.assertIn('python3 macro_data.py', web)
+        self.assertIn('不再回填历史叙事', web)
 
     def test_macro_items_are_rendered_with_publish_dates(self):
         data = md.build(mock=True, quiet=True)
@@ -103,6 +109,28 @@ class TestMacroSection(unittest.TestCase):
                         '每条快讯应自带发布日期，读者才能自行判断时效')
         for bad in STALE_MARKERS:
             self.assertNotIn(bad, html)
+
+        # 网页 02 节（report.html）：build_site 从同一个 macro_data.json 注入 MACROLIST 占位区
+        tpl = open(os.path.join(REPO_ROOT, 'report.html'), encoding='utf-8').read()
+        self.assertIn(bs.MACROLIST_MARK, tpl, '仓库模板必须保留 <!-- MACROLIST --> 占位区')
+        page = bs.inject_macro_list(tpl, bs.build_macro_html(data))
+        self.assertIn(bs.MACROLIST_MARK, page, '占位标记要保留，保证重复构建幂等')
+        block = page.split(bs.MACROLIST_MARK, 1)[1].split(bs.MACROLIST_CLOSE, 1)[0]
+        plain_block = wp.re.sub(r'\s+', ' ', wp.re.sub(r'<[^>]+>', ' ', block))
+        self.assertNotIn('今日未获取', plain_block)
+        self.assertIn('时效窗口', plain_block)
+        self.assertIn('不显示数据来源', plain_block)
+        self.assertTrue(re.search(r'\[\d{1,2} 月 \d{1,2} 日\]', plain_block),
+                        '网页每条快讯同样自带发布日期')
+        for t in titles:
+            self.assertIn(wp.re.sub(r'\s+', ' ', t)[:20], plain_block,
+                          f'当次快讯应渲染进网页 02 节: {t}')
+        for bad in STALE_MARKERS:
+            self.assertNotIn(bad, plain_block, '注入区的快讯只能来自当次抓取')
+        # 幂等：以注入结果为模板再注入一次，不得追加出第二份快讯块
+        again = bs.inject_macro_list(page, bs.build_macro_html(data))
+        self.assertEqual(again.count(bs.MACROLIST_MARK), 1)
+        self.assertEqual(again.count(bs.MACROLIST_CLOSE), 1)
 
     def test_03_overview_counts_are_derived_not_hardcoded(self):
         """社区多空家数必须由当次社区数据推导（此前写死「偏多 6 家」）。"""

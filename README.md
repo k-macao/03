@@ -9,9 +9,10 @@
 
 ```bash
 python3 market_data.py               # ① 动态抓取行情 → market_data.json (Yahoo→Stooq回退)
+python3 verify_quotes.py --json verify_report.json --text   # ①′ 全来源交叉校验 (FAIL=2 阻断推送；网页阶段仅公开报告不阻断)
 python3 community_data.py            # ② 动态抓取14社区 → community_data.json (HTTP GET+模板回退，每次刷新当天日期)
-python3 macro_data.py                  # ②′ 动态抓取宏观/财经快讯 → macro_data.json (微信 02 栏正文；只保留 7 天内、发布日期可解析的条目)
-python3 build_site.py                # ③ 动态建站 → report.html (注入行情+社区+日期/时间戳，14源动态注入)
+python3 macro_data.py                # ②′ 动态抓取宏观/财经快讯 → macro_data.json (网页 02 节 + 微信 02 栏正文；只保留 7 天内、发布日期可解析的条目)
+python3 build_site.py                # ③ 动态建站 → report.html (注入行情+社区+宏观快讯+日期/时间戳，14源动态注入)
 python3 tools/wechat_push.py --embed # ④ 内嵌最新推送负载进 report.html
 python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微信
 ```
@@ -21,7 +22,8 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 - **覆盖标的**：恒指 / 恒生科技 / 恒生国企 / 标普 500 / 纳斯达克 / 道琼斯 / 现货黄金 / WTI / 布伦特 / 美元离岸与在岸人民币。
 - **失败降级**：单品行情/单社区抓取失败自动降级（行情显示 "—"，社区显示动态模板），并在页面标注，**不阻断构建与推送**，保证 09:00 定时任务永不中断。
 - **02 栏（全球经济与财经动态）已改为快讯驱动**：`macro_data.py` 每次构建现抓 Google News RSS（中/英分主题）+ 美联储官方新闻稿 RSS + 东财财经快讯检索，按「宏观 / 美联储 / 港股 / 大宗商品 / 大行目标价」五类归组后渲染，**每条快讯自带发布日期**；超窗或无日期的条目在数据层就被丢弃（`stale_dropped` / `undated_dropped`）。**修复背景（2026-09-16 核查）**：这一栏原本是写死在 `tools/wechat_push.py` 里的固定文案（IMF 7 月 WEO、7 月 29 日 FOMC、8 月 12 日 CPI、南向 628.69 亿、各行恒指目标价…），构建时原样重播、页脚却盖当天时间戳，导致「生成时间是当天、正文停在 8 月 12 日」；现在抓不到快讯时 02 栏明确显示「今日未获取」+ 实时行情，**绝不回填历史叙事**（回归防线：`tests/test_wechat_push_macro.py` 断言正文不得再出现任何写死的历史事实）。
-- **CI 接入待人工应用一次**：`macro_data.py` 的构建步骤以 `docs/macro-ci-workflow.patch` 随本仓库交付（Agent 的 GitHub App 缺 `workflows` 权限，含 `.github/workflows/**` 的提交会被远端 reject）。在有权限的账号执行 `git apply docs/macro-ci-workflow.patch` 并合并之前，构建不会产出 `macro_data.json`，02 栏会稳定显示「今日未获取」+ 实时行情（而不是重播旧文案）——这是刻意选择的降级方向。
+- **网页 02 节同步接入宏观快讯**：`report.html` 的 02 节（行情快照）新增 `<!-- MACROLIST -->` 占位区，`build_site.py` 从**同一个** `macro_data.json` 注入五类快讯（每条自带发布日期，注入区尾部留 `<!-- /MACROLIST -->` 哨兵保证重复构建幂等）；缺 `macro_data.json` 时网页同样显示「今日未获取」+ `python3 macro_data.py …` 恢复命令，**绝不回填历史叙事** —— 网页与微信推送共用一套数据与时效口径（回归防线同上：`tests/test_wechat_push_macro.py` 同时断言网页注入区不含任何写死的历史事实）。
+- **CI 接入待人工应用一次**：`macro_data.py` 的构建步骤、以及 `verify_quotes.py` 的推送门禁（`#43` 声称但从未生效的部分：Pages 阶段 `|| true` 不阻断 + `verify_report.json` 随站点公开，推送阶段 FAIL 直接阻断）都以 `docs/macro-ci-workflow.patch` 随本仓库交付（Agent 的 GitHub App 缺 `workflows` 权限，含 `.github/workflows/**` 的提交会被远端 reject）。在有权限的账号执行 `git apply docs/macro-ci-workflow.patch` 并合并之前，构建不会产出 `macro_data.json`，02 栏会稳定显示「今日未获取」+ 实时行情（而不是重播旧文案）——这是刻意选择的降级方向。
 - **日期联动**：14 大社区「最新读取」日期与正文中的“8 月 X 日”日期均随抓取日自动刷新（`community_data.py` 生成当天日期），推送前日期核对（`--push` 严格 / `--scheduled` 宽松）逻辑保持不变。
 - 本地联调可用 `python3 market_data.py --demo && python3 community_data.py --demo` 生成模拟行情+社区。
 
@@ -85,7 +87,7 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 | `sentiment_data.json` / `sentiment_history.json` | 舆情因子当日结果与新闻条数历史（供 `NEWS_HEAT_Z` 基线），均为构建产物，不入库 |
 | `macro_data.py` | **宏观/财经快讯抓取**：8 个免密钥公开源（Google News RSS 中英分主题 / 美联储官方 RSS / 东财检索）→ 归一去重 → **时效过滤** → 按 02 栏五个小节归类，生成 `macro_data.json`（构建产物，不入库）；`--days` 收紧窗口、`--mock` 离线回放 `tests/fixtures/MACRO_MIX.json`、`--offline` 沿用上次结果、`--text` 输出 CI Step Summary；单源失败不阻断 |
 | `tests/test_macro_data.py` | 快讯层测试（16 项，零联网）：RSS/JSONP 解析、跨源去重、分类路由（IMF+关税 必须落宏观而非大宗）、超窗与无日期拦截、`--mock` 输出契约 |
-| `tests/test_wechat_push_macro.py` | 推送渲染回归：02 栏必须渲染当次快讯且每条带日期；快讯缺失时降级为「今日未获取」；正文禁止再出现 628.69 亿、8 月 12 日、25,440.17 等写死历史内容 |
+| `tests/test_wechat_push_macro.py` | 宏观快讯渲染回归（推送 02 栏 + 网页 02 节）：必须渲染当次快讯且每条带日期；快讯缺失时降级为「今日未获取」；网页 `MACROLIST` 注入幂等；正文/注入区禁止再出现 628.69 亿、8 月 12 日、25,440.17 等写死历史内容 |
 | `community_data.py` | **动态社区抓取**：14 大社区 HTTP GET + 动态模板回退，生成 `community_data.json`（构建产物，不入库），每次刷新当天日期与研判正文 |
 | `sentiment_sources.py` | **接口注册表**：11 个量化平台/公开源舆情·新闻因子的能力口径（端点、字段、时效、历史、额度、成本、局限）+ 因子定义 + 9 个评测阶段与 6 维评分权重；`python3 sentiment_sources.py` 打印清单与凭据/依赖状态 |
 | `sentiment_adapters.py` | **接入适配器**：每源一个 `call_*`（live 取数）+ `parse_*`（报文 → 统一结构 `{news, series, meta}`），全部纯标准库；`--mode mock` 用 `tests/fixtures` 录制报文离线校验解析链路 |
@@ -95,10 +97,11 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 | `tools/probe_sentiment_apis.py` | **接入实测探针**：依赖→网络→鉴权→取数→字段→时效→覆盖→延迟→额度 9 阶段短路判定 + 100 分制打分 → `api_probe_report.json` 与 `docs/sentiment-api-eval.md` |
 | `docs/sentiment-api-eval.md` | **评测矩阵（内部档案）**：结论速览 / 能力矩阵 / 评分明细 / 逐源明细，由探针自动生成；**不在网页与微信推送中展示**（对外不显示来源） |
 | `tests/test_sentiment.py` | 舆情层测试（38 项，零联网）：`python3 -m unittest discover -s tests`；含「03B 对外输出不得出现任何来源痕迹」与「采集结果必须匹配到日报标的」两类回归 |
-| `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记，并把「因子读数 + 标的匹配（不含来源）」注入 `<!-- SENTIMENT_LIST -->` 标记 |
-| `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 `<!-- COMMUNITY_LIST:BEGIN/END -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
+| `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记，把 `macro_data.json` 的快讯注入 02 节 `<!-- MACROLIST -->` 占位区（缺数据→「今日未获取」，回填哨兵 `<!-- /MACROLIST -->` 保证幂等），并把「因子读数 + 标的匹配（不含来源）」注入 `<!-- SENTIMENT_LIST -->` 标记 |
+| `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 `<!-- COMMUNITY_LIST:BEGIN/END -->`、02 节 `<!-- MACROLIST -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
 | `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `community_data.json` 双动态数据，转为微信兼容的单页完整内联样式 HTML，经 PushPlus **一对多**群组推送（群组编码 `oai.1`）到微信 |
-| `.github/workflows/m.yml` | CI：动态抓取行情+社区 → 动态建站（双注入） → 部署 Pages + 一键触发微信单页推送 + **每天北京时间 09:00 定时自动推送** |
+| `.github/workflows/m.yml` | CI：动态抓取行情+校验+社区+宏观快讯 → 动态建站（三注入） → 部署 Pages + 一键触发微信单页推送 + **每天北京时间 09:00 定时自动推送** |
+| `docs/macro-ci-workflow.patch` | **待人工应用的 workflow 补丁**（GitHub App 无 `workflows` 权限）：三个 job 各加 `macro_data.py` 抓取步骤（失败不阻断、摘要进 Step Summary）+ `verify_quotes.py` 门禁（deploy 非阻断并公开 `verify_report.json`；wechat/daily FAIL 直接阻断推送） |
 
 ## 页面风格系统 (Style A · 电子杂志 × 电子墨水)
 
@@ -124,9 +127,9 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 - **📅 推送前频道最新内容核对**：**每一次推送都重新抓取并逐条检查** 14 个频道内容是否为频道最新（`community_data.py` 每次生成当天日期），不因当天已抓取过而复用历史结果；任一频道缺少「最新读取」标记、检查失败或结果非当天，**手动推送**拒绝推送；**定时推送** (`--scheduled`) 则仅警告不阻断，确保每天 09:00 定时任务可运行。
 - **🧪 推送前全来源数据准确性校验** (`verify_quotes.py`)：**每一次推送前**对 `market_data.json` 全部 11 个标的做 **Yahoo 官方口径 × Stooq 实时 × Stooq 历史日线重算 × ECB 汇率** 多来源交叉校验——内部自洽 (涨跌额/涨跌幅 ↔ last/prev_close)、行情日期健全性（不超前/不陈旧）、点位与涨跌幅逐源比对；**≥2 个独立来源族彼此一致但与流水线矛盾、或与主源官方口径矛盾即判定 FAIL 并阻断推送** (CI 中 FAIL 时工作流直接终止，绝不把错误数字推给读者)。单源不可达仅告警不阻断，校验报告公开在 `_site/verify_report.json`。背景：2026-09-16 恒指当日 +0.19% 曾被误算成 −2.22% 并推送，本机制保证同类错误在推送前被拦截。命令行可用 `--skip-verify` 跳过（不推荐）、`--verify-strict` 收紧为 WARN 也阻断。
   > ⚠️ 推送门禁内置于 `wechat_push.py --push`（FAIL 即 exit 5，不依赖任何工作流改动即生效）。CI 侧的
-  > fail-fast 校验步骤与 `verify_report.json` 公开因 GitHub App 凭证无 `workflows` 权限，暂存于根目录
-  > `.github_workflow_new.yml`，需手动覆盖 `.github/workflows/m.yml` 后生效（两处步骤：wechat/daily 任务
-  > 抓取行情后的阻断式校验、deploy 任务的非阻断校验 + `_site/verify_report.json`）。
+  > fail-fast 校验步骤与 `verify_report.json` 公开因 GitHub App 凭证无 `workflows` 权限，改以补丁交付：
+  > `git apply docs/macro-ci-workflow.patch` 后生效（三处：wechat/daily 任务抓取行情后的**阻断式**校验、
+  > deploy 任务的 `|| true` **非阻断**校验 + `_site/verify_report.json` 随站点公开）。
 - **命令行推送**：`python3 tools/wechat_push.py --push`
 - **定时自动推送**：`python3 tools/wechat_push.py --push --scheduled`
 - **验证转换效果**：`python3 tools/wechat_push.py --dry-run`
