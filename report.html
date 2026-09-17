@@ -241,6 +241,13 @@ body {
       <div class="pub-meta">{{FETCH_STATUS}} · {{COMMUNITY_FETCH_STATUS}}</div>
       <div id="macroList" style="border-top:1px dashed var(--border); margin-top:12px; padding-top:10px;">
 <!-- MACROLIST -->
+<div class="pub-sub">◆ 宏观快讯 — 今日未获取</div>
+<div style="font-size:11.5px;line-height:1.8;color:#0a0a0a;">
+  ⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 <code style="background:#eceef0;padding:1px 4px;">python3 macro_data.py</code> 未执行，或公开快讯源当次全部失败。<br/>
+  本栏<strong>不再回填历史叙事</strong>，只保留下方当次抓取的实时行情；宏观结论以每次重建后的最新一版为准。
+  <div class="pub-meta" style="margin-top:6px;">本次判定：未读到 macro_data.json（构建步骤未执行，或产物未生成）（no_file）· 恢复命令：<code style="background:#eceef0;padding:1px 4px;">python3 macro_data.py --json macro_data.json --days 7 --text</code></div>
+</div>
+<!-- /MACROLIST -->
       </div>
     </div>
 
