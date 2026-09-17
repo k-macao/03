@@ -196,3 +196,26 @@ jobs:
           else
             echo "⚠️ 舆情因子：GitHub 海外出口取不到境内数据域（聚宽/米筐等按 IP 拒绝）→ 降级离线回放 --mock，页面与推送显示降级说明"
             python3 sentiment_factors.py --mock
+          fi
+          set -e
+
+      - name: 🏗️ 动态构建报告 (build_site.py · 行情+社区+宏观快讯注入)
+        run: python3 build_site.py
+
+      - name: 🧩 内嵌微信推送负载
+        run: python3 tools/wechat_push.py --embed
+
+      - name: 📲 推送完整报告到微信 (PushPlus · 定时宽松校验)
+        run: |
+          set +e
+          OUT=$(python3 tools/wechat_push.py --push --scheduled 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT"
+          {
+            echo '### 📲 微信推送结果（定时 09:00）'
+            echo '```text'
+            echo "$OUT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $CODE
