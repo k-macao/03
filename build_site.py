@@ -62,6 +62,7 @@ if REPO_ROOT not in sys.path:
 
 import sentiment_match as smatch                           # noqa: E402  采集→匹配→脱敏展示层
 import panorama                                            # noqa: E402  01 节「每日全球全景扫描」推理引擎
+import macro_data as macro_data_mod                        # noqa: E402  02 节快讯可用性判定（兜底口径单一事实源）
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -368,30 +369,54 @@ def _md_cn(date_str):
     return f'{int(m.group(1))} 月 {int(m.group(2))} 日'
 
 
-def build_macro_html(macro_data):
+def build_macro_unavailable_html(avail):
+    """02 节兜底区块 —— 本次没有可用快讯时的唯一出口（网页版）。
+
+    四种触发形态（reason）：
+      no_file        macro_data.json 读不到（构建步骤未执行 / 产物未生成）
+      bad_type       产物写坏、被截断，解析出来不是预期结构
+      no_items       文件在、结构对，但时效窗口内 0 条（公开源当次全挂或全部超窗）
+      stale_snapshot 读到的是前几天构建的旧快照（当次抓取未执行或失败）
+
+    无论哪种，都只说明「这次没有」，绝不回填任何历史叙事。
+    """
+    reason = avail.get('reason')
+    detail = avail.get('detail') or ''
+    return (
+        '<div class="pub-sub">◆ 宏观快讯 — 今日未获取</div>\n'
+        '<div style="font-size:11.5px;line-height:1.8;color:#0a0a0a;">\n'
+        '  ⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 '
+        '<code style="background:#eceef0;padding:1px 4px;">python3 macro_data.py</code> 未执行，'
+        '或公开快讯源当次全部失败。<br/>\n'
+        '  本栏<strong>不再回填历史叙事</strong>（旧文案写死在模板里正是上一版正文长期过期的根因），'
+        '只保留下方当次抓取的实时行情；宏观结论以每次重建后的最新一版为准。\n'
+        + (f'  <div class="pub-meta" style="margin-top:6px;">本次判定：{_esc(detail)}'
+           f'（{_esc(reason)}）· 恢复命令：'
+           '<code style="background:#eceef0;padding:1px 4px;">'
+           'python3 macro_data.py --json macro_data.json --days 7 --text</code></div>\n'
+           if detail else '')
+        + '</div>'
+    )
+
+
+def build_macro_html(macro_data, now=None):
     """02 节宏观/财经快讯区块（macro_data.json 驱动，条目自带发布日期）。
 
     对外**不显示数据来源**（与舆情层同一脱敏口径，只给公开源可用数）；
     抓不到快讯时显示「今日未获取」+ 恢复命令，绝不回填历史叙事
     （2026-09-16 旧内容事故根因：正文写死 8 月 12 日等旧事实）。
+
+    兜底口径由 `macro_data.availability()` 统一判定（网页/微信共用同一事实源），
+    覆盖四种「本次没有可用快讯」的形态：文件缺失、产物写坏、窗口内 0 条、快照过期。
     """
+    avail = macro_data_mod.availability(macro_data, now=now)
+    if not avail['ok']:
+        return build_macro_unavailable_html(avail)
+    # 走到这里 availability 已保证 macro_data 是 dict 且窗口内有条目
     cats = (macro_data or {}).get('categories') or {}
     summ = (macro_data or {}).get('summary') or {}
     win = (macro_data or {}).get('window') or {}
     mode = (macro_data or {}).get('mode') or ''
-
-    if not cats:
-        return (
-            '<div class="pub-sub">◆ 宏观快讯 — 今日未获取</div>\n'
-            '<div style="font-size:11.5px;line-height:1.8;color:#0a0a0a;">\n'
-            '  ⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 '
-            '<code style="background:#eceef0;padding:1px 4px;">'
-            'python3 macro_data.py --json macro_data.json --days 7 --text</code> 未执行，'
-            '或公开快讯源当次全部失败。<br/>\n'
-            '  本栏<strong>不再回填历史叙事</strong>（旧文案写死在模板里正是正文长期过期的根因），'
-            '上方行情快照与 03 / 03B 节仍为当次抓取结果，宏观结论以每次重建后的最新一版为准。\n'
-            '</div>'
-        )
 
     note = (
         f'宏观快讯 {summ.get("kept_items", 0)} 条入库 · 时效窗口 {win.get("max_age_days", "—")} 天'
@@ -795,6 +820,11 @@ def main():
         try:
             with open(args.macro, encoding='utf-8') as f:
                 macro_data = json.load(f)
+            if not isinstance(macro_data, dict):
+                # 写坏/截断的产物可能解析成 list，带进渲染层会直接崩；按不可用处理
+                print(f'警告: {args.macro} 结构异常（{type(macro_data).__name__}），'
+                      '02 节走「今日未获取」兜底', file=sys.stderr)
+                macro_data = {}
         except ValueError as e:
             print(f'警告: {args.macro} 解析失败({e})，02 节宏观快讯显示降级说明', file=sys.stderr)
     else:
@@ -802,6 +832,19 @@ def main():
               '可先运行 python3 macro_data.py --mock 生成', file=sys.stderr)
 
     now = datetime.now(timezone.utc)
+
+    # 兜底保障（单一拦截点，与微信推送同一口径）：快讯不可用时就地清空条目，
+    # 保证 02 节兜底文案之外，01 节全景扫描也拿不到旧闻当证据。
+    macro_avail = macro_data_mod.availability(macro_data, now=now)
+    if not macro_avail['ok'] and (macro_data or {}).get('categories'):
+        macro_data = dict(macro_data)
+        macro_data['categories'] = {k: {'label': (v or {}).get('label') or k, 'items': []}
+                                    for k, v in (macro_data.get('categories') or {}).items()}
+        macro_data['summary'] = dict(macro_data.get('summary') or {}, kept_items=0)
+        macro_data['unavailable'] = macro_avail
+        print(f'  🛟 宏观快讯判定为不可用（{macro_avail["reason"]}），已清空条目走兜底：'
+              f'{macro_avail["detail"]}')
+
     tokens = build_tokens(data, now, community_data, sentiment_data)
 
     if community_data and community_data.get('communities'):
@@ -812,7 +855,7 @@ def main():
 
     template = inject_panorama(template, build_panorama_html(
         data, macro_data, sentiment_data, community_data, now=now))
-    template = inject_macro_list(template, build_macro_html(macro_data))
+    template = inject_macro_list(template, build_macro_html(macro_data, now=now))
     template = inject_sentiment(template, build_sentiment_html(sentiment_data))
 
     missing = sorted(set(find_leftovers(template)) - set(tokens))
