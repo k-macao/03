@@ -4,8 +4,8 @@
 章鱼 AI 量化策略日报 — 动态建站 (build_site.py)
 
 读取 market_data.json + community_data.json (+ sentiment_data.json + macro_data.json)，
-把 report.html 模板中的 {{占位符}} 替换为最新抓取数据，并动态注入 14 大社区最新研判、
-02 节宏观/财经快讯与「舆情因子接入实测」区块，
+把 report.html 模板中的 {{占位符}} 替换为最新抓取数据，并动态注入 01 节每日全球全景扫描、
+14 大社区最新研判、02 节宏观/财经快讯与「舆情因子接入实测」区块，
 同时在每个社区卡片后追加核心量化指标（实体级情感、事件分类、相关性、新颖度），
 生成最终 report.html（页面源文件，供 GitHub Pages 部署与 wechat_push.py 内嵌）。
 
@@ -22,6 +22,13 @@
   - 若存在 community_data.json，则解析其中 14 条社区数据，生成最新社区 HTML 列表，
     替换模板中 <!-- COMMUNITY_LIST:BEGIN --> ... <!-- COMMUNITY_LIST:END --> 之间的内容
   - 若不存在，则保留模板原有静态社区内容（仅日期占位符会被刷新），保证向后兼容
+
+全景扫描注入 (01 节):
+  - 由 panorama.py 用当次四路数据（行情 / 宏观快讯 / 舆情因子 / 社区研判）现算：
+    推动股价的 5 大力量（重点 / 次要 / 噪音 · 利好 / 利空 · 0~100 力量分）、
+    宏观事件 / 板块轮动 / 情绪变化三大关注面、以及「是否可以做多」的合成分结论，
+    注入模板中 <!-- PANORAMA --> 占位处（尾部留 <!-- /PANORAMA --> 哨兵保证幂等）
+  - 四路数据全缺时渲染为「今日未获取 —— 本栏不编故事」，绝不回填历史叙事
 
 宏观快讯注入 (02 节):
   - 若存在 macro_data.json（macro_data.py 构建时现抓），则渲染各分类快讯（每条自带发布日期）
@@ -54,6 +61,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 import sentiment_match as smatch                           # noqa: E402  采集→匹配→脱敏展示层
+import panorama                                            # noqa: E402  01 节「每日全球全景扫描」推理引擎
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -78,6 +86,11 @@ MACROLIST_MARK = '<!-- MACROLIST -->'
 MACROLIST_BEGIN = '<!-- MACROLIST:BEGIN -->'
 MACROLIST_END = '<!-- MACROLIST:END -->'
 MACROLIST_CLOSE = '<!-- /MACROLIST -->'
+# 01 节每日全球全景扫描占位区（写法与 MACROLIST 一致：单标记 + 结束哨兵，保证重复构建幂等）
+PANORAMA_MARK = '<!-- PANORAMA -->'
+PANORAMA_BEGIN = '<!-- PANORAMA:BEGIN -->'
+PANORAMA_END = '<!-- PANORAMA:END -->'
+PANORAMA_CLOSE = '<!-- /PANORAMA -->'
 
 def fmt_last(q, nd=None):
     """最新价 → "25,440.17"；缺失 → "—"。GOLD 且 >=1000 时取整数。"""
@@ -453,6 +466,39 @@ def inject_macro_list(template, macro_html):
     return template
 
 
+def build_panorama_html(market_data, macro_data, sentiment_data, community_data, now=None):
+    """01 节「每日全球全景扫描」：四路当次数据 → 5 大推动力量 / 噪音清单 / 做多结论。
+
+    推理规则集中在 panorama.py（可单测、可回测），本函数只负责取数与渲染；
+    四路数据全缺时渲染为「今日未获取」，与 02 / 03B 节同一反陈旧口径。
+    """
+    scan = panorama.scan(market=market_data, macro=macro_data,
+                         sentiment=sentiment_data, community=community_data, now=now)
+    print(f'  🌍 已动态注入 01 节全景扫描：{len(scan["forces"])} 大力量 · '
+          f'噪音 {len(scan["noise"])} 项 · 覆盖 {int(scan["coverage"] * 100)}% · '
+          f'做多合成分 {scan["verdict"]["long_score"]:+.1f}（{scan["verdict"]["stance"]}）')
+    return panorama.render_web(scan)
+
+
+def inject_panorama(template, panorama_html):
+    """把全景扫描注入模板 01 节的 PANORAMA 标记处（与 inject_macro_list 同一幂等写法）。"""
+    block = f'{PANORAMA_MARK}\n{panorama_html}\n{PANORAMA_CLOSE}'
+    if PANORAMA_BEGIN in template and PANORAMA_END in template:
+        pattern = re.compile(re.escape(PANORAMA_BEGIN) + r'.*?' + re.escape(PANORAMA_END), re.S)
+        new_html, count = pattern.subn(lambda _m: block, template, count=1)
+        if count:
+            return new_html
+    if PANORAMA_MARK in template:
+        if PANORAMA_CLOSE in template:
+            pattern = re.compile(re.escape(PANORAMA_MARK) + r'.*?' + re.escape(PANORAMA_CLOSE), re.S)
+            new_html, count = pattern.subn(lambda _m: block, template, count=1)
+            if count:
+                return new_html
+        return template.replace(PANORAMA_MARK, block, 1)
+    print('  ⚠️ 未找到 PANORAMA 标记，跳过 01 节全景扫描注入', file=sys.stderr)
+    return template
+
+
 def build_sentiment_html(s):
     """03B / 舆情·新闻因子节点（温度计 + 标的匹配 + 个股热度 + 风险事件 + 情感样本 + 采集概况）。
 
@@ -704,7 +750,8 @@ def main():
     leftovers = find_leftovers(template)
     if (not leftovers and COMMUNITY_LIST_BEGIN not in template
             and SENTIMENT_LIST_BEGIN not in template and MACROLIST_MARK not in template
-            and MACROLIST_BEGIN not in template):
+            and MACROLIST_BEGIN not in template and PANORAMA_MARK not in template
+            and PANORAMA_BEGIN not in template):
         print(f'错误: {args.template} 中没有 {{占位符}}，疑似已构建过的产物。\n'
               f'仓库中的 report.html 应保持模板版本；恢复: git checkout -- report.html',
               file=sys.stderr)
@@ -763,6 +810,8 @@ def main():
     else:
         print('  ℹ️ 社区数据为空，跳过动态注入，保留模板原有社区内容')
 
+    template = inject_panorama(template, build_panorama_html(
+        data, macro_data, sentiment_data, community_data, now=now))
     template = inject_macro_list(template, build_macro_html(macro_data))
     template = inject_sentiment(template, build_sentiment_html(sentiment_data))
 

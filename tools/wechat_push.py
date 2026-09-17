@@ -10,6 +10,9 @@
   • 一对多群组推送: 默认推送至 oai.1 群组 (PUSHPLUS_TOPIC='oai.1')，群内所有关注成员同步接收。
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
   • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 14 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
+  • 01 栏每日全球全景扫描: 由 panorama.py 在推送前现算 —— 推动股价的 5 大力量（重点/次要/噪音 ·
+    利好/利空 · 0~100 力量分）、宏观事件/板块轮动/情绪变化三大关注面、以及「是否可以做多」的
+    合成分结论；四路数据全缺时降级为「本栏不编故事」，不回填历史叙事。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
   • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14）；
     重点文字为荧光绿字 + 黑色底，装饰线深绿，全部字号偏小，适合微信竖版长页面阅读。
@@ -49,6 +52,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 import sentiment_match as smatch                          # noqa: E402  采集→匹配→脱敏展示层
+import panorama                                           # noqa: E402  01 栏「每日全球全景扫描」推理引擎
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -701,6 +705,13 @@ def build_single_wechat_html(now=None):
          if (_xd.get('summary') or {}).get('kept_items') else '未获取（02 栏已标注，未回填旧文）')
     )
 
+    # ---------- 01 栏：每日全球全景扫描（四路当次数据现算，零写死叙事） ----------
+    _scan = panorama.scan(market=_md, macro=_xd, sentiment=_sd, community=_cd, now=now)
+    panorama_block = panorama.render_wechat(_scan, neon=NEON, green=GR, ink=INK)
+    print(f'  🌍 微信推送 01 栏：全景扫描输出 {len(_scan["forces"])} 大力量 · '
+          f'噪音 {len(_scan["noise"])} 项 · 覆盖 {int(_scan["coverage"] * 100)}% · '
+          f'做多合成分 {_scan["verdict"]["long_score"]:+.1f}（{_scan["verdict"]["stance"]}）')
+
     community_thread_line = (
         hsi_brief() + ' ' + macro_top('hk', '宏观快讯窗口内无港股条目，社区叙事以各频道热评为准')
         + '；跨平台配置答案延续「进攻端看算力与硬科技、防御端看高息与公用事业」的框架，'
@@ -714,9 +725,13 @@ def build_single_wechat_html(now=None):
     <div style="color:{NEON};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
   </div>
 
-  {h('01 / 底层模型与全景推理机制 (Multi-Model Alliance)')}
+  {h('01 / 每日全球全景扫描 (Daily Global Panorama Scan · 5 大推动力量 · 每次构建现算)')}
   {box(
-    key('全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。'))}
+    key('扫一遍今天全球市场，总结推动股价的 5 大力量。')
+    + '重点关注宏观事件、板块轮动、情绪变化；逐条标注<strong>哪些是重点、哪些是噪音</strong>，'
+      '说明<strong>如何利好利空</strong>，并给出<strong>是否可以做多</strong>的规则化结论。'
+      '全部结论由当次抓取的行情 / 宏观快讯 / 舆情因子 / 社区研判现算，缺数据即标注未获取，不回填历史叙事。')}
+  {panorama_block}
 
   {quant_block}
 
