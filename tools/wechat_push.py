@@ -129,39 +129,52 @@ def load_sentiment_data():
 
 
 
+def macro_data_path():
+    """02 栏快讯产物路径（环境变量 MACRO_DATA 可覆盖）。"""
+    return os.environ.get('MACRO_DATA', os.path.join(REPO_ROOT, 'macro_data.json'))
+
+
+def bootstrap_macro_data(allow_fetch=None):
+    """**只在 CLI 入口调用**：产物缺失/写坏/旧快照时就地补抓一次（构建期兜底）。
+
+    为什么不放进 load_macro_data()：那是渲染路径上的库函数，单测会直接调
+    build_single_wechat_html() 来断言「四路数据全缺时必须降级」。若补抓藏在里面，
+    CI 里（GITHUB_ACTIONS=true 默认开补抓）单测就会真的联网抓一轮并拿到快讯，
+    「本栏不编故事」这类降级断言随即挂掉 —— 2026-09-17 合并后 deploy job 的
+    「🧪 舆情层自检」步骤就是这样红的（本地无外网所以复现不出来）。
+    联网属于入口的副作用，不属于渲染函数。
+    """
+    res = macro_data_mod.ensure(macro_data_path(), allow_fetch=allow_fetch)
+    if res['action'] == 'fetched':
+        print(f'  🔄 微信推送：构建期补抓宏观快讯 {res["kept"]} 条 '
+              f'（{res["elapsed_ms"]} ms）→ {res["path"]}', file=sys.stderr)
+    elif res['action'] == 'refetch_unavailable':
+        print(f'  ⚠️ 微信推送：宏观快讯补抓后仍无可用条目（{res["reason"]}）', file=sys.stderr)
+    return res
+
+
 def load_macro_data():
     """读取 macro_data.py 生成的 macro_data.json（02 栏宏观/财经快讯，每次构建现抓）。
 
-    路径可用环境变量 MACRO_DATA 覆盖。产物缺失 / 写坏 / 是旧快照时，走
-    `macro_data.ensure()` 就地补抓一次（默认只在 CI 里自动联网，MACRO_AUTO_FETCH=1
-    本地也能开）；补抓仍拿不到就返回 {}，此时 02 栏渲染为「今日宏观快讯未获取」
-    + 实时行情快照 —— 绝不回填历史文案（2026-09-16 旧内容事故根因）。
+    路径可用环境变量 MACRO_DATA 覆盖。**本函数是纯读取，绝不联网**（补抓在
+    bootstrap_macro_data() 里、只由 CLI 入口触发，见该函数注释）。
+    缺失/损坏时返回 {}，此时 02 栏渲染为「今日宏观快讯未获取」+ 实时行情快照 ——
+    绝不回填历史文案（2026-09-16 旧内容事故根因）。
     """
-    path = os.environ.get('MACRO_DATA', os.path.join(REPO_ROOT, 'macro_data.json'))
-    res = macro_data_mod.ensure(path)
-    if res['action'] == 'fetched':
-        print(f'  🔄 微信推送：构建期补抓宏观快讯 {res["kept"]} 条 '
-              f'（{res["elapsed_ms"]} ms）→ {path}', file=sys.stderr)
-        return res['data']
-    if res['action'] == 'refetch_unavailable':
-        print(f'  ⚠️ 微信推送：宏观快讯补抓后仍无可用条目（{res["reason"]}）'
-              ' → 02 栏降级为「快讯未获取 + 实时行情」', file=sys.stderr)
+    path = macro_data_path()
+    data = macro_data_mod.load_json(path)
+    avail = macro_data_mod.availability(data)
+    if not avail['ok']:
+        if avail['reason'] == 'no_file':
+            print('  ⚠️ 微信推送：未找到 macro_data.json → 02 栏降级为「快讯未获取 + 实时行情」',
+                  file=sys.stderr)
+        else:
+            # bad_type / no_items / stale_snapshot：交给 02 栏兜底文案处理，
+            # 绝不让错误类型流进渲染层（会整篇推送崩掉）。
+            print(f'  ⚠️ 微信推送：宏观快讯不可用（{avail["reason"]}）'
+                  f' → 02 栏走「今日未获取」兜底', file=sys.stderr)
         return {}
-    if res['action'] == 'disabled':
-        print('  ⚠️ 微信推送：未找到 macro_data.json → 02 栏降级为「快讯未获取 + 实时行情」',
-              file=sys.stderr)
-        return {}
-    if res['action'] == 'error':
-        print(f'⚠️ 警告: macro_data.json 读取/补抓异常（{res.get("detail")}），02 栏快讯降级',
-              file=sys.stderr)
-        return {}
-    if res['reason'] != 'ok':
-        # no_items：当次抓过但窗口内 0 条（或产物结构不对），交给 02 栏兜底文案，
-        # 绝不让错误类型流进渲染层（会整篇推送崩掉）。
-        print(f'  ⚠️ 微信推送：宏观快讯不可用（{res["reason"]}）→ 02 栏走「今日未获取」兜底',
-              file=sys.stderr)
-        return {}
-    return res['data']
+    return data
 
 
 def gen_quant_fallback(key, vclass, fetch_date, raw_pct, live_snippet="", source="fallback"):
@@ -950,7 +963,13 @@ def main():
                     help='跳过推送前全来源数据校验 (不推荐; 校验 FAIL 默认阻断推送)')
     ap.add_argument('--verify-strict', action='store_true',
                     help='严格校验: 多源校验出现 WARN 也阻断推送 (默认仅 FAIL 阻断)')
+    ap.add_argument('--macro-no-fetch', action='store_true',
+                    help='禁用构建期宏观快讯自动补抓（缺产物时 02 栏直接显示「今日未获取」）')
     args = ap.parse_args()
+
+    # 构建期补抓只在 CLI 入口做（渲染函数保持纯读取，单测才不会被迫联网 —— 见
+    # bootstrap_macro_data() 注释）。deploy/wechat/daily 三个 job 都从这里进来。
+    bootstrap_macro_data(allow_fetch=False if args.macro_no_fetch else None)
 
     parts, ts, ts_full = build_articles(args.source)
     print(f'⏰ 时间核对: {ts_full} — 已按当前最新时间生成, 正文全部时间戳已刷新')

@@ -15,8 +15,11 @@
   • 开关默认只在 CI 里开，本地/单测默认不联网，MACRO_AUTO_FETCH 可显式覆盖；
   • 补抓失败绝不抛异常、绝不阻断构建。
 """
+import contextlib
+import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -80,6 +83,77 @@ class _BuildSpy:
     def __exit__(self, *exc):
         md.build = self._orig
         return False
+
+
+class _MockBuild:
+    """替换 md.build 为离线 mock 回放（正确转发全部 kwargs），记录调用次数。"""
+
+    def __init__(self):
+        self.calls = 0
+        self._orig = None
+
+    def __enter__(self):
+        self._orig = md.build
+
+        def _fake(**kw):
+            self.calls += 1
+            return self._orig(mock=True, quiet=True, **{
+                k: v for k, v in kw.items() if k not in ('mock', 'quiet')})
+        md.build = _fake
+        return self
+
+    def __exit__(self, *exc):
+        md.build = self._orig
+        return False
+
+
+class _NoFetchBuild:
+    """一旦有人试图抓取就失败 —— 用来断言「这条路径绝不联网」。"""
+
+    def __init__(self):
+        self._orig = None
+
+    def __enter__(self):
+        self._orig = md.build
+
+        def _boom(**kw):
+            raise AssertionError('渲染路径不得触发宏观快讯抓取')
+        md.build = _boom
+        return self
+
+    def __exit__(self, *exc):
+        md.build = self._orig
+        return False
+
+
+class _EnvGuard:
+    """临时改写环境变量并在退出时**精确还原**（含"原本未设置"这一状态）。
+
+    saved 必须存在 guard 自己身上：早先存在 test 实例上时，用例里再嵌套一次
+    _env() 就会把外层的快照覆盖掉，清理时还原错值 —— SENTIMENT_DATA 会残留成
+    一个已删除的临时路径，把后续 test_sentiment（依赖仓库根目录真实产物）带挂。
+    """
+
+    def __init__(self, env):
+        self.env = env
+        self._saved = None
+
+    def __enter__(self):
+        self._saved = {k: os.environ.get(k) for k in self.env}
+        os.environ.update(self.env)
+        return self
+
+    def __exit__(self, *exc):
+        self.restore()
+        return False
+
+    def restore(self):
+        for k, v in (self._saved or {}).items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        self._saved = {}
 
 
 class TestAutoFetchSwitch(unittest.TestCase):
@@ -211,43 +285,49 @@ class TestWechatAndWebShareBootstrappedData(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.path = os.path.join(self._tmp.name, 'macro_data.json')
+        # 把行情/社区/舆情指向不存在的文件，让渲染路径确定；guard 在 cleanup 里精确还原 ——
+        # 否则残留的 SENTIMENT_DATA 会污染后续 test_sentiment（它依赖仓库根目录的真实产物）。
+        missing = os.path.join(self._tmp.name, 'missing.json')
+        guard = _EnvGuard({'MARKET_DATA': missing, 'COMMUNITY_DATA': missing,
+                           'SENTIMENT_DATA': missing})
+        guard.__enter__()
+        self.addCleanup(guard.restore)
 
-    def test_wechat_loader_bootstraps_when_missing(self):
-        saved = {k: os.environ.get(k) for k in ('MACRO_DATA', 'MACRO_AUTO_FETCH')}
-        os.environ['MACRO_DATA'] = self.path
-        os.environ['MACRO_AUTO_FETCH'] = '1'
-        _orig = md.build
-        md.build = lambda **kw: _orig(mock=True, quiet=True, **{
-            k: v for k, v in kw.items() if k not in ('mock', 'quiet')})
-        try:
+    def _env(self, env):
+        return _EnvGuard(env)
+
+    def test_cli_entry_bootstraps_when_missing(self):
+        """补抓只发生在 CLI 入口 bootstrap_macro_data()，且确实把产物落盘。"""
+        with self._env({'MACRO_DATA': self.path, 'MACRO_AUTO_FETCH': '1'}):
+            with _MockBuild() as spy:
+                res = wp.bootstrap_macro_data()
             data = wp.load_macro_data()
-        finally:
-            md.build = _orig
-            for k, v in saved.items():
-                if v is None:
-                    os.environ.pop(k, None)
-                else:
-                    os.environ[k] = v
+        self.assertEqual(res['action'], 'fetched')
+        self.assertEqual(spy.calls, 1)
+        self.assertGreater(res['kept'], 0, '补抓后微信 02 栏应拿到当次快讯')
+        self.assertTrue(os.path.exists(self.path))
         kept = sum(len((b or {}).get('items') or [])
                    for b in (data.get('categories') or {}).values())
-        self.assertGreater(kept, 0, '补抓后微信 02 栏应拿到当次快讯')
-        self.assertTrue(os.path.exists(self.path))
+        self.assertGreater(kept, 0, '入口补抓后，纯读取的 load_macro_data 应能读到同一份产物')
 
-    def test_wechat_loader_stays_silent_when_disabled(self):
-        saved = {k: os.environ.get(k) for k in ('MACRO_DATA', 'MACRO_AUTO_FETCH')}
-        os.environ['MACRO_DATA'] = self.path
-        os.environ['MACRO_AUTO_FETCH'] = '0'
-        _orig = md.build
-        md.build = lambda **kw: (_ for _ in ()).throw(AssertionError('开关关闭时不得联网抓取'))
-        try:
-            self.assertEqual(wp.load_macro_data(), {})
-        finally:
-            md.build = _orig
-            for k, v in saved.items():
-                if v is None:
-                    os.environ.pop(k, None)
-                else:
-                    os.environ[k] = v
+    def test_render_path_never_fetches_even_in_ci(self):
+        """回归防线：渲染路径（单测直接调用的库函数）在任何环境下都不得联网。
+
+        2026-09-17 事故：补抓曾藏在 load_macro_data() 里，而它被
+        build_single_wechat_html() 调用。CI 里 GITHUB_ACTIONS=true 默认开补抓，
+        于是「四路数据全缺 → 必须降级」这类断言在 CI 抓到真快讯后集体挂掉，
+        deploy job 的「🧪 舆情层自检」步骤直接红。本地无外网，复现不出来。
+        """
+        with self._env({'MACRO_DATA': self.path, 'MACRO_AUTO_FETCH': '1',
+                        'GITHUB_ACTIONS': 'true'}):
+            with _NoFetchBuild():
+                self.assertEqual(wp.load_macro_data(), {}, '缺产物时应返回 {}，而不是去抓')
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    html, _t, _tf = wp.build_single_wechat_html()
+        self.assertFalse(os.path.exists(self.path), '渲染过程不得凭空造出产物')
+        plain = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', html))
+        self.assertIn('宏观快讯 — 今日未获取', plain)
 
 
 class TestBuildSiteEndToEnd(unittest.TestCase):
