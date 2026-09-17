@@ -298,7 +298,7 @@ class TestPanoramaRendering(unittest.TestCase):
         self.assertTrue(sec01, '应能从推送正文中截出 01 栏')
         for bad in STALE:
             self.assertNotIn(bad, sec01, f'01 栏只能写当次数据: {bad}')
-        self.assertIn('章鱼 AI 量化策略六大打造步骤', plain, '01 节量化策略说明块应保留')
+        self.assertNotIn('章鱼 AI 量化策略六大打造步骤', plain, '01 节量化策略说明块已删除，不应再出现')
 
     def test_wechat_section_degrades_when_all_sources_missing(self):
         missing = os.path.join(self._tmp.name, 'missing.json')

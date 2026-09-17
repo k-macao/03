@@ -373,23 +373,6 @@ def build_single_wechat_html(now=None):
             f'<div style="color:#7d838b;font-size:10px;margin-top:6px;">{meta}</div>'
             f'</div>')
 
-    # 01 节量化策略说明块（与 report.html 的 .quant-box 对应，微信端全内联样式）
-    quant_block = (
-        f'<div style="background:#f8f9fa;border:1px solid #d9dce0;border-left:3px solid {GR};'
-        f'border-radius:6px;padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;'
-        f'color:{INK};">'
-        f'<div style="color:{GR};font-weight:700;font-size:13px;margin:0 0 6px;">◆ 章鱼 AI 量化策略六大打造步骤</div>'
-        f'<div style="line-height:1.85;">'
-        f'1. <strong>数据收集</strong>：囊括行情、财报、舆情等多维度信息<br/>'
-        f'2. <strong>数据清洗</strong>：剔除错误数据，夯实策略基础<br/>'
-        f'3. <strong>建立因子</strong>：从量价、基本面、情绪数据提炼选股逻辑<br/>'
-        f'4. <strong>选股优化</strong>：设置个股、行业持仓上限，分散投资风险<br/>'
-        f'5. <strong>历史回测</strong>：依托过往数据检验策略表现，达标再做实盘<br/>'
-        f'6. <strong>实盘运作</strong>：随市场风格、政策变动持续优化模型'
-        f'</div>'
-        f'</div>'
-    )
-
     # ---------- 动态社区列表 ----------
     communities = []
     if _communities_raw:
@@ -759,8 +742,6 @@ def build_single_wechat_html(now=None):
       '说明<strong>如何利好利空</strong>，并给出<strong>是否可以做多</strong>的规则化结论。'
       '全部结论由当次抓取的行情 / 宏观快讯 / 舆情因子 / 社区研判现算，缺数据即标注未获取，不回填历史叙事。')}
   {panorama_block}
-
-  {quant_block}
 
   {h('02 / 全球经济与财经动态 (Global Macro & HK Battlefield · 快讯每次构建现抓)')}
   {box(macro_block())}
