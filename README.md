@@ -113,6 +113,25 @@ python3 quant_pair.py --self-test
 python3 -m unittest tests.test_quant_pair
 ```
 
+## 📊 微信推送的字符配图
+
+配图对照 [matplotlib](https://github.com/matplotlib/matplotlib) 的 Figure / Axes 规矩（[plot types](https://matplotlib.org/stable/plot_types/index.html)）：每张图有标题、刻度、柱端数值；正负用零线分开，构成用一条堆叠柱，不靠颜色区分（微信里颜色会丢）。柱身只用半角字符，避免方块字在中文字体里变成双宽、把比例画歪。
+
+| 推送里的分析 | matplotlib 图种 | 字符图 |
+| --- | --- | --- |
+| 力量分、做多合成分 | ordered `barh`、发散柱 | 01 栏后面 |
+| 当次涨跌幅、配对 z | diverging bar | 02 栏行情快照后面 |
+| 宏观各小节条数 | `barh` | 快讯可用时，跟在 02 栏 |
+| 社区偏多 / 偏空 / 中性 / 分歧 | stacked bar | 03 栏总览后面 |
+| 舆情温度、净情感 | bar / stacked / diverging | 03B 后面 |
+
+数字只来自当次推送同一份行情、社区计数和因子读数。没有数就写「本图不编柱」，不补 0、不回填历史点位。规则在 `char_charts.py`，由 `tools/wechat_push.py` 挂进推送 HTML。
+
+```bash
+python3 char_charts.py --self-test
+python3 -m unittest tests.test_char_charts
+```
+
 ## 🛟 02 栏兜底保障 — 「宏观快讯 — 今日未获取」
 
 只要本次拿不到可核验的宏观快讯，02 栏就渲染成下面这段固定文案，**只保留当次实时行情**：
@@ -213,6 +232,7 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 | `docs/sentiment-api-eval.md` | **评测矩阵（内部档案）**：结论速览 / 能力矩阵 / 评分明细 / 逐源明细，由探针自动生成；**不在网页与微信推送中展示**（对外不显示来源） |
 | `tests/test_sentiment.py` | 舆情层测试（38 项，零联网）：`python3 -m unittest discover -s tests`；含「03B 对外输出不得出现任何来源痕迹」与「采集结果必须匹配到日报标的」两类回归 |
 | `quant_pair.py` | **AI 量化 · 配对交易**：每条内容后选一条策略、给出恰好两只标的、用当次涨跌幅做均值回归推荐；行情不全则「数据不足」。网页与微信共用。`python3 quant_pair.py --self-test` |
+| `char_charts.py` | **微信字符配图**：把力量分、涨跌幅、配对 z、社区构成、舆情读数画成 matplotlib 同款的柱状/发散/堆叠字符图。缺数据不编柱。`python3 char_charts.py --self-test` |
 | `panorama.py` | **01 栏「每日全球全景扫描」推理引擎**：把当次的 `market_data.json` + `macro_data.json` + `sentiment_data.json` + `community_data.json` 合成为**推动股价的 5 大力量**（重点 / 次要 / 噪音 · 利好 / 利空 / 中性 · 0~100 力量分）、三大关注面小结（宏观事件 / 板块轮动 / 情绪变化）与**是否可以做多**的合成分结论，并在每条力量后挂 `quant_pair` 的配对推荐；纯标准库纯函数、不联网不落盘，构建期由 `build_site.py` 与 `tools/wechat_push.py` 直接调用（**因此无需改 CI workflow**）。`python3 panorama.py` 打印文本摘要、`--json` 导出结构化结果、`--self-test` 规则自检 |
 | `tests/test_panorama.py` | 01 栏回归（13 项，零联网）：5 大力量与栏目要素齐全、多/空/横盘三种行情结论必须不同、噪音不计入做多合成分、突发风险分下调做多结论、四路数据缺失时降级为「本栏不编故事」、网页 `PANORAMA` 注入幂等、旧栏目名与写死历史内容不得回归 |
 | `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，把 `panorama.py` 的全景扫描注入 01 节 `<!-- PANORAMA -->` 占位区（哨兵 `<!-- /PANORAMA -->` 保证幂等），把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记，把 `macro_data.json` 的快讯注入 02 节 `<!-- MACROLIST -->` 占位区（缺数据→「今日未获取」，回填哨兵 `<!-- /MACROLIST -->` 保证幂等），并把「因子读数 + 标的匹配（不含来源）」注入 `<!-- SENTIMENT_LIST -->` 标记 |

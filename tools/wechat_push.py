@@ -57,6 +57,7 @@ import sentiment_match as smatch                          # noqa: E402  采集�
 import panorama                                           # noqa: E402  01 栏「每日全球全景扫描」推理引擎
 import macro_data as macro_data_mod                       # noqa: E402  02 栏快讯可用性判定（兜底口径单一事实源）
 import quant_pair                                         # noqa: E402  每条内容后的 AI 量化配对
+import char_charts                                        # noqa: E402  推送字符配图（matplotlib 图种的字符版）
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -527,7 +528,7 @@ def build_single_wechat_html(now=None):
                        '即可注入「标的匹配 + 因子读数」（对外不显示数据来源）。'
                        + quant_pair.render_wechat(quant_pair.recommend(
                            '舆情因子未获取', _quotes, hint='sentiment'),
-                           note='因子节点未生成，配对只使用当次行情。'))
+                           note='因子节点未生成，配对只使用当次行情。')) + char_charts.sentiment_chart(_sd)[0]
         m = _sd.get('market') or {}
         mm = _sd.get('matches') or {}
         anon = not smatch.show_source()
@@ -605,7 +606,7 @@ def build_single_wechat_html(now=None):
                             + f"<br/><span style=\"color:#7d838b;font-size:10px;\">评测生成于 "
                               f"{ev.get('generated_at', '—')}；完整矩阵与上线方案见 docs/sentiment-api-eval.md"
                               f"；掘金无舆情接口（平台能力缺失，非故障）</span>"))
-        return '\n'.join(rows)
+        return '\n'.join(rows) + char_charts.sentiment_chart(_sd)[0]
 
 
 
@@ -685,7 +686,7 @@ def build_single_wechat_html(now=None):
                     sub('◆ 港股市场 — 当次行情口径') + hsi_brief() + '<br/><br/>' + macro_live_quotes()
                     + quant_pair.render_wechat(quant_pair.recommend(
                         '宏观快讯未获取 港股行情', _quotes, hint='hk_tape'),
-                        note='快讯缺失，配对只使用当次行情；行情也不全时不给方向。'))
+                        note='快讯缺失，配对只使用当次行情；行情也不全时不给方向。')) + char_charts.quotes_chart(_quotes)[0] + char_charts.pairs_chart(_quotes)[0]
 
         parts = []
         empty_labels = []
@@ -727,7 +728,7 @@ def build_single_wechat_html(now=None):
                     + '、'.join(empty_labels) + '（按时效留空，不回填旧文）</span>')
         return (sub('◆ 宏观快讯 — 每次构建现抓 · 发布日期见每条前缀') + note + '<br/><br/>'
                 + sub('◆ 港股市场 — 当次行情口径') + hsi_brief() + '<br/><br/>'
-                + ''.join(parts) + macro_live_quotes() + warn)
+                + ''.join(parts) + macro_live_quotes() + warn + char_charts.quotes_chart(_quotes)[0] + char_charts.pairs_chart(_quotes)[0] + char_charts.macro_counts_chart(_xd)[0])
 
     def verdict_block():
         """07 结论：逐条挂当次快讯/行情，不再写死 7-8 月事实与历史点位。"""
@@ -771,6 +772,9 @@ def build_single_wechat_html(now=None):
           f'噪音 {len(_scan["noise"])} 项 · 覆盖 {int(_scan["coverage"] * 100)}% · '
           f'做多合成分 {_scan["verdict"]["long_score"]:+.1f}（{_scan["verdict"]["stance"]}）')
 
+    fig_forces = char_charts.forces_chart(_scan)[0]
+    fig_community = char_charts.community_chart(community_counts)[0]
+
     community_thread_line = (
         hsi_brief() + ' ' + macro_top('hk', '宏观快讯窗口内无港股条目，社区叙事以各频道热评为准')
         + '；跨平台配置答案延续「进攻端看算力与硬科技、防御端看高息与公用事业」的框架，'
@@ -786,6 +790,7 @@ def build_single_wechat_html(now=None):
 
   {h('01 / 每日全球全景扫描 (Daily Global Panorama Scan · 5 大推动力量 · 每次构建现算)')}
   {panorama_block}
+  {fig_forces}
 
   {h('02 / 全球经济与财经动态 (Global Macro & HK Battlefield · 快讯每次构建现抓)')}
   {box(macro_block())}
@@ -796,7 +801,7 @@ def build_single_wechat_html(now=None):
     community_overview_line + '<br/>' +
     '<strong style="color:#141414;">核心主线共识</strong>：' + community_thread_line + '<br/>' +
     f'<span style="color:#7d838b;font-size:10px;">社区抓取日期 {_community_fetch_date} · {community_fetch_status()} · 14 源动态抓取已上线，每次构建自动刷新</span>'
-    + quant_pair.render_wechat(quant_pair.recommend(community_thread_line, _quotes, hint='hk_tape')))}
+    + quant_pair.render_wechat(quant_pair.recommend(community_thread_line, _quotes, hint='hk_tape')) + fig_community)}
 
   {community_html}
 
@@ -813,7 +818,7 @@ def build_single_wechat_html(now=None):
   <div style="background:#000;border-top:4px solid {NEON};padding:16px 12px 10px;margin:20px -12px 0;font-size:12px;color:#c8c8c8;line-height:1.9;">
     <strong style="color:{NEON};font-size:13px;">作者：章鱼 ai&nbsp;&nbsp;仅供参考，分析研究</strong><br/>
     全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。<br/>
-    <span style="color:#7d838b;font-size:10px;">生成时间：{ts_full} · 行情/社区/舆情/宏观快讯均为本次构建现抓 · 宏观快讯时效：{macro_freshness_note} · 100K 完整单页版</span>
+    <span style="color:#7d838b;font-size:10px;">生成时间：{ts_full} · 行情/社区/舆情/宏观快讯均为本次构建现抓 · 宏观快讯时效：{macro_freshness_note} · 字符配图与正文同一份当次数据 · 100K 完整单页版</span>
   </div>
 
 </div>'''
