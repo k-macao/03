@@ -63,6 +63,7 @@ if REPO_ROOT not in sys.path:
 import sentiment_match as smatch                           # noqa: E402  采集→匹配→脱敏展示层
 import panorama                                            # noqa: E402  01 节「每日全球全景扫描」推理引擎
 import macro_data as macro_data_mod                        # noqa: E402  02 节快讯可用性判定（兜底口径单一事实源）
+import quant_pair                                          # noqa: E402  每条内容后的 AI 量化配对
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -92,6 +93,9 @@ PANORAMA_MARK = '<!-- PANORAMA -->'
 PANORAMA_BEGIN = '<!-- PANORAMA:BEGIN -->'
 PANORAMA_END = '<!-- PANORAMA:END -->'
 PANORAMA_CLOSE = '<!-- /PANORAMA -->'
+# 行情快照与 07 结论是模板静态块，构建时在标记处补上 AI 量化（重复构建只替换标记，不追加）
+AI_QUANT_QUOTES = '<!-- AI_QUANT:QUOTES -->'
+AI_QUANT_VERDICT = '<!-- AI_QUANT:VERDICT -->'
 
 def fmt_last(q, nd=None):
     """最新价 → "25,440.17"；缺失 → "—"。GOLD 且 >=1000 时取整数。"""
@@ -315,8 +319,14 @@ def build_quant_html(quant):
     )
 
 
-def build_community_html(communities):
-    """根据 community_data.json 生成 14 个社区的 HTML 列表，包含核心量化指标"""
+def build_ai_quant_html(text, market=None, hint=None, compact=False, note=''):
+    """一条内容 → 一条 AI 量化配对（网页版）。行情不全时只说明数据不足。"""
+    rec = quant_pair.recommend(text or '', market, hint=hint)
+    return quant_pair.render_web(rec, compact=compact, note=note)
+
+
+def build_community_html(communities, market=None):
+    """根据 community_data.json 生成 14 个社区的 HTML 列表，包含核心量化指标与 AI 量化配对"""
     html_parts = []
     for c in communities:
         icon = c.get('icon', '📌')
@@ -329,17 +339,40 @@ def build_community_html(communities):
         quant = c.get('quant', {})
         meta = c.get('meta', f"综合站内 10 条讨论 · 最新读取 {c.get('fetch_date','')}")
         quant_html = build_quant_html(quant)
+        event = ((quant or {}).get('event') or {}).get('label') or ''
+        ai_html = build_ai_quant_html(
+            f'{name} {quote} {verdict} {event}', market, hint=c.get('key'))
         article = (
             f'<article class="pub-card" data-verdict="{vclass}">\n'
             f'  <div class="pub-card-head"><span class="pub-name">{icon} {cid}. {name}</span><span class="pub-chip">{label}</span></div>\n'
             f'  <p class="pub-quote"><strong>平台深度热评：</strong>{quote}</p>\n'
             f'  <div class="pub-verdict"><strong style="color:#000;">▶ AI 深度战术研判：</strong>{verdict}</div>\n'
             f'{quant_html}\n'
+            f'{ai_html}\n'
             f'  <div class="pub-meta">{meta}</div>\n'
             f'</article>'
         )
         html_parts.append(article)
     return "\n".join(html_parts)
+
+
+def ensure_community_ai_quant(html, market=None):
+    """社区列表若仍是模板静态卡片（没有动态注入），也在每条 </article> 前补上 AI 量化。"""
+    if COMMUNITY_LIST_BEGIN not in html or COMMUNITY_LIST_END not in html:
+        return html
+    pre, rest = html.split(COMMUNITY_LIST_BEGIN, 1)
+    mid, post = rest.split(COMMUNITY_LIST_END, 1)
+
+    def repl(m):
+        block = m.group(0)
+        if 'class="ai-quant"' in block:
+            return block
+        text = re.sub(r'<[^>]+>', ' ', block)
+        insert = build_ai_quant_html(text, market)
+        return block.replace('</article>', insert + '\n</article>', 1)
+
+    mid = re.sub(r'<article\b.*?</article>', repl, mid, flags=re.S)
+    return pre + COMMUNITY_LIST_BEGIN + mid + COMMUNITY_LIST_END + post
 
 
 def inject_community_list(template, community_html):
@@ -369,7 +402,7 @@ def _md_cn(date_str):
     return f'{int(m.group(1))} 月 {int(m.group(2))} 日'
 
 
-def build_macro_unavailable_html(avail):
+def build_macro_unavailable_html(avail, market=None):
     """02 节兜底区块 —— 本次没有可用快讯时的唯一出口（网页版）。
 
     四种触发形态（reason）：
@@ -395,11 +428,13 @@ def build_macro_unavailable_html(avail):
            '<code style="background:#eceef0;padding:1px 4px;">'
            'python3 macro_data.py --json macro_data.json --days 7 --text</code></div>\n'
            if detail else '')
-        + '</div>'
+        + '</div>\n'
+        + build_ai_quant_html('宏观快讯未获取 港股行情', market, hint='hk_tape',
+                              note='快讯缺失，配对只使用当次行情；行情也不全时不给方向。')
     )
 
 
-def build_macro_html(macro_data, now=None):
+def build_macro_html(macro_data, now=None, market=None):
     """02 节宏观/财经快讯区块（macro_data.json 驱动，条目自带发布日期）。
 
     对外**不显示数据来源**（与舆情层同一脱敏口径，只给公开源可用数）；
@@ -439,11 +474,15 @@ def build_macro_html(macro_data, now=None):
             continue
         rows = []
         for it in items:
-            ttl = _esc((it.get('title') or '').strip())
-            snip = _esc((it.get('snippet') or '').strip()[:72])
+            raw_title = (it.get('title') or '').strip()
+            raw_snip = (it.get('snippet') or '').strip()
+            ttl = _esc(raw_title)
+            snip = _esc(raw_snip[:72])
+            ai = build_ai_quant_html(f'{label} {raw_title} {raw_snip}', market, hint=ckey, compact=True)
             rows.append(
                 f'  <li><strong style="color:#000;">[{_esc(_md_cn(it.get("published_date")))}]</strong> {ttl}'
                 + (f' <span style="color:var(--muted);font-size:11px;">{snip}</span>' if snip else '')
+                + ai
                 + '</li>'
             )
         parts.append(f'<div class="pub-sub" style="margin-top:10px;">◆ {_esc(label)}</div>')
@@ -524,7 +563,7 @@ def inject_panorama(template, panorama_html):
     return template
 
 
-def build_sentiment_html(s):
+def build_sentiment_html(s, market=None):
     """03B / 舆情·新闻因子节点（温度计 + 标的匹配 + 个股热度 + 风险事件 + 情感样本 + 采集概况）。
 
     对外输出**不显示数据来源**：平台名 / 接口 ID / 域名 / SDK / 凭据与依赖提示由
@@ -550,6 +589,8 @@ def build_sentiment_html(s):
                 '或 <code>python3 sentiment_factors.py --mock</code> 用录制报文离线回放。'
                 + ('<div class="pub-meta">接入评测与打分由 <code>tools/probe_sentiment_apis.py</code> 生成，'
                    '结论详见 <code>docs/sentiment-api-eval.md</code>。</div>' if show_api_eval() else '')
+                + build_ai_quant_html('舆情因子未获取', market, hint='sentiment',
+                                      note='因子节点未生成，配对只使用当次行情。')
                 + '</div>')
 
     m = s.get('market') or {}
@@ -575,6 +616,9 @@ def build_sentiment_html(s):
              '带原生情感字段者直接采用平台口径，其余由自建中文金融词库打分'),
     ]
     parts.append('<div class="stat-grid">' + ''.join(cards) + '</div>')
+    parts.append(build_ai_quant_html(
+        f"市场舆情 {m.get('label') or ''} 净情感 {m.get('net_senti')} 风险 {m.get('risk_score')}",
+        market, hint='sentiment'))
 
     # ---- 采集 → 匹配：新闻舆情按关键词对齐到日报标的与主题（对外不显示来源） ----
     mm = s.get('matches') or {}
@@ -604,7 +648,13 @@ def build_sentiment_html(s):
             + (f'<div class="pub-meta">未匹配 {mm.get("unmatched", 0)} 条（与日报标的相关性不足，'
                '只计入市场级读数，不进标的表）。</div>' if mm.get('unmatched') else '')
             + '<div class="pub-meta">匹配规则：标题命中权重 0.4 / 正文 0.15，净情感与风险分复用同一套'
-              '自建中文金融词库口径（平台已给原生情感字段时优先采用平台口径）。</div></div>')
+              '自建中文金融词库口径（平台已给原生情感字段时优先采用平台口径）。</div>'
+            + quant_pair.render_web_list([
+                quant_pair.recommend(
+                    f"{t.get('name', '')} {((t.get('top_titles') or [{}])[0]).get('title', '')}",
+                    market, hint=t.get('key'))
+                for t in tgts])
+            + '</div>')
 
     # ---- 平台接入评测（9 阶段实测）矩阵：默认对外隐藏 ----
     ev = s.get('api_eval') or {}
@@ -651,7 +701,12 @@ def build_sentiment_html(s):
             '<table class="quote-table"><tr><th>标的</th><th>关注指数</th><th>热度 Z</th>'
             '<th>净情感</th><th>新闻数</th><th>风险分</th></tr>' + ''.join(rows) + '</table>'
             '<div class="pub-meta">关注指数为量化平台现成热度类因子（小时/日频，无极性）；'
-            '净情感来自平台原生情感字段或自建中文金融词库打分。</div></div>')
+            '净情感来自平台原生情感字段或自建中文金融词库打分。</div>'
+            + quant_pair.render_web_list([
+                quant_pair.recommend(
+                    f"{st.get('name') or ''} {st.get('symbol') or ''}", market, hint=st.get('symbol'))
+                for st in stocks])
+            + '</div>')
 
     events = (m.get('events') or [])[:5]
     if events:
@@ -675,7 +730,11 @@ def build_sentiment_html(s):
                     f" · 命中 {esc(kw)}</span></li>")
         parts.append('<div class="pub-box"><div class="pub-sub">◆ 情感样本极值（可回溯：命中词与权重 · 不含来源）</div>'
                      '<ul class="pixel-list">' + ''.join(li(x, '负面') for x in top_neg)
-                     + ''.join(li(x, '正面') for x in top_pos) + '</ul></div>')
+                     + ''.join(li(x, '正面') for x in top_pos) + '</ul>'
+                     + build_ai_quant_html(
+                         ' '.join((x.get('title') or '') for x in (top_neg + top_pos)),
+                         market, hint='sentiment')
+                     + '</div>')
 
     srcs = s.get('sources') or []
     if srcs and not anon:
@@ -738,6 +797,23 @@ def _f2(v, fmt='.2f'):
 def _esc(t):
     import html
     return html.escape(str(t if t is not None else ''), quote=False)
+
+
+def fill_ai_quant_markers(html, market=None):
+    """把模板里的行情快照 / 07 结论标记换成当次配对推荐。标记缺失则原样返回。"""
+    if AI_QUANT_QUOTES in html:
+        html = html.replace(
+            AI_QUANT_QUOTES,
+            build_ai_quant_html(
+                '行情快照 恒生指数 恒生科技 标普 纳斯达克 道琼斯 黄金 原油 人民币',
+                market, hint='tape'),
+            1)
+    if AI_QUANT_VERDICT in html:
+        html = html.replace(
+            AI_QUANT_VERDICT,
+            build_ai_quant_html('核心结论 港股 配置 黄金 原油 防御', market, hint='hk_tape'),
+            1)
+    return html
 
 
 def inject_sentiment(template, block_html):
@@ -869,15 +945,17 @@ def main():
     tokens = build_tokens(data, now, community_data, sentiment_data)
 
     if community_data and community_data.get('communities'):
-        community_html = build_community_html(community_data['communities'])
+        community_html = build_community_html(community_data['communities'], market=data)
         template = inject_community_list(template, community_html)
     else:
         print('  ℹ️ 社区数据为空，跳过动态注入，保留模板原有社区内容')
+    template = ensure_community_ai_quant(template, market=data)
 
     template = inject_panorama(template, build_panorama_html(
         data, macro_data, sentiment_data, community_data, now=now))
-    template = inject_macro_list(template, build_macro_html(macro_data, now=now))
-    template = inject_sentiment(template, build_sentiment_html(sentiment_data))
+    template = inject_macro_list(template, build_macro_html(macro_data, now=now, market=data))
+    template = inject_sentiment(template, build_sentiment_html(sentiment_data, market=data))
+    template = fill_ai_quant_markers(template, market=data)
 
     missing = sorted(set(find_leftovers(template)) - set(tokens))
     if missing:

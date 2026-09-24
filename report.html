@@ -191,6 +191,42 @@ body {
   background:var(--card); border:1px solid var(--border); border-left:3px solid var(--green);
   border-radius:8px; padding:16px 18px; margin:14px 0;
 }
+.ai-quant {
+  background:#f4f7f4;
+  border:1px solid var(--green);
+  border-left:3px solid #000;
+  border-radius:6px;
+  padding:10px 12px;
+  margin-top:10px;
+  font-size:11.5px;
+  line-height:1.7;
+}
+.ai-quant-compact { padding:7px 10px; margin-top:6px; }
+.ai-quant-title {
+  color:#000;
+  font-weight:700;
+  font-size:12px;
+  margin-bottom:6px;
+}
+.ai-quant-title span {
+  background:#000;
+  color:var(--neon);
+  font-size:10px;
+  font-weight:700;
+  padding:1px 6px;
+  margin-left:6px;
+  border-radius:999px;
+}
+.ai-quant-list { list-style:none; margin:0; padding:0; }
+.ai-quant-list li { position:relative; padding-left:16px; margin-bottom:4px; }
+.ai-quant-list li::before {
+  content:"▸";
+  position:absolute;
+  left:0;
+  color:var(--green);
+  font-weight:700;
+}
+.ai-quant-meta { color:var(--muted); font-size:10.5px; margin-top:4px; }
 .q-off { color:var(--muted); }
 
 </style>
@@ -207,7 +243,7 @@ body {
 
     <div class="push-wrap">
       <div class="push-title">微信推送 · 一对多群组单页完整直推 (oai.1 群)</div>
-      <p class="push-tip">点击下方按钮，将本报告<strong>行情 + 14 社区 · 含核心量化指标</strong>推送到「oai.1」群组。</p>
+      <p class="push-tip">点击下方按钮，将本报告<strong>行情 + 14 社区 · 含核心量化指标 · 每条内容后附 AI 量化配对</strong>推送到「oai.1」群组。</p>
       <button class="pixel-push-btn" id="pushBtn" onclick="manualPush()">▶ 立即推送微信单页完整版</button>
       <div class="terminal-log-box" id="pushStatus">STATUS &gt; 一对多群组推送已就绪 (oai.1)<span>▌</span></div>
     </div>
@@ -235,6 +271,7 @@ body {
         <tr><td>美元/在岸人民币</td><td>{{USDCNY_LAST}}</td><td>{{USDCNY_CHG}}</td><td class="q-pct">{{USDCNY_PCT}}</td><td>{{USDCNY_ASOF}}</td></tr>
       </table>
       <div class="pub-meta">{{FETCH_STATUS}} · {{COMMUNITY_FETCH_STATUS}}</div>
+<!-- AI_QUANT:QUOTES -->
       <div id="macroList" style="border-top:1px dashed var(--border); margin-top:12px; padding-top:10px;">
 <!-- MACROLIST -->
 <div class="pub-sub">◆ 宏观快讯 — 今日未获取</div>
@@ -247,7 +284,7 @@ body {
       </div>
     </div>
 
-    <h2 class="pub-heading">03 / 社区论坛热评 (14 大平台 · 含核心量化指标)</h2>
+    <h2 class="pub-heading">03 / 社区论坛热评 (14 大平台 · 含核心量化指标 · AI 量化配对)</h2>
     <div class="filter-row">
       <button class="filter-tab active" onclick="filterCards('all', this)">全部 14 平台</button>
       <button class="filter-tab" onclick="filterCards('bull', this)">偏多 (6)</button>
@@ -515,7 +552,7 @@ body {
 
   <footer class="footer">
     <div class="author">作者：章鱼 ai&nbsp;&nbsp;仅供参考，分析研究</div>
-    <p id="pageGenTime">生成时间：{{TS_FULL}} · 24h 内最新可读取内容 · 100K 完整单页直推版 · 含核心量化指标</p>
+    <p id="pageGenTime">生成时间：{{TS_FULL}} · 24h 内最新可读取内容 · 100K 完整单页直推版 · 含核心量化指标 · AI 量化配对</p>
   </footer>
 
 </div>
@@ -607,3 +644,4 @@ body {
 
 </body>
 </html>
+/html>
