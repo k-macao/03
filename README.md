@@ -157,6 +157,23 @@ python3 -m unittest tests.test_panorama   # 13 项回归
 落到哪一级由剩余预算决定，但**数字都来自同一份预测**，只是详略不同，两端不会口径打架。
 超预算时打印 `✂️ 微信推送 04 栏：…本次采用「…」`，方便在 CI 日志里看到当天发了哪一版。
 
+#### 给 04 栏腾出的字符预算（纯样式瘦身，正文一字未删）
+
+直接挂上 04 栏会把 04 挤成「一行摘要」。与其砍内容，不如先把重复的**标记**削掉 ——
+实测全文约四分之一的字符花在逐块重复的内联样式和逐块重复的规则说明上：
+
+| 手段 | 位置 | 说明 |
+| --- | --- | --- |
+| 字符配图共有样式上提到 `<table>` | `char_charts._rows_html` | 字号/颜色/字体由单元格继承，每个 `<td>` 只留必须逐格不同的几条；柱尾多余空格去掉（表格本就按列对齐） |
+| AI 量化块四行要点改 `<br/>` 串接 | `quant_pair.render_wechat` / `render_wechat_list` | 省掉四组重复的 `<div style="margin-bottom:4px;">` |
+| 配对规则整篇只印一次 | `quant_pair.rule_note_wechat()`，落在推送页脚 | 那段 100 字的规则原先在 20 多个块里逐块重复；网页版无字符上限，仍逐块保留（`render_wechat(..., show_rule=True)` 可让单独出现的块自带规则） |
+| 核心量化指标 / 社区卡片去掉可继承声明 | `tools/wechat_push.py` | 外层已设 `color:#141414`，子元素不必再声明一遍 |
+
+净效果（demo 数据实测）：字符配图 19,408 → 14,935，03 栏 40,556 → 33,020，
+**04 栏因此拿到最高一级的「完整版 + 字符配图」（15,221 字符），整页 92,781 < 95,000。**
+瘦身前后渲染结果一致，`tests/test_forecast.py` 用两项回归钉住：
+规则在微信单页里只能出现一次、04 栏必须拿得到逐标的预测表。
+
 ```bash
 python3 forecast.py                  # 读仓库内 4 份 json → 文本预测
 python3 forecast.py --json out.json  # 导出结构化预测（便于回测/核对）
@@ -316,7 +333,7 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 | `char_charts.py` | **微信字符配图**：把力量分、涨跌幅、配对 z、社区构成、舆情读数、**AI 预测（预期涨跌幅发散柱 + 置信度柱）与预测命中率回看**画成 matplotlib 同款的柱状/发散/堆叠字符图。缺数据不编柱。`python3 char_charts.py --self-test` |
 | `forecast.py` | **04 栏「AI 预测 · 未来函数」推理引擎**：四路当次数据 → 下一交易日逐标的预测（方向 / 预期涨跌幅 / 预测区间 / 点位区间 / 置信度 / 驱动拆解）+ 明日盘面倾向 + 历史命中率回看；「未来函数」只取「预测未来」之义，目标日严格晚于行情基准日、预测**先落盘后结算**，当次行情结构上不可能结算当次预测（杜绝 look-ahead bias）。纯标准库纯函数、不联网，构建期由 `build_site.py` 与 `tools/wechat_push.py` 直接调用（**无需改 CI workflow**）。`python3 forecast.py` 文本摘要、`--json` 导出、`--history` 落盘+结算、`--review` 只看回看、`--self-test` 规则自检 |
 | `forecast_history.json` | **AI 预测存档**（构建产物，不入库）：每条预测带 `base_date / target_date / direction / mu_pct / low_pct / high_pct / confidence / settled`；后续构建抓到目标日行情后回填 `actual_pct / hit / in_band / error_pct`。CI 跨运行持久化见 `docs/forecast-ci-cache.patch`（不应用则回看永远 0 样本，功能不受影响）。路径可用 `FORECAST_HISTORY` 覆盖 |
-| `tests/test_forecast.py` | 04 栏回归（32 项，零联网）：**未来函数口径**（目标日必须晚于基准日、周末顺延、当次行情结算不了当次预测、只在目标日行情到位时计分、过期判作废不凑命中、同日重建不灌水）、预测跟着数据走（多/空/横盘结论不同、>2σ 均值回归而非外推、美股不通过联动项自己预测自己、驱动项能复算出 μ）、缺数据降级为「本栏不预测」、引擎代码不得写死日期与点位、网页 `FORECAST` 注入幂等、**微信预算自适应且加了 04 栏后仍在推送门禁之内** |
+| `tests/test_forecast.py` | 04 栏回归（35 项，零联网）：**未来函数口径**（目标日必须晚于基准日、周末顺延、当次行情结算不了当次预测、只在目标日行情到位时计分、过期判作废不凑命中、同日重建不灌水）、预测跟着数据走（多/空/横盘结论不同、>2σ 均值回归而非外推、美股不通过联动项自己预测自己、驱动项能复算出 μ）、缺数据降级为「本栏不预测」、引擎代码不得写死日期与点位、网页 `FORECAST` 注入幂等、**微信预算自适应且加了 04 栏后仍在推送门禁之内**、**配对规则在微信单页只印一次而非逐块重复**、**压缩既有栏目后 04 栏拿得到逐标的预测表** |
 | `docs/forecast-ci-cache.patch` | **待人工应用的 workflow 补丁**（GitHub App 无 `workflows` 权限）：三个 job 各加一对 `actions/cache` restore/save 步骤持久化 `forecast_history.json`，打通 04 栏的命中率回看 |
 | `panorama.py` | **01 栏「每日全球全景扫描」推理引擎**：把当次的 `market_data.json` + `macro_data.json` + `sentiment_data.json` + `community_data.json` 合成为**推动股价的 5 大力量**（重点 / 次要 / 噪音 · 利好 / 利空 / 中性 · 0~100 力量分）、三大关注面小结（宏观事件 / 板块轮动 / 情绪变化）与**是否可以做多**的合成分结论，并在每条力量后挂 `quant_pair` 的配对推荐；纯标准库纯函数、不联网不落盘，构建期由 `build_site.py` 与 `tools/wechat_push.py` 直接调用（**因此无需改 CI workflow**）。`python3 panorama.py` 打印文本摘要、`--json` 导出结构化结果、`--self-test` 规则自检 |
 | `tests/test_panorama.py` | 01 栏回归（13 项，零联网）：5 大力量与栏目要素齐全、多/空/横盘三种行情结论必须不同、噪音不计入做多合成分、突发风险分下调做多结论、四路数据缺失时降级为「本栏不编故事」、网页 `PANORAMA` 注入幂等、旧栏目名与写死历史内容不得回归 |

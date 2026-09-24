@@ -477,6 +477,44 @@ class TestForecastRendering(unittest.TestCase):
         self.assertLess(len(html), wp.CONTENT_SAFE_LIMIT,
                         '加了 04 栏之后仍须留在推送门禁之内，否则每日推送会被整条拦下')
 
+    def test_repeated_pair_rule_is_printed_once_not_per_block(self):
+        """腾预算的手段之一：配对规则整篇只印一次，不在 20 多个 AI 量化块里重复。"""
+        import quant_pair
+        env = {'FORECAST_HISTORY': self.hist}
+        saved = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                html, _ts, _tsf = wp.build_single_wechat_html(now=NOW)
+        finally:
+            for k, v in saved.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        self.assertEqual(html.count(quant_pair.RULE), 1,
+                         '配对规则在微信单页里应当只出现一次（页脚），其余块共用同一口径')
+        self.assertGreaterEqual(html.count('AI 量化'), 14, '规则去重不得连带把 AI 量化块删掉')
+        # 网页版没有字符上限，规则仍逐块保留（渲染会把 < 转义，比对规则的前半段即可）
+        head = quant_pair.RULE.split('|z|', 1)[0]
+        rec = quant_pair.recommend('恒生科技 恒指', {'HSI': {'pct': 0.4}, 'HSTECH': {'pct': 1.4}})
+        self.assertIn(head, quant_pair.render_web(rec))
+        self.assertNotIn(head, quant_pair.render_wechat(rec))
+        self.assertIn(head, quant_pair.render_wechat(rec, show_rule=True))
+
+    def test_trimming_left_room_for_a_real_forecast_block(self):
+        """压缩既有栏目的目的：微信 04 栏要拿到逐标的预测，而不是退成一行摘要。"""
+        env = {'FORECAST_HISTORY': self.hist}
+        saved = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                html, _ts, _tsf = wp.build_single_wechat_html(now=NOW)
+        finally:
+            for k, v in saved.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        sec = html.split('04 / AI 预测', 1)[1].split('07 /', 1)[0]
+        plain = _plain(sec)
+        self.assertIn('逐标的预测', plain, '预算应当够放下逐标的预测表，而不是只剩一行摘要')
+        self.assertIn('明日盘面倾向', plain)
+
     def test_char_charts_never_invent_bars(self):
         empty_html, empty_plain = char_charts.forecast_chart({})
         self.assertIn('不编柱', empty_html)

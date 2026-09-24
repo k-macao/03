@@ -127,34 +127,39 @@ def stacked_bar(parts, width=24):
     return ''.join(g * n for (g, _), n in zip(parts, cells)), total
 
 
+# 微信单页有 10 万字符硬上限，而字符配图是逐行渲染的：每行三个 <td> 各带一串内联样式，
+# 行数一多，重复的样式字符串比图本身还贵（实测 6 张图里约七成字符是重复的 style）。
+# 所以共有属性（字号 / 颜色 / 字体）全部提到 <table> 上让单元格继承，
+# 每个 <td> 只留必须逐格不同的那几条 —— 纯样式瘦身，图长什么样一格没变。
+_FIG_TABLE = ('width:100%;border-collapse:collapse;margin:8px 0 0;background:#f4f7f4;'
+              'border:1px solid #007a35;border-left:3px solid #000;font-size:11px;color:#141414')
+_FIG_CAP = 'text-align:left;font-weight:700;font-size:12px;color:#007a35;padding:8px 10px 2px'
+_FIG_LABEL = 'padding:1px 8px;white-space:nowrap'
+_FIG_BAR = "padding:1px 0;font:12px Consolas,Menlo,'Courier New',monospace;white-space:pre;color:#000"
+_FIG_VALUE = 'padding:1px 8px;text-align:right;white-space:nowrap'
+_FIG_EMPTY = 'padding:4px 10px 8px'
+_FIG_NOTE = 'padding:2px 10px 8px;font-size:10px;color:#7d838b'
+
+
 def _rows_html(title, rows, note):
     """微信用表格装字符柱：标签、柱、数值分列，不靠中文等宽。"""
     body = [
-        '<table class="char-fig" style="width:100%;border-collapse:collapse;margin:8px 0 0;'
-        'background:#f4f7f4;border:1px solid #007a35;border-left:3px solid #000;">',
-        '<caption style="text-align:left;font-weight:700;font-size:12px;color:#007a35;'
-        'padding:8px 10px 2px;">◆ 字符配图 · ' + html.escape(title) + '</caption>',
+        f'<table class="char-fig" style="{_FIG_TABLE}">',
+        f'<caption style="{_FIG_CAP}">◆ 字符配图 · ' + html.escape(title) + '</caption>',
     ]
     if not rows:
         body.append(
-            '<tr><td style="padding:4px 10px 8px;font-size:11px;color:#141414;">'
+            f'<tr><td style="{_FIG_EMPTY}">'
             '（当次没有可画的数，本图不编柱，不回填历史点位）</td></tr>')
     else:
         for label, bar, value in rows:
+            # 柱尾的空格只是把单元格撑宽，表格已经按列对齐，去掉不影响观感
             body.append(
-                '<tr>'
-                f'<td style="padding:1px 8px;font-size:11px;color:#141414;white-space:nowrap;">'
-                f'{html.escape(str(label))}</td>'
-                '<td style="padding:1px 0;font-family:Consolas,Menlo,\'Courier New\',monospace;'
-                'font-size:12px;letter-spacing:0;white-space:pre;color:#000;">'
-                f'{html.escape(bar)}</td>'
-                '<td style="padding:1px 8px;font-size:11px;text-align:right;white-space:nowrap;'
-                f'color:#141414;">{html.escape(str(value))}</td>'
-                '</tr>')
+                f'<tr><td style="{_FIG_LABEL}">{html.escape(str(label))}</td>'
+                f'<td style="{_FIG_BAR}">{html.escape(str(bar).rstrip())}</td>'
+                f'<td style="{_FIG_VALUE}">{html.escape(str(value))}</td></tr>')
     if note:
-        body.append(
-            '<tr><td colspan="3" style="padding:2px 10px 8px;font-size:10px;color:#7d838b;">'
-            + html.escape(note) + '</td></tr>')
+        body.append(f'<tr><td colspan="3" style="{_FIG_NOTE}">' + html.escape(note) + '</td></tr>')
     body.append('</table>')
     return ''.join(body)
 

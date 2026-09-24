@@ -250,13 +250,16 @@ def quant_html_inline(quant):
     e = quant.get('event', {})
     r = quant.get('relevance', {})
     n = quant.get('novelty', {})
+    # 四行要点用 <br/> 串起来而不是四个带 style 的 <div>：微信单页字符预算很紧，
+    # 14 张卡片 × 4 组重复样式是一笔白花的开销，显示效果一致。
     return (
-        f'<div style="background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;">'
-        f'<div style="color:#007a35;font-weight:700;font-size:12px;margin-bottom:6px;">◆ 核心量化指标</div>'
-        f'<div style="margin-bottom:4px;">◦ <strong>实体级情感得分：</strong>{s.get("display","—")} — {s.get("desc","")}</div>'
-        f'<div style="margin-bottom:4px;">◦ <strong>新闻细分事件分类：</strong>{e.get("label","综合")} — {e.get("desc","")}</div>'
-        f'<div style="margin-bottom:4px;">◦ <strong>相关性得分：</strong>{r.get("display","—")} — {r.get("desc","")}</div>'
-        f'<div>◦ <strong>新颖度得分：</strong>{n.get("display","—")} — {n.get("desc","")}</div>'
+        f'<div style="background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;'
+        f'padding:9px 11px;margin-top:9px;font-size:11px;line-height:1.7">'
+        f'<div style="color:#007a35;font-weight:700;font-size:12px">◆ 核心量化指标</div>'
+        f'◦ <strong>实体级情感得分：</strong>{s.get("display","—")} — {s.get("desc","")}<br/>'
+        f'◦ <strong>新闻细分事件分类：</strong>{e.get("label","综合")} — {e.get("desc","")}<br/>'
+        f'◦ <strong>相关性得分：</strong>{r.get("display","—")} — {r.get("desc","")}<br/>'
+        f'◦ <strong>新颖度得分：</strong>{n.get("display","—")} — {n.get("desc","")}'
         f'</div>'
     )
 
@@ -456,13 +459,13 @@ def build_single_wechat_html(now=None):
             f'{name} {quote} {verdict}', _quotes))
         return (
             f'<div style="background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid {edge};'
-            f'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;">'
-            f'<div style="color:{GR};font-weight:700;font-size:13px;">{icon} {no}. {name} '
-            f'<span style="background:#000;color:{chip};font-size:10px;padding:1px 6px;margin-left:4px;">{label}</span></div>'
-            f'<div style="margin-top:6px;line-height:1.8;"><strong>平台深度热评：</strong>{quote}</div>'
+            f'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px">'
+            f'<div style="color:{GR};font-weight:700;font-size:13px">{icon} {no}. {name} '
+            f'<span style="background:#000;color:{chip};font-size:10px;padding:1px 6px;margin-left:4px">{label}</span></div>'
+            f'<div style="margin-top:6px;line-height:1.8"><strong>平台深度热评：</strong>{quote}</div>'
             f'<div style="background:#eceef0;border-left:3px solid {GR};border-radius:4px;padding:8px 10px;'
-            f'margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7;">'
-            f'<strong style="color:#0a0a0a;">▶ AI 深度战术研判：</strong>{verdict}</div>'
+            f'margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7">'
+            f'<strong>▶ AI 深度战术研判：</strong>{verdict}</div>'
             f'{q_html}'
             f'{ai_html}'
             f'<div style="color:#7d838b;font-size:10px;margin-top:6px;">{meta}</div>'
@@ -906,7 +909,8 @@ def build_single_wechat_html(now=None):
   <div style="background:#000;border-top:4px solid {NEON};padding:16px 12px 10px;margin:20px -12px 0;font-size:12px;color:#c8c8c8;line-height:1.9;">
     <strong style="color:{NEON};font-size:13px;">作者：章鱼 ai&nbsp;&nbsp;仅供参考，分析研究</strong><br/>
     全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。<br/>
-    <span style="color:#7d838b;font-size:10px;">生成时间：{ts_full} · 行情/社区/舆情/宏观快讯均为本次构建现抓 · 宏观快讯时效：{macro_freshness_note} · 字符配图与正文同一份当次数据 · 100K 完整单页版</span>
+    <span style="color:#7d838b;font-size:10px;">生成时间：{ts_full} · 行情/社区/舆情/宏观快讯均为本次构建现抓 · 宏观快讯时效：{macro_freshness_note} · 字符配图与正文同一份当次数据 · 100K 完整单页版</span><br/>
+    <span style="color:#7d838b;font-size:10px;">{quant_pair.RULE}（全文各处「◆ AI 量化」块共用同一口径，故只在此处列一次）</span>
   </div>
 
 </div>'''

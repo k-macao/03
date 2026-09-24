@@ -451,16 +451,43 @@ def render_web_list(recs, note=''):
     )
 
 
-def render_wechat(rec, compact=False, note=''):
-    """微信版：全内联样式，口径与网页版一致。"""
+# ---------------------------------------------------------------------------
+# 微信版的样式常量
+# ---------------------------------------------------------------------------
+# 微信单页有 10 万字符硬上限、95,000 推送门禁。整篇推送里挂着 50 块 AI 量化，
+# 重复的内联样式与逐块重复的规则说明加起来是全文最大的一笔开销（实测占约四分之一）。
+# 所以微信版做了两件纯样式/排版的瘦身，**信息一条没删**：
+#   ① 四行要点从四个 <div> 合成一段 <br/> 分隔的文本，省掉四组重复 style；
+#   ② 规则说明不再逐块重复 —— 由 rule_note_wechat() 在推送里整篇只印一次
+#      （show_rule=True 可让单独出现的块自带规则）。
+# 网页版没有字符上限，保持原样逐块带规则，不受影响。
+_WX_BOX = ('background:#f4f7f4;border:1px solid #007a35;border-left:3px solid #000;'
+           'border-radius:6px;padding:9px 11px;margin-top:9px;font-size:11px;line-height:1.7')
+_WX_COMPACT = ('background:#f4f7f4;border:1px solid #007a35;border-radius:4px;'
+               'padding:6px 8px;margin-top:6px;font-size:11px;line-height:1.65')
+_WX_TITLE = 'color:#000;font-weight:700;font-size:12px'
+_WX_CHIP = 'background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px'
+_WX_META = 'color:#7d838b;font-size:10px;margin-top:6px'
+
+
+def rule_note_wechat(label='AI 量化 · 配对交易'):
+    """整篇推送只印一次的配对规则说明（各处 AI 量化块共用同一口径）。"""
+    return (f'<div style="{_WX_META}">{_esc(label)}规则（全文各块共用同一口径）：{_esc(RULE)}</div>')
+
+
+def render_wechat(rec, compact=False, note='', show_rule=False):
+    """微信版：全内联样式，口径与网页版一致。
+
+    show_rule 默认关闭：规则说明由 rule_note_wechat() 在整篇里印一次，
+    避免同一段 100 字的规则在 20 多个块里重复（微信单页字符预算很紧）。
+    """
     if not rec:
         return ''
     note_html = (f'<div style="color:#7d838b;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
                  if note else '')
     if compact:
         return (
-            '<div style="background:#f4f7f4;border:1px solid #007a35;border-radius:4px;'
-            'padding:6px 8px;margin-top:6px;font-size:11px;line-height:1.65;color:#141414;">'
+            f'<div style="{_WX_COMPACT}">'
             '<strong style="color:#007a35;">◆ AI 量化</strong> · 策略：' + _esc(rec['strategy_name'])
             + ' · 标的组合：' + _esc(rec['pair_label'])
             + ' · 推荐：' + _esc(rec['stance']) + '。' + _esc(rec['recommendation'])
@@ -469,20 +496,18 @@ def render_wechat(rec, compact=False, note=''):
         )
     conf = int(round((rec.get('confidence') or 0) * 100))
     return (
-        '<div style="background:#f4f7f4;border:1px solid #007a35;border-left:3px solid #000;'
-        'border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;">'
-        '<div style="color:#000;font-weight:700;font-size:12px;margin-bottom:6px;">◆ AI 量化 · 配对交易 '
-        '<span style="background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;">'
-        '两标的组合</span></div>'
-        f'<div style="margin-bottom:4px;">◦ <strong>策略：</strong>{_esc(rec["strategy_name"])}'
-        f'（{_esc(rec["family"])} · {_esc(rec["method"])}）</div>'
-        f'<div style="margin-bottom:4px;">◦ <strong>标的组合：</strong>{_esc(rec["pair_label"])}</div>'
-        f'<div style="margin-bottom:4px;">◦ <strong>当次信号：</strong>{_esc(rec["signal"])}</div>'
-        f'<div>◦ <strong>推荐：</strong>{_esc(rec["stance"])}。{_esc(rec["recommendation"])}'
-        f'（置信度 {conf}%）</div>'
-        f'<div style="color:#7d838b;font-size:10px;margin-top:6px;">{_esc(rec["why"])} {_esc(rec["logic"])}</div>'
-        f'<div style="color:#7d838b;font-size:10px;margin-top:2px;">{_esc(rec["rule"])}</div>'
-        f'{note_html}</div>'
+        f'<div style="{_WX_BOX}">'
+        f'<div style="{_WX_TITLE}">◆ AI 量化 · 配对交易'
+        f'<span style="{_WX_CHIP}">两标的组合</span></div>'
+        f'◦ <strong>策略：</strong>{_esc(rec["strategy_name"])}'
+        f'（{_esc(rec["family"])} · {_esc(rec["method"])}）<br/>'
+        f'◦ <strong>标的组合：</strong>{_esc(rec["pair_label"])}<br/>'
+        f'◦ <strong>当次信号：</strong>{_esc(rec["signal"])}<br/>'
+        f'◦ <strong>推荐：</strong>{_esc(rec["stance"])}。{_esc(rec["recommendation"])}'
+        f'（置信度 {conf}%）'
+        f'<div style="{_WX_META}">{_esc(rec["why"])} {_esc(rec["logic"])}</div>'
+        + (f'<div style="{_WX_META}">{_esc(rec["rule"])}</div>' if show_rule else '')
+        + f'{note_html}</div>'
     )
 
 
@@ -490,24 +515,20 @@ def render_wechat_list(recs, note=''):
     recs = [r for r in (recs or []) if r]
     if not recs:
         return ''
-    rows = ''.join(
-        '<div style="margin-bottom:4px;">◦ <strong>策略：</strong>' + _esc(r['strategy_name'])
+    rows = '<br/>'.join(
+        '◦ <strong>策略：</strong>' + _esc(r['strategy_name'])
         + ' · <strong>标的组合：</strong>' + _esc(r['pair_label'])
         + ' · <strong>推荐：</strong>' + _esc(r['stance'])
-        + '。' + _esc(r['recommendation']) + '</div>'
+        + '。' + _esc(r['recommendation'])
         for r in recs
     )
     note_html = (f'<div style="color:#7d838b;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
                  if note else '')
     return (
-        '<div style="background:#f4f7f4;border:1px solid #007a35;border-left:3px solid #000;'
-        'border-radius:6px;padding:10px 12px;margin-top:10px;font-size:11px;line-height:1.7;color:#141414;">'
-        '<div style="color:#000;font-weight:700;font-size:12px;margin-bottom:6px;">◆ AI 量化 · 配对交易 '
-        '<span style="background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px;">'
-        '两标的组合</span></div>'
-        + rows
-        + f'<div style="color:#7d838b;font-size:10px;margin-top:6px;">{_esc(RULE)}</div>'
-        + note_html + '</div>'
+        f'<div style="{_WX_BOX}">'
+        f'<div style="{_WX_TITLE}">◆ AI 量化 · 配对交易'
+        f'<span style="{_WX_CHIP}">两标的组合</span></div>'
+        + rows + note_html + '</div>'
     )
 
 
