@@ -3,29 +3,104 @@
   "live_note": "get_token 当日有效；HTTP 版官方已标注「不再维护，随时可能下线」",
   "payload": {
     "get_factor_values": [
-      {"date": "2026-09-15", "code": "600000.XSHG", "VOL5": 0.0182, "VOL10": 0.0201, "AR": 96.4, "BR": 88.7, "ATR14": 0.21},
-      {"date": "2026-09-15", "code": "000001.XSHE", "VOL5": 0.0124, "VOL10": 0.0139, "AR": 103.2, "BR": 97.5, "ATR14": 0.18},
-      {"date": "2026-09-15", "code": "600519.XSHG", "VOL5": 0.0041, "VOL10": 0.0046, "AR": 88.1, "BR": 79.3, "ATR14": 12.4}
+      {
+        "date": "2026-09-15",
+        "code": "601318.XSHG",
+        "VOL5": 0.0182,
+        "VOL10": 0.0201,
+        "AR": 96.4,
+        "BR": 88.7,
+        "ATR14": 0.21
+      },
+      {
+        "date": "2026-09-15",
+        "code": "600036.XSHE",
+        "VOL5": 0.0124,
+        "VOL10": 0.0139,
+        "AR": 103.2,
+        "BR": 97.5,
+        "ATR14": 0.18
+      },
+      {
+        "date": "2026-09-15",
+        "code": "300750.XSHE",
+        "VOL5": 0.0041,
+        "VOL10": 0.0046,
+        "AR": 88.1,
+        "BR": 79.3,
+        "ATR14": 12.4
+      }
     ],
     "all_factors": [
-      {"factor_code": "VOL5", "factor_name": "5日平均换手率", "factor_category": "情绪因子"},
-      {"factor_code": "VOL10", "factor_name": "10日平均换手率", "factor_category": "情绪因子"},
-      {"factor_code": "AR", "factor_name": "人气指标", "factor_category": "情绪因子"},
-      {"factor_code": "BR", "factor_name": "意愿指标", "factor_category": "情绪因子"},
-      {"factor_code": "ARBR", "factor_name": "AR 与 BR 的差", "factor_category": "情绪因子"},
-      {"factor_code": "DAVOL5", "factor_name": "5日/120日平均换手率", "factor_category": "情绪因子"}
+      {
+        "factor_code": "VOL5",
+        "factor_name": "5日平均换手率",
+        "factor_category": "情绪因子"
+      },
+      {
+        "factor_code": "VOL10",
+        "factor_name": "10日平均换手率",
+        "factor_category": "情绪因子"
+      },
+      {
+        "factor_code": "AR",
+        "factor_name": "人气指标",
+        "factor_category": "情绪因子"
+      },
+      {
+        "factor_code": "BR",
+        "factor_name": "意愿指标",
+        "factor_category": "情绪因子"
+      },
+      {
+        "factor_code": "ARBR",
+        "factor_name": "AR 与 BR 的差",
+        "factor_category": "情绪因子"
+      },
+      {
+        "factor_code": "DAVOL5",
+        "factor_name": "5日/120日平均换手率",
+        "factor_category": "情绪因子"
+      }
     ],
-    "emotion_factor_codes": ["VOL5", "VOL10", "VOL20", "VOL60", "VOL120", "AR", "BR", "ARBR",
-                             "VEMA5", "DAVOL5", "DAVOL10", "ATR6", "ATR14"],
+    "emotion_factor_codes": [
+      "VOL5",
+      "VOL10",
+      "VOL20",
+      "VOL60",
+      "VOL120",
+      "AR",
+      "BR",
+      "ARBR",
+      "VEMA5",
+      "DAVOL5",
+      "DAVOL10",
+      "ATR6",
+      "ATR14"
+    ],
     "cctv_news": [
-      {"day": "2026-09-15", "title": "多项稳增长政策加力显效 经济回升向好态势巩固",
-       "content": "财政、货币、产业协同发力，制造业PMI连续三个月位于扩张区间，企业预期改善。"},
-      {"day": "2026-09-15", "title": "资本市场投融资综合改革持续深化",
-       "content": "监管层表示将进一步完善中长期资金入市机制，提升市场内在稳定性。"}
+      {
+        "day": "2026-09-15",
+        "title": "多项稳增长政策加力显效 经济回升向好态势巩固",
+        "content": "财政、货币、产业协同发力，制造业PMI连续三个月位于扩张区间，企业预期改善。"
+      },
+      {
+        "day": "2026-09-15",
+        "title": "资本市场投融资综合改革持续深化",
+        "content": "监管层表示将进一步完善中长期资金入市机制，提升市场内在稳定性。"
+      }
     ],
     "xq_hot": [
-      {"date": "2026-09-15", "code": "000001.XSHE", "hot": 12.4},
-      {"date": "2026-09-15", "code": "600519.XSHG", "hot": 31.7}
+      {
+        "date": "2026-09-15",
+        "code": "600036.XSHE",
+        "hot": 12.4
+      },
+      {
+        "date": "2026-09-15",
+        "code": "300750.XSHE",
+        "hot": 31.7
+      }
     ],
     "query_count_left": 963211
   }

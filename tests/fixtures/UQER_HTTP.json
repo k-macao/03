@@ -2,26 +2,78 @@
   "recorded_from": "优矿 DataAPI（NewsSentimentIndexGet / NewsHeatIndexGet / NewsByTickersGet）返回形态复刻；字段口径见官方 docstring：sentimentIndex=当日关联新闻情感均值，heatIndex=新闻热度",
   "payload": {
     "sentiment": [
-      {"secID": "600000.SH", "tradeDate": "20260914", "sentimentIndex": 0.124},
-      {"secID": "600000.SH", "tradeDate": "20260915", "sentimentIndex": 0.318},
-      {"secID": "000001.SZ", "tradeDate": "20260914", "sentimentIndex": -0.081},
-      {"secID": "000001.SZ", "tradeDate": "20260915", "sentimentIndex": -0.402},
-      {"secID": "600519.SH", "tradeDate": "20260915", "sentimentIndex": 0.077}
+      {
+        "secID": "601318.SH",
+        "tradeDate": "20260914",
+        "sentimentIndex": 0.124
+      },
+      {
+        "secID": "601318.SH",
+        "tradeDate": "20260915",
+        "sentimentIndex": 0.318
+      },
+      {
+        "secID": "600036.SZ",
+        "tradeDate": "20260914",
+        "sentimentIndex": -0.081
+      },
+      {
+        "secID": "600036.SZ",
+        "tradeDate": "20260915",
+        "sentimentIndex": -0.402
+      },
+      {
+        "secID": "300750.SZ",
+        "tradeDate": "20260915",
+        "sentimentIndex": 0.077
+      }
     ],
     "heat": [
-      {"secID": "600000.SH", "tradeDate": "20260911", "heatIndex": 118.0},
-      {"secID": "600000.SH", "tradeDate": "20260914", "heatIndex": 131.5},
-      {"secID": "600000.SH", "tradeDate": "20260915", "heatIndex": 214.9},
-      {"secID": "000001.SZ", "tradeDate": "20260915", "heatIndex": 176.2},
-      {"secID": "600519.SH", "tradeDate": "20260915", "heatIndex": 96.4}
+      {
+        "secID": "601318.SH",
+        "tradeDate": "20260911",
+        "heatIndex": 118.0
+      },
+      {
+        "secID": "601318.SH",
+        "tradeDate": "20260914",
+        "heatIndex": 131.5
+      },
+      {
+        "secID": "601318.SH",
+        "tradeDate": "20260915",
+        "heatIndex": 214.9
+      },
+      {
+        "secID": "600036.SZ",
+        "tradeDate": "20260915",
+        "heatIndex": 176.2
+      },
+      {
+        "secID": "300750.SZ",
+        "tradeDate": "20260915",
+        "heatIndex": 96.4
+      }
     ],
     "news": [
-      {"newsID": 8801, "secID": "000001.SZ", "title": "平安银行不良率环比上升，市场关注零售风险处置进度",
-       "content": "公司称已加大核销与转让力度，资产质量压力边际收敛。",
-       "source": "财新网", "publishTime": "2026-09-15 08:30:00", "insertTime": "2026-09-15 08:41:00"},
-      {"newsID": 8802, "secID": "600000.SH", "title": "浦发银行中标某省级政务云平台三期项目",
-       "content": "中标金额约 12 亿元，有望带动对公金融科技收入增长。",
-       "source": "证券时报网", "publishTime": "2026-09-15 09:10:00", "insertTime": "2026-09-15 09:22:00"}
+      {
+        "newsID": 8801,
+        "secID": "600036.SZ",
+        "title": "招商银行不良率环比上升，市场关注零售风险处置进度",
+        "content": "公司称已加大核销与转让力度，资产质量压力边际收敛。",
+        "source": "财新网",
+        "publishTime": "2026-09-15 08:30:00",
+        "insertTime": "2026-09-15 08:41:00"
+      },
+      {
+        "newsID": 8802,
+        "secID": "601318.SH",
+        "title": "中国平安中标某省级政务云平台三期项目",
+        "content": "中标金额约 12 亿元，有望带动对公金融科技收入增长。",
+        "source": "证券时报网",
+        "publishTime": "2026-09-15 09:10:00",
+        "insertTime": "2026-09-15 09:22:00"
+      }
     ],
     "_errors": {}
   }

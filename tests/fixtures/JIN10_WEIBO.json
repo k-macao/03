@@ -4,10 +4,30 @@
     "timescale": "CNHOUR12",
     "date": "2026-09-15",
     "data": [
-      {"symbol": "SZ000001", "name": "平安银行", "rank_value": 92.4, "chg_pct": -1.27},
-      {"symbol": "SH600000", "name": "浦发银行", "rank_value": 78.1, "chg_pct": 0.85},
-      {"symbol": "SH600519", "name": "贵州茅台", "rank_value": 66.3, "chg_pct": 0.42},
-      {"symbol": "SZ300750", "name": "宁德时代", "rank_value": 54.9, "chg_pct": -0.61}
+      {
+        "symbol": "SZ600036",
+        "name": "招商银行",
+        "rank_value": 92.4,
+        "chg_pct": -1.27
+      },
+      {
+        "symbol": "SH601318",
+        "name": "中国平安",
+        "rank_value": 78.1,
+        "chg_pct": 0.85
+      },
+      {
+        "symbol": "SZ300750",
+        "name": "宁德时代",
+        "rank_value": 66.3,
+        "chg_pct": 0.42
+      },
+      {
+        "symbol": "SZ300750",
+        "name": "宁德时代",
+        "rank_value": 54.9,
+        "chg_pct": -0.61
+      }
     ]
   }
 }
