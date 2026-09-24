@@ -12,6 +12,8 @@
 #   tools/probe_sentiment_apis.py → docs/sentiment-api-eval.md (量化平台舆情接口实测评分)
 #   sentiment_factors.py → sentiment_data.json (聚宽/米筐/掘金/优矿 + 免费兜底源舆情·新闻因子；境内取不到则 --mock 降级)
 #   build_site.py       → report.html           (把行情+社区+抓取日期注入页面与推送内容)
+#                                                同时现算 04 栏 AI 预测 (下一交易日) 并把预测写进
+#                                                forecast_history.json (先存档后结算, 命中率回看的唯一数据源)
 #   wechat_push.py --embed                       (把最新推送负载内嵌进 report.html)
 #   wechat_push.py --emit _site/wechat.json
 #   wechat_push.py --push --scheduled            (推送前日期宽松校验, 单品行情/社区失败不阻断)
@@ -52,6 +54,14 @@ jobs:
       - name: 📥 检出仓库
         uses: actions/checkout@v4
 
+      - name: 🔮 恢复 AI 预测存档 (forecast_history.json · 命中率回看的样本来源)
+        uses: actions/cache/restore@v4
+        with:
+          path: forecast_history.json
+          key: forecast-history-${{ github.run_id }}-${{ github.job }}
+          restore-keys: |
+            forecast-history-
+
       - name: 🌐 动态抓取行情 (market_data.py → market_data.json)
         run: python3 market_data.py
 
@@ -81,6 +91,16 @@ jobs:
 
       - name: 🏗️ 动态构建报告 (build_site.py → report.html · 行情+社区双注入)
         run: python3 build_site.py
+
+      - name: 💾 保存 AI 预测存档 (供下次运行结算已到期的预测)
+        # key 带 job 名：schedule 触发时 deploy 与 daily 并行，同 key 保存会撞车
+        # （Actions 的 cache key 不可覆盖）；restore 用前缀回退，照样取到最新那份。
+        # hashFiles 守卫：build_site.py 没跑成时文件不存在，直接 save 会报路径错误。
+        if: always() && hashFiles('forecast_history.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: forecast_history.json
+          key: forecast-history-${{ github.run_id }}-${{ github.job }}
 
       - name: 🧩 内嵌微信推送负载 (wechat-parts → report.html)
         run: python3 tools/wechat_push.py --embed
@@ -125,6 +145,14 @@ jobs:
       - name: 📥 检出仓库
         uses: actions/checkout@v4
 
+      - name: 🔮 恢复 AI 预测存档 (forecast_history.json · 命中率回看的样本来源)
+        uses: actions/cache/restore@v4
+        with:
+          path: forecast_history.json
+          key: forecast-history-${{ github.run_id }}-${{ github.job }}
+          restore-keys: |
+            forecast-history-
+
       - name: 🌐 动态抓取行情 (market_data.py)
         run: python3 market_data.py
 
@@ -148,6 +176,16 @@ jobs:
 
       - name: 🏗️ 动态构建报告 (build_site.py · 行情+社区双注入)
         run: python3 build_site.py
+
+      - name: 💾 保存 AI 预测存档 (供下次运行结算已到期的预测)
+        # key 带 job 名：schedule 触发时 deploy 与 daily 并行，同 key 保存会撞车
+        # （Actions 的 cache key 不可覆盖）；restore 用前缀回退，照样取到最新那份。
+        # hashFiles 守卫：build_site.py 没跑成时文件不存在，直接 save 会报路径错误。
+        if: always() && hashFiles('forecast_history.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: forecast_history.json
+          key: forecast-history-${{ github.run_id }}-${{ github.job }}
 
       - name: 🧩 内嵌微信推送负载
         run: python3 tools/wechat_push.py --embed
@@ -178,6 +216,14 @@ jobs:
       - name: 📥 检出仓库
         uses: actions/checkout@v4
 
+      - name: 🔮 恢复 AI 预测存档 (forecast_history.json · 命中率回看的样本来源)
+        uses: actions/cache/restore@v4
+        with:
+          path: forecast_history.json
+          key: forecast-history-${{ github.run_id }}-${{ github.job }}
+          restore-keys: |
+            forecast-history-
+
       - name: 🌐 动态抓取行情 (market_data.py)
         run: python3 market_data.py
 
@@ -201,6 +247,16 @@ jobs:
 
       - name: 🏗️ 动态构建报告 (build_site.py · 行情+社区+宏观快讯注入)
         run: python3 build_site.py
+
+      - name: 💾 保存 AI 预测存档 (供下次运行结算已到期的预测)
+        # key 带 job 名：schedule 触发时 deploy 与 daily 并行，同 key 保存会撞车
+        # （Actions 的 cache key 不可覆盖）；restore 用前缀回退，照样取到最新那份。
+        # hashFiles 守卫：build_site.py 没跑成时文件不存在，直接 save 会报路径错误。
+        if: always() && hashFiles('forecast_history.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: forecast_history.json
+          key: forecast-history-${{ github.run_id }}-${{ github.job }}
 
       - name: 🧩 内嵌微信推送负载
         run: python3 tools/wechat_push.py --embed
