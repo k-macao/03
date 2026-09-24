@@ -80,12 +80,56 @@ python3 tools/wechat_push.py --push --scheduled   # ⑤ 推送完整报告到微
 
 每条结论都挂着推导它的证据（行情读数或当次快讯标题 + 发布日期），并给出恒指前收盘作为
 多头有效性参考位。四路数据全缺时本栏渲染为「今日未获取 —— 本栏不编故事」，**绝不回填历史叙事**。
+每条力量、每个关注面、以及「是否可以做多」结论后面，另附一条 **AI 量化 · 配对交易**（见下节）。
 
 ```bash
 python3 panorama.py                 # 读仓库内 4 份 json → 文本摘要
 python3 panorama.py --json out.json # 导出结构化扫描结果（便于回测/核对）
 python3 panorama.py --self-test     # 规则自检（普涨 / 普跌 / 横盘 / 空数据）
 python3 -m unittest tests.test_panorama   # 13 项回归
+```
+
+## 📐 每条内容后的 AI 量化 · 配对交易
+
+网页与微信的**每一条内容后面**都挂一块「AI 量化」：先按正文找到一条量化策略，再给出**恰好两只标的**的组合，最后用当次涨跌幅按该策略做推荐。策略家族是配对交易（相对收益均值回归），规则集中在 `quant_pair.py`，两端渲染共用，不另写一套口径。
+
+```
+价差 = 涨跌幅A − 涨跌幅B
+z    = 价差 / 残差波动          残差波动 = sqrt(σA² + σB² − 2·ρ·σA·σB)
+|z| < 1   观望，不建配对仓
+z ≤ −1    做多 A、做空 B（A 相对偏弱）
+z ≥ 1     做空 A、做多 B（A 相对偏强）
+|z| ≥ 1.8 标准仓，否则轻仓
+```
+
+σ / ρ 是策略参数（典型日波动、预设相关系数），不是某一天的行情事实。两腿涨跌幅缺任何一条，就写「数据不足 · 不给出方向」，**不编点位、不回填历史叙事**。
+
+正文里的主题词（原油、黄金、利率、恒科、内房…）用来选哪一对；选不中时，在当次两腿齐全的组合里取价差偏离最大的那一对。频道名只是默认映射，主题词可以覆盖。
+
+覆盖的内容位：01 每条力量 / 关注面 / 做多结论、02 每条宏观快讯与行情快照、03 每个社区卡片、03B 每个标的匹配与风险事件、07 核心结论。微信推送同一批位置。
+
+```bash
+python3 quant_pair.py --self-test
+python3 -m unittest tests.test_quant_pair
+```
+
+## 📊 微信推送的字符配图
+
+配图对照 [matplotlib](https://github.com/matplotlib/matplotlib) 的 Figure / Axes 规矩（[plot types](https://matplotlib.org/stable/plot_types/index.html)）：每张图有标题、刻度、柱端数值；正负用零线分开，构成用一条堆叠柱，不靠颜色区分（微信里颜色会丢）。柱身只用半角字符，避免方块字在中文字体里变成双宽、把比例画歪。
+
+| 推送里的分析 | matplotlib 图种 | 字符图 |
+| --- | --- | --- |
+| 力量分、做多合成分 | ordered `barh`、发散柱 | 01 栏后面 |
+| 当次涨跌幅、配对 z | diverging bar | 02 栏行情快照后面 |
+| 宏观各小节条数 | `barh` | 快讯可用时，跟在 02 栏 |
+| 社区偏多 / 偏空 / 中性 / 分歧 | stacked bar | 03 栏总览后面 |
+| 舆情温度、净情感 | bar / stacked / diverging | 03B 后面 |
+
+数字只来自当次推送同一份行情、社区计数和因子读数。没有数就写「本图不编柱」，不补 0、不回填历史点位。规则在 `char_charts.py`，由 `tools/wechat_push.py` 挂进推送 HTML。
+
+```bash
+python3 char_charts.py --self-test
+python3 -m unittest tests.test_char_charts
 ```
 
 ## 🛟 02 栏兜底保障 — 「宏观快讯 — 今日未获取」
@@ -187,7 +231,9 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 | `tools/probe_sentiment_apis.py` | **接入实测探针**：依赖→网络→鉴权→取数→字段→时效→覆盖→延迟→额度 9 阶段短路判定 + 100 分制打分 → `api_probe_report.json` 与 `docs/sentiment-api-eval.md` |
 | `docs/sentiment-api-eval.md` | **评测矩阵（内部档案）**：结论速览 / 能力矩阵 / 评分明细 / 逐源明细，由探针自动生成；**不在网页与微信推送中展示**（对外不显示来源） |
 | `tests/test_sentiment.py` | 舆情层测试（38 项，零联网）：`python3 -m unittest discover -s tests`；含「03B 对外输出不得出现任何来源痕迹」与「采集结果必须匹配到日报标的」两类回归 |
-| `panorama.py` | **01 栏「每日全球全景扫描」推理引擎**：把当次的 `market_data.json` + `macro_data.json` + `sentiment_data.json` + `community_data.json` 合成为**推动股价的 5 大力量**（重点 / 次要 / 噪音 · 利好 / 利空 / 中性 · 0~100 力量分）、三大关注面小结（宏观事件 / 板块轮动 / 情绪变化）与**是否可以做多**的合成分结论；纯标准库纯函数、不联网不落盘，构建期由 `build_site.py` 与 `tools/wechat_push.py` 直接调用（**因此无需改 CI workflow**）。`python3 panorama.py` 打印文本摘要、`--json` 导出结构化结果、`--self-test` 规则自检 |
+| `quant_pair.py` | **AI 量化 · 配对交易**：每条内容后选一条策略、给出恰好两只标的、用当次涨跌幅做均值回归推荐；行情不全则「数据不足」。网页与微信共用。`python3 quant_pair.py --self-test` |
+| `char_charts.py` | **微信字符配图**：把力量分、涨跌幅、配对 z、社区构成、舆情读数画成 matplotlib 同款的柱状/发散/堆叠字符图。缺数据不编柱。`python3 char_charts.py --self-test` |
+| `panorama.py` | **01 栏「每日全球全景扫描」推理引擎**：把当次的 `market_data.json` + `macro_data.json` + `sentiment_data.json` + `community_data.json` 合成为**推动股价的 5 大力量**（重点 / 次要 / 噪音 · 利好 / 利空 / 中性 · 0~100 力量分）、三大关注面小结（宏观事件 / 板块轮动 / 情绪变化）与**是否可以做多**的合成分结论，并在每条力量后挂 `quant_pair` 的配对推荐；纯标准库纯函数、不联网不落盘，构建期由 `build_site.py` 与 `tools/wechat_push.py` 直接调用（**因此无需改 CI workflow**）。`python3 panorama.py` 打印文本摘要、`--json` 导出结构化结果、`--self-test` 规则自检 |
 | `tests/test_panorama.py` | 01 栏回归（13 项，零联网）：5 大力量与栏目要素齐全、多/空/横盘三种行情结论必须不同、噪音不计入做多合成分、突发风险分下调做多结论、四路数据缺失时降级为「本栏不编故事」、网页 `PANORAMA` 注入幂等、旧栏目名与写死历史内容不得回归 |
 | `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，把 `panorama.py` 的全景扫描注入 01 节 `<!-- PANORAMA -->` 占位区（哨兵 `<!-- /PANORAMA -->` 保证幂等），把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记，把 `macro_data.json` 的快讯注入 02 节 `<!-- MACROLIST -->` 占位区（缺数据→「今日未获取」，回填哨兵 `<!-- /MACROLIST -->` 保证幂等），并把「因子读数 + 标的匹配（不含来源）」注入 `<!-- SENTIMENT_LIST -->` 标记 |
 | `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 01 节 `<!-- PANORAMA -->`、`<!-- COMMUNITY_LIST:BEGIN/END -->`、02 节 `<!-- MACROLIST -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
