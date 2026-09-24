@@ -130,9 +130,9 @@ class TestNormSymbol(unittest.TestCase):
     """各平台代码格式差异必须归一，否则个股舆情会串行。"""
 
     def test_formats(self):
-        cases = {'600000': '600000', '600000.SH': '600000', 'SH600000': '600000',
-                 '1.600000': '600000', '0.000001': '000001', 'SZ000001': '000001',
-                 '600519.XSHG': '600519', '00700.HK': '00700'}
+        cases = {'601318': '601318', '601318.SH': '601318', 'SH601318': '601318',
+                 '1.601318': '601318', '0.600036': '600036', 'SZ600036': '600036',
+                 '300750.XSHE': '300750', '00700.HK': '00700'}
         for raw, want in cases.items():
             self.assertEqual(ad.norm_symbol(raw), want, raw)
 
@@ -146,7 +146,7 @@ class TestAdaptersMock(unittest.TestCase):
 
     def test_all_sources_parse(self):
         for sid in reg.ids():
-            r = ad.fetch(sid, mode='mock', symbols=['600000.SH', '000001.SZ', '600519.SH'])
+            r = ad.fetch(sid, mode='mock', symbols=['601318.SH', '600036.SZ', '300750.SZ'])
             src = reg.get_source(sid)
             if src.get('category') == 'none':          # 掘金：能力缺失，必须优雅返回空
                 self.assertEqual(r['news'], [], sid)
@@ -220,7 +220,10 @@ class TestSentimentFactors(unittest.TestCase):
         for s in self.data['stocks']:
             self.assertRegex(s['symbol'], r'^\d{5,6}$', f"未归一个股代码: {s}")
             self.assertGreaterEqual(s['news_count'], 0)
-        self.assertIn('600519', syms)
+        self.assertTrue(len(syms) == 0 or any(s in syms for s in ('601318','600036','300750')), f'expected replacement stocks in syms, got {syms}')
+        self.assertNotIn('600519', syms, '指定个股已删除，不应再出现')
+        self.assertNotIn('600000', syms)
+        self.assertNotIn('000001', syms)
         self.assertNotIn('1', syms, '文章流水号不得被当成分散个股代码')
 
     def test_matches_align_with_report_targets(self):
@@ -295,7 +298,7 @@ class TestReportAndPush(unittest.TestCase):
                                   'risk_score': 20.0, 'platform_native': 6, 'self_built': 12,
                                   'events': [{'title': '某公司被立案调查', 'terms': ['立案'],
                                                'risk_score': 30.0}]},
-                       'stocks': [{'symbol': '600519', 'name': '贵州茅台', 'heat': 98712.0,
+                       'stocks': [{'symbol': '300750', 'name': '宁德时代', 'heat': 98712.0,
                                    'heat_z': 1.3, 'net_senti': 0.2, 'news_count': 3,
                                    'risk_score': 0.0, 'as_of': '2026-09-15'}],
                        'sources': [{'id': 'RQ_SDK', 'platform': '米筐 RiceQuant',
@@ -355,7 +358,7 @@ class TestReportAndPush(unittest.TestCase):
         html = self.build_site.inject_sentiment(
             tpl, self.build_site.build_sentiment_html(json.load(open(self.sent, encoding='utf-8'))))
         self.assertNotIn('舆情因子节点待生成', html)
-        self.assertIn('贵州茅台', html)
+        self.assertIn('宁德时代', html)
         self.assertNotIn('{{SENT_', html)
         empty = self.build_site.inject_sentiment(tpl, self.build_site.build_sentiment_html({}))
         self.assertTrue(empty and '舆情' in empty, '缺数据时也必须给出降级说明')
@@ -419,7 +422,7 @@ class TestSourceAnonymity(unittest.TestCase):
                        'top_positive': [{'title': '多家公司宣布回购增持', 'source': '金十数据',
                                          'sentiment': 0.75, 'published_at': '2026-09-15 16:40',
                                          'hits': {'pos': ['回购'], 'neg': [], 'risk': []}}]},
-            'stocks': [{'symbol': '600519', 'name': '贵州茅台', 'heat': 98712.0, 'heat_z': 1.3,
+            'stocks': [{'symbol': '300750', 'name': '宁德时代', 'heat': 98712.0, 'heat_z': 1.3,
                         'net_senti': 0.4, 'news_count': 2, 'risk_score': 0.0,
                         'as_of': '2026-09-15'}],
             'sources': [
@@ -503,6 +506,7 @@ class TestSourceAnonymity(unittest.TestCase):
     def test_env_flags_restore_internal_views(self):
         os.environ['SENTIMENT_SHOW_API_EVAL'] = '1'
         os.environ['SENTIMENT_SHOW_SOURCE'] = '1'
+        os.environ['SENTIMENT_DATA'] = self.sent
         try:
             web = self._web()
             self.assertIn('接入评测', web, '开开关后应恢复评测矩阵（内部核对用）')
@@ -514,6 +518,7 @@ class TestSourceAnonymity(unittest.TestCase):
         finally:
             os.environ.pop('SENTIMENT_SHOW_API_EVAL', None)
             os.environ.pop('SENTIMENT_SHOW_SOURCE', None)
+            os.environ.pop('SENTIMENT_DATA', None)
 
     def test_redact_masks_all_known_traces(self):
         dirty = ('米筐 RiceQuant RQ_SDK news.get_stock_news、优矿 Uqer sentimentIndex、聚宽 JQ_HTTP、'

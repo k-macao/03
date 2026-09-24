@@ -439,7 +439,7 @@ SOURCES = [
         'category': 'news_text',
         'access': 'http_free',
         'endpoint': 'https://search-api-web.eastmoney.com/search/jsonp',
-        'methods': ['GET ?param={"uid":"","keyword":"600000","type":["cmsArticleWebOld"],'
+        'methods': ['GET ?param={"uid":"","keyword":"601318","type":["cmsArticleWebOld"],'
                     '"param":{"cmsArticleWebOld":{"pageIndex":1,"pageSize":20}}}'],
         'auth_env': [],
         'requires': [],
@@ -451,7 +451,7 @@ SOURCES = [
         'quota': 'pageSize 建议 ≤ 20；无鉴权但可能要求浏览器 UA / Cookie（akshare 实现带固定 cookie）',
         'cost': '免费公开',
         'licence_note': 'JSONP 外壳需剥离；标题噪音高，情感需人工规则复核后才能入实盘',
-        'docs': ['https://so.eastmoney.com/news/s?keyword=600000'],
+        'docs': ['https://so.eastmoney.com/news/s?keyword=601318'],
         'confidence': 'verified_doc',
         'doc_scores': {'ready_factor': 8, 'timeliness': 14, 'coverage': 6,
                        'integration': 13, 'stability': 5, 'cost': 20},
@@ -558,9 +558,9 @@ def doc_score(source_id):
 
 
 # 舆情样本池：默认关注名单 + 中文名（无热度快照时用于展示）
-WATCHLIST = ['600000.SH', '000001.SZ', '600519.SH']
+# 已清空个股关注列表（指定个股已删除）
+WATCHLIST = []
 WATCHLIST_NAMES = {
-    '600000': '浦发银行', '000001': '平安银行', '600519': '贵州茅台',
     '601318': '中国平安', '00700': '腾讯控股', '09988': '阿里巴巴-W',
     '600036': '招商银行', '300750': '宁德时代',
 }

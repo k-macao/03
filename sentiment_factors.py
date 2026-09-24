@@ -23,7 +23,7 @@
   python3 sentiment_factors.py                 # 联网实测（需境内出口 + 凭据）
   python3 sentiment_factors.py --mock          # 用 tests/fixtures 录制报文回放（离线演示/CI）
   python3 sentiment_factors.py --offline       # 断网兜底：沿用上次结果，只刷新时间戳
-  python3 sentiment_factors.py --sources RQ_SDK,UQER_HTTP --watchlist 600000.SH,000001.SZ
+  python3 sentiment_factors.py --sources RQ_SDK,UQER_HTTP --watchlist 601318.SH,600036.SZ
   python3 sentiment_factors.py --json /tmp/s.json --timeout 8 --quiet
 
 设计约束（与 market_data.py / community_data.py 一致）：

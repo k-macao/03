@@ -5,15 +5,36 @@
       "pages": 12,
       "count": 5400,
       "data": [
-        {"SECURITY_CODE": "600000", "SECURITY_NAME_ABBR": "浦发银行", "TRADE_DATE": "2026-09-15 15:00:00",
-         "MARKET_FOCUS": 18234.0, "ORG_PARTICIPATE": 0.312, "TOTAL_SCORE": 62.5, "CLOSE_PRICE": 7.12,
-         "CHANGE_RATE": 0.85},
-        {"SECURITY_CODE": "000001", "SECURITY_NAME_ABBR": "平安银行", "TRADE_DATE": "2026-09-15 15:00:00",
-         "MARKET_FOCUS": 41288.0, "ORG_PARTICIPATE": 0.284, "TOTAL_SCORE": 55.1, "CLOSE_PRICE": 10.88,
-         "CHANGE_RATE": -1.27},
-        {"SECURITY_CODE": "600519", "SECURITY_NAME_ABBR": "贵州茅台", "TRADE_DATE": "2026-09-15 15:00:00",
-         "MARKET_FOCUS": 98712.0, "ORG_PARTICIPATE": 0.402, "TOTAL_SCORE": 71.8, "CLOSE_PRICE": 1420.0,
-         "CHANGE_RATE": 0.42}
+        {
+          "SECURITY_CODE": "601318",
+          "SECURITY_NAME_ABBR": "中国平安",
+          "TRADE_DATE": "2026-09-15 15:00:00",
+          "MARKET_FOCUS": 18234.0,
+          "ORG_PARTICIPATE": 0.312,
+          "TOTAL_SCORE": 62.5,
+          "CLOSE_PRICE": 7.12,
+          "CHANGE_RATE": 0.85
+        },
+        {
+          "SECURITY_CODE": "600036",
+          "SECURITY_NAME_ABBR": "招商银行",
+          "TRADE_DATE": "2026-09-15 15:00:00",
+          "MARKET_FOCUS": 41288.0,
+          "ORG_PARTICIPATE": 0.284,
+          "TOTAL_SCORE": 55.1,
+          "CLOSE_PRICE": 10.88,
+          "CHANGE_RATE": -1.27
+        },
+        {
+          "SECURITY_CODE": "300750",
+          "SECURITY_NAME_ABBR": "宁德时代",
+          "TRADE_DATE": "2026-09-15 15:00:00",
+          "MARKET_FOCUS": 98712.0,
+          "ORG_PARTICIPATE": 0.402,
+          "TOTAL_SCORE": 71.8,
+          "CLOSE_PRICE": 1420.0,
+          "CHANGE_RATE": 0.42
+        }
       ]
     }
   }

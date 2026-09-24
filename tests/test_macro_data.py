@@ -95,7 +95,7 @@ class TestClassify(unittest.TestCase):
         ok = {'title': '星展银行上调恒指目标价至 31,500 点', 'snippet': ''}
         self.assertEqual(md.classify(ok)[0], 'bank_views')
         # 无恒指/港股语境的 A 股目标价不得混进港股小节
-        no = {'title': '某券商上调贵州茅台目标价', 'snippet': ''}
+        no = {'title': '某券商上调宁德时代目标价', 'snippet': ''}
         self.assertNotEqual(md.classify(no)[0], 'bank_views')
 
     def test_unrelated_is_misc(self):

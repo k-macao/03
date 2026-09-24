@@ -193,7 +193,7 @@ def probe_source(sid, mode, repeat=3, timeout=8, watchlist=None):
 
 def _symbols(src, watchlist):
     if not watchlist:
-        watchlist = ['600000.SH', '000001.SZ', '600519.SH']
+        watchlist = list(getattr(reg, 'WATCHLIST', []) or []) or []
     kind = src.get('kind')
     if kind in ('em_datacenter', 'em_search_api'):
         return [w.split('.')[0] for w in watchlist]
@@ -438,7 +438,7 @@ def main():
     ap.add_argument('--skip', default='', help='逗号分隔要跳过的源 id')
     ap.add_argument('--repeat', type=int, default=3, help='每源取数次数（用于延迟统计）')
     ap.add_argument('--timeout', type=float, default=8.0, help='单次请求超时（秒）')
-    ap.add_argument('--watchlist', default='600000.SH,000001.SZ,600519.SH', help='抽样标的')
+    ap.add_argument('--watchlist', default=','.join(getattr(reg, 'WATCHLIST', []) or []), help='抽样标的（默认使用注册表 WATCHLIST）')
     ap.add_argument('--json', dest='json_out', default=DEFAULT_JSON, help='结果 JSON 输出路径')
     ap.add_argument('--md', dest='md_out', default=DEFAULT_MD, help='评测 Markdown 输出路径')
     ap.add_argument('--fail-on-blocked', action='store_true',

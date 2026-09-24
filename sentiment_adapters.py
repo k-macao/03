@@ -119,18 +119,18 @@ def tcp_check(host, port=443, timeout=6):
 def norm_symbol(raw):
     """把各平台五花八门的证券代码统一成 6 位数字码（A 股）。
 
-    支持 600000 / 600000.SH / SH600000 / 1.600000（东财 secid）/ 600000.XSHG（聚宽）
+    支持 601318 / 601318.SH / SH601318 / 1.601318（东财 secid）/ 601318.XSHG（聚宽）
     / 00700.HK（港股保留 5 位）。认不出来的（如文章流水号 20260915001）返回 ''，
     避免把非代码字段当股票代码串进个股舆情。
     """
     s = str(raw or '').strip().upper()
     if not s:
         return ''
-    if '.' in s:                                     # 600000.SH / 1.600000 / 00700.HK
+    if '.' in s:                                     # 601318.SH / 1.601318 / 00700.HK
         seg = [p for p in s.split('.') if p]
         cand = [p for p in seg if p.isdigit() and len(p) in (5, 6)]
         s = cand[-1] if cand else ''
-    elif s[:2] in ('SH', 'SZ', 'BJ', 'HK') and s[2:].isdigit():   # SH600000 / SZ000001
+    elif s[:2] in ('SH', 'SZ', 'BJ', 'HK') and s[2:].isdigit():   # SH601318 / SZ600036
         s = s[2:]
     return s if s.isdigit() and len(s) in (5, 6) else ''
 
@@ -726,8 +726,14 @@ def _default_symbols(src):
     """按数据源市场给默认样本：A 股用沪深样本，港股日报场景用恒生指数关键词。"""
     cov = (src or {}).get('coverage') or ''
     if 'A 股' in cov or '沪深' in cov:
-        return ['600000.XSHG' if 'JQ' in (src.get('id') or '') else '600000.SH',
-                '000001.SZ', '600519.SH']
+        # 使用注册表 WATCHLIST，已删除指定个股
+        wl = list(getattr(reg, 'WATCHLIST', []) or [])
+        if not wl:
+            return []
+        if 'JQ' in (src.get('id') or ''):
+            return [f"{c}.{('XSHG' if ex == 'SH' else 'XSHE')}" for c, ex in
+                    (w.split('.') for w in wl)]
+        return wl
     return ['恒生指数']
 
 
@@ -776,8 +782,9 @@ if __name__ == '__main__':
     ap.add_argument('--mode', choices=['live', 'mock', 'off'], default='mock')
     ap.add_argument('--source', default='', help='只测某个源 id（默认全测）')
     args = ap.parse_args()
+    default_syms = list(getattr(reg, 'WATCHLIST', []) or []) or ['恒生指数']
     for sid in ([args.source] if args.source else reg.ids()):
-        r = fetch(sid, mode=args.mode, symbols=['600000.SH', '000001.SZ'])
+        r = fetch(sid, mode=args.mode, symbols=default_syms)
         print(f"{sid:<14} ok={str(r['ok']):<5} stage={r['stage']:<6} "
               f"news={len(r['news']):<3} series={len(r['series']):<4} latest={r['latest_date']} "
               f"err={(r['error'] or '')[:70]}")

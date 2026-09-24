@@ -2,13 +2,38 @@
   "recorded_from": "jqdatasdk.get_factor_values(...) 返回 DataFrame 展平后的 rows（试用账号无因子权限，正式账号才有数据）",
   "payload": {
     "get_factor_values": [
-      {"date": "2026-09-15", "code": "600000.XSHG", "VOL5": 0.0182, "AR": 96.4, "BR": 88.7},
-      {"date": "2026-09-15", "code": "000001.XSHE", "VOL5": 0.0124, "AR": 103.2, "BR": 97.5}
+      {
+        "date": "2026-09-15",
+        "code": "601318.XSHG",
+        "VOL5": 0.0182,
+        "AR": 96.4,
+        "BR": 88.7
+      },
+      {
+        "date": "2026-09-15",
+        "code": "600036.XSHE",
+        "VOL5": 0.0124,
+        "AR": 103.2,
+        "BR": 97.5
+      }
     ],
-    "emotion_factor_codes": ["VOL5", "VOL10", "VOL20", "VOL60", "VOL120", "AR", "BR", "ARBR", "DAVOL5"],
+    "emotion_factor_codes": [
+      "VOL5",
+      "VOL10",
+      "VOL20",
+      "VOL60",
+      "VOL120",
+      "AR",
+      "BR",
+      "ARBR",
+      "DAVOL5"
+    ],
     "cctv_news": [
-      {"day": "2026-09-15", "title": "央行开展中期借贷便利操作 保持流动性合理充裕",
-       "content": "市场预期资金面平稳，利好权益资产估值。"}
+      {
+        "day": "2026-09-15",
+        "title": "央行开展中期借贷便利操作 保持流动性合理充裕",
+        "content": "市场预期资金面平稳，利好权益资产估值。"
+      }
     ],
     "query_count_left": 998120
   }
