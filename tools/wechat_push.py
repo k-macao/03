@@ -13,6 +13,10 @@
   • 01 栏每日全球全景扫描: 由 panorama.py 在推送前现算 —— 推动股价的 5 大力量（重点/次要/噪音 ·
     利好/利空 · 0~100 力量分）、宏观事件/板块轮动/情绪变化三大关注面、以及「是否可以做多」的
     合成分结论；四路数据全缺时降级为「本栏不编故事」，不回填历史叙事。
+  • 04 栏 AI 预测（未来函数）: 由 forecast.py 在推送前现算下一交易日的逐标的预测（方向 / 预期涨跌幅 /
+    预测区间 / 点位区间 / 置信度 / 驱动拆解）与明日盘面倾向；目标日严格晚于行情基准日，
+    预测先落盘 forecast_history.json、等目标日行情到位才结算命中率，绝不用当次行情给当次预测打分；
+    行情缺席时降级为「今日未获取 —— 本栏不预测」，不回填上一版预测。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
   • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14）；
     重点文字为荧光绿字 + 黑色底，装饰线深绿，全部字号偏小，适合微信竖版长页面阅读。
@@ -58,6 +62,7 @@ import panorama                                           # noqa: E402  01 栏�
 import macro_data as macro_data_mod                       # noqa: E402  02 栏快讯可用性判定（兜底口径单一事实源）
 import quant_pair                                         # noqa: E402  每条内容后的 AI 量化配对
 import char_charts                                        # noqa: E402  推送字符配图（matplotlib 图种的字符版）
+import forecast as forecast_mod                           # noqa: E402  04 栏「AI 预测 · 未来函数」推理引擎
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -254,6 +259,69 @@ def quant_html_inline(quant):
         f'<div>◦ <strong>新颖度得分：</strong>{n.get("display","—")} — {n.get("desc","")}</div>'
         f'</div>'
     )
+
+
+# 04 栏在正文里的占位槽：正文先留槽，量完其余部分再决定这一栏能放多详尽的一版。
+FORECAST_SLOT = '<!--FORECAST-SLOT-->'
+# 预算留白：给日期替换、内嵌脚本等后续步骤留出余量，别把安全线吃满
+FORECAST_MARGIN = 1200
+# 与 build_single_wechat_html() 内的局部配色保持一致（电子墨水风格 Style A）
+WECHAT_GREEN = '#007a35'
+WECHAT_NEON = '#39ff14'
+WECHAT_INK = '#141414'
+
+
+def wechat_box(inner):
+    """与正文同款的浅底卡片外框（build_single_wechat_html 内的 box() 的模块级版本）。"""
+    return (f'<div style="background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;'
+            f'padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;">{inner}</div>')
+
+
+def fit_forecast_block(html, fc_data, neon=WECHAT_NEON, green=WECHAT_GREEN, ink=WECHAT_INK):
+    """把 04 栏塞进微信单页剩余的字符预算里。
+
+    微信单页有 CONTENT_LIMIT 硬上限、CONTENT_SAFE_LIMIT 推送门禁，超了整条推送会被直接拦下。
+    04 栏是新增栏目，不能让它把 01~07 既有栏目挤掉，所以这里按**剩余预算**逐级收敛：
+
+        完整版（逐标的表 + 驱动拆解 + 三路信号 + 回看 + 两张字符配图）
+          → 精简版（倾向 + 逐标的表 + 回看一行）
+            → 一行摘要（倾向 + 龙头标的区间）
+              → 只留一句说明，指向网页 04 节
+
+    不管落到哪一级，**数字都来自同一份预测**，只是详略不同 —— 不会出现两端口径打架。
+    """
+    if FORECAST_SLOT not in html:
+        return html
+    box = wechat_box
+    budget = CONTENT_SAFE_LIMIT - (len(html) - len(FORECAST_SLOT)) - FORECAST_MARGIN
+
+    full = box(forecast_mod.render_wechat(fc_data, neon=neon, green=green, ink=ink))
+    charts = char_charts.forecast_chart(fc_data)[0]
+    if (fc_data.get('review') or {}).get('settled'):
+        charts += char_charts.forecast_review_chart(fc_data['review'])[0]
+    candidates = [
+        ('完整版 + 字符配图', full + '\n  ' + charts),
+        ('完整版', full),
+        ('精简版 + 预测配图', box(forecast_mod.render_wechat(
+            fc_data, neon=neon, green=green, ink=ink, compact=True))
+            + '\n  ' + char_charts.forecast_chart(fc_data)[0]),
+        ('精简版', box(forecast_mod.render_wechat(
+            fc_data, neon=neon, green=green, ink=ink, compact=True))),
+        ('一行摘要', box(forecast_mod.render_wechat_line(fc_data, green=green))),
+    ]
+    for label, block in candidates:
+        if len(block) <= budget:
+            if label != '完整版 + 字符配图':
+                print(f'  ✂️ 微信推送 04 栏：单页剩余预算 {budget} 字符，'
+                      f'本次采用「{label}」（完整逐标的拆解见网页 04 节）')
+            return html.replace(FORECAST_SLOT, block, 1)
+    print('  ⚠️ 微信推送 04 栏：剩余预算不足以放下任何一版预测，本栏只留指引，'
+          '完整内容见网页 04 节', file=sys.stderr)
+    return html.replace(
+        FORECAST_SLOT,
+        '<div style="font-size:11px;line-height:1.8;color:#7d838b;">'
+        'AI 预测（未来函数）本次因微信单页字符预算不足未随推送发出，完整内容见网页 04 节。</div>',
+        1)
 
 
 def build_single_wechat_html(now=None):
@@ -775,6 +843,23 @@ def build_single_wechat_html(now=None):
     fig_forces = char_charts.forces_chart(_scan)[0]
     fig_community = char_charts.community_chart(community_counts)[0]
 
+    # ---------- 04 栏：AI 预测 · 未来函数（下一交易日，先存档后结算） ----------
+    # 与网页 04 节共用 forecast.py 同一套规则与同一份存档，避免两端口径漂移。
+    # 推送路径**只读不写**存档：落盘由 build_site.py 在建站时完成，
+    # 否则 --dry-run / --emit / --push 各跑一次就会把同一条预测重复灌进存档。
+    _fc_review = forecast_mod.review_from_history(
+        forecast_mod.default_history_path(), market=_md, now=now)
+    _fc = forecast_mod.predict(market=_md, macro=_xd, sentiment=_sd, community=_cd,
+                               now=now, review=_fc_review)
+    if _fc.get('available'):
+        print(f'  🔮 微信推送 04 栏：AI 预测 {len(_fc["forecasts"])} 个标的 · '
+              f'基准日 {_fc["base_date"]} → 目标日 {_fc["target_date"]} · '
+              f'明日倾向 {_fc["stance"]["label"]}（{_fc["stance"]["z"]:+.2f}σ）· '
+              f'回看已结算 {(_fc.get("review") or {}).get("settled", 0)} 条')
+    else:
+        print(f'  🔮 微信推送 04 栏：AI 预测降级为「今日未获取」'
+              f'（{_fc.get("unavailable_reason")}）—— 不回填上一版预测')
+
     community_thread_line = (
         hsi_brief() + ' ' + macro_top('hk', '宏观快讯窗口内无港股条目，社区叙事以各频道热评为准')
         + '；跨平台配置答案延续「进攻端看算力与硬科技、防御端看高息与公用事业」的框架，'
@@ -808,6 +893,9 @@ def build_single_wechat_html(now=None):
   {h('03B / 舆情·新闻因子：多平台采集 → 标的匹配 (Sentiment & News Factor Bench · 不显示数据来源)')}
   {sentiment_block()}
 
+  {h('04 / AI 预测 · 未来函数 (AI Forecast · Next Session · 先存档后结算)')}
+  {FORECAST_SLOT}
+
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
   {box(verdict_block())}
   <div style="background:#eceef0;border-left:3px solid #141414;border-radius:4px;padding:10px 14px;margin-top:10px;font-size:12px;color:#333;line-height:1.8;">
@@ -822,6 +910,9 @@ def build_single_wechat_html(now=None):
   </div>
 
 </div>'''
+    # 04 栏按微信单页剩余字符预算选版本（完整 → 精简 → 一行摘要），见 fit_forecast_block()
+    html = fit_forecast_block(html, _fc)
+
     # 14 大社区「最新读取」日期统一刷新为当日抓取日期（动态抓取真正上线）
     html = re.sub(r'(最新读取\s+)(20\d{2}-\d{2}-\d{2})',
                   lambda m: m.group(1) + _fetch_date, html)
