@@ -9,6 +9,11 @@ community_data.json
 macro_data.json
 macro_summary.txt
 
+# AI 预测层（04 栏）构建产物：预测存档，先落盘后结算，命中率回看的唯一数据源
+# 每次构建追加当次预测、结算已到期预测；跨运行持久化见 docs/forecast-ci-cache.patch
+forecast_history.json
+forecast_data.json
+
 # 舆情/新闻因子层构建产物（每次构建生成，不入库；评测结论见 docs/sentiment-api-eval.md）
 sentiment_data.json
 sentiment_history.json

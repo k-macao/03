@@ -36,6 +36,14 @@
   - 若不存在或窗口内无快讯，则显示「今日未获取」+ 恢复命令，绝不回填历史叙事
     （2026-09-16 旧内容事故根因：正文写死 8 月 12 日等旧事实，时效由 macro_data.py 保证）
 
+AI 预测注入 (04 节):
+  - 由 forecast.py 用当次四路数据现算「下一交易日」的逐标的预测：方向 / 预期涨跌幅 /
+    预测区间 / 点位区间 / 置信度 / 驱动拆解，外加明日盘面倾向与历史命中率回看，
+    注入模板中 <!-- FORECAST --> 占位处（尾部留 <!-- /FORECAST --> 哨兵保证幂等）
+  - 「未来函数」只取「预测未来」之义：目标日严格晚于行情基准日，预测先落盘
+    forecast_history.json、等目标日行情到位后才结算计分，绝不用当次行情给当次预测打分
+  - 行情缺席时渲染为「今日未获取 —— 本栏不预测」，与 01 / 02 / 03B 同一反陈旧口径
+
 量化指标注入:
   - 每条社区数据可携带 quant 字段，包含 sentiment/event/relevance/novelty
   - build_community_html 会在 AI 研判后追加 quant-metrics 区块
@@ -64,6 +72,7 @@ import sentiment_match as smatch                           # noqa: E402  采集�
 import panorama                                            # noqa: E402  01 节「每日全球全景扫描」推理引擎
 import macro_data as macro_data_mod                        # noqa: E402  02 节快讯可用性判定（兜底口径单一事实源）
 import quant_pair                                          # noqa: E402  每条内容后的 AI 量化配对
+import forecast as forecast_mod                            # noqa: E402  04 节「AI 预测 · 未来函数」推理引擎
 
 try:
     # 单一事实源：是否对外展示「量化平台现成舆情/新闻因子接入评测（9 阶段实测）」区块
@@ -93,6 +102,11 @@ PANORAMA_MARK = '<!-- PANORAMA -->'
 PANORAMA_BEGIN = '<!-- PANORAMA:BEGIN -->'
 PANORAMA_END = '<!-- PANORAMA:END -->'
 PANORAMA_CLOSE = '<!-- /PANORAMA -->'
+# 04 节 AI 预测（未来函数）占位区（同一套单标记 + 结束哨兵写法，保证重复构建幂等）
+FORECAST_MARK = '<!-- FORECAST -->'
+FORECAST_BEGIN = '<!-- FORECAST:BEGIN -->'
+FORECAST_END = '<!-- FORECAST:END -->'
+FORECAST_CLOSE = '<!-- /FORECAST -->'
 # 行情快照与 07 结论是模板静态块，构建时在标记处补上 AI 量化（重复构建只替换标记，不追加）
 AI_QUANT_QUOTES = '<!-- AI_QUANT:QUOTES -->'
 AI_QUANT_VERDICT = '<!-- AI_QUANT:VERDICT -->'
@@ -563,6 +577,57 @@ def inject_panorama(template, panorama_html):
     return template
 
 
+def build_forecast_html(market_data, macro_data, sentiment_data, community_data,
+                        now=None, history=True, history_path=None):
+    """04 节「AI 预测 · 未来函数」：四路当次数据 → 下一交易日逐标的预测 + 历史命中率回看。
+
+    推理规则集中在 forecast.py（可单测、可回测），本函数只负责取数、存档与渲染。
+
+    「未来函数」在这里只取「预测未来」的含义，绝不是量化里那个偷看未来的 bug：
+      • 输入只有当次四份产物，目标日 = 行情基准日的下一交易日，时序由引擎强制校验；
+      • 当次预测先落盘 forecast_history.json（settled=False），
+        要等后续某次构建真的抓到目标日行情才结算计分 —— 当次行情永远结算不了当次预测。
+    存档 IO 任何故障都只影响「回看」这一小块，不阻断构建（history=False 可完全关掉）。
+    """
+    path = history_path or forecast_mod.default_history_path()
+    review = forecast_mod.review_from_history(path, market=market_data, now=now)
+    data = forecast_mod.predict(market=market_data, macro=macro_data,
+                                sentiment=sentiment_data, community=community_data,
+                                now=now, review=review)
+    if history:
+        data['review'] = forecast_mod.review_from_history(
+            path, market=market_data, now=now, persist=True, data=data)
+    rev = data['review']
+    if data.get('available'):
+        print(f'  🔮 已动态注入 04 节 AI 预测：{len(data["forecasts"])} 个标的 · '
+              f'基准日 {data["base_date"]} → 目标日 {data["target_date"]} · '
+              f'明日倾向 {data["stance"]["label"]}（{data["stance"]["z"]:+.2f}σ）· '
+              f'回看已结算 {rev.get("settled", 0)} 条 / 待结算 {rev.get("pending", 0)} 条')
+    else:
+        print(f'  🔮 04 节 AI 预测降级为「今日未获取」（{data.get("unavailable_reason")}）—— '
+              '没有基准行情就不预测，不回填上一版预测')
+    return forecast_mod.render_web(data)
+
+
+def inject_forecast(template, forecast_html):
+    """把 AI 预测注入模板 04 节的 FORECAST 标记处（与 inject_panorama 同一幂等写法）。"""
+    block = f'{FORECAST_MARK}\n{forecast_html}\n{FORECAST_CLOSE}'
+    if FORECAST_BEGIN in template and FORECAST_END in template:
+        pattern = re.compile(re.escape(FORECAST_BEGIN) + r'.*?' + re.escape(FORECAST_END), re.S)
+        new_html, count = pattern.subn(lambda _m: block, template, count=1)
+        if count:
+            return new_html
+    if FORECAST_MARK in template:
+        if FORECAST_CLOSE in template:
+            pattern = re.compile(re.escape(FORECAST_MARK) + r'.*?' + re.escape(FORECAST_CLOSE), re.S)
+            new_html, count = pattern.subn(lambda _m: block, template, count=1)
+            if count:
+                return new_html
+        return template.replace(FORECAST_MARK, block, 1)
+    print('  ⚠️ 未找到 FORECAST 标记，跳过 04 节 AI 预测注入', file=sys.stderr)
+    return template
+
+
 def build_sentiment_html(s, market=None):
     """03B / 舆情·新闻因子节点（温度计 + 标的匹配 + 个股热度 + 风险事件 + 情感样本 + 采集概况）。
 
@@ -846,6 +911,10 @@ def main():
                     help='强制开启构建期自动补抓（本地默认不联网，CI 默认开）')
     ap.add_argument('--macro-mock', action='store_true',
                     help='构建期补抓走离线回放 tests/fixtures（联调用）')
+    ap.add_argument('--forecast-history', default=None,
+                    help='AI 预测存档路径（默认 forecast_history.json；FORECAST_HISTORY 可覆盖）')
+    ap.add_argument('--forecast-no-history', action='store_true',
+                    help='不写预测存档、不结算历史预测（04 节仍照常预测，只是没有命中率回看）')
     ap.add_argument('--template', default='report.html', help='模板文件路径')
     ap.add_argument('--out', default='report.html', help='输出文件路径')
     ap.add_argument('--check', action='store_true', help='只校验占位符，不写文件')
@@ -862,7 +931,8 @@ def main():
     if (not leftovers and COMMUNITY_LIST_BEGIN not in template
             and SENTIMENT_LIST_BEGIN not in template and MACROLIST_MARK not in template
             and MACROLIST_BEGIN not in template and PANORAMA_MARK not in template
-            and PANORAMA_BEGIN not in template):
+            and PANORAMA_BEGIN not in template and FORECAST_MARK not in template
+            and FORECAST_BEGIN not in template):
         print(f'错误: {args.template} 中没有 {{占位符}}，疑似已构建过的产物。\n'
               f'仓库中的 report.html 应保持模板版本；恢复: git checkout -- report.html',
               file=sys.stderr)
@@ -955,6 +1025,10 @@ def main():
         data, macro_data, sentiment_data, community_data, now=now))
     template = inject_macro_list(template, build_macro_html(macro_data, now=now, market=data))
     template = inject_sentiment(template, build_sentiment_html(sentiment_data, market=data))
+    template = inject_forecast(template, build_forecast_html(
+        data, macro_data, sentiment_data, community_data, now=now,
+        history=not (args.check or args.forecast_no_history),
+        history_path=args.forecast_history))
     template = fill_ai_quant_markers(template, market=data)
 
     missing = sorted(set(find_leftovers(template)) - set(tokens))

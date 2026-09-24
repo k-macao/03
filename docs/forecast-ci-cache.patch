@@ -1,0 +1,69 @@
+# 04 栏「AI 预测 · 未来函数」的预测存档跨运行持久化 (forecast_history.json)
+#
+# 应用方式（需 repo 成员或有 workflows 权限的账号 —— Agent 的 GitHub App 缺该权限，
+#            含 .github/workflows/** 的提交会被远端直接 reject，已实测确认）:
+#   git apply docs/forecast-ci-cache.patch && git commit -am "ci: 缓存 AI 预测存档，打通命中率回看"
+#
+# ────────────────────────────────────────────────────────────────────────────
+# 为什么需要这一步
+# ────────────────────────────────────────────────────────────────────────────
+# 04 栏的规则是「先存档、后结算」：当次预测写进 forecast_history.json（settled=False），
+# 要等**后续某次构建**真的抓到目标日行情，才回填实际涨跌并计入命中率。
+# 这条纪律正是它跟「偷看未来的未来函数（look-ahead bias）」的分界线 —— 不能省。
+#
+# 但 GitHub Actions 每次 run 都是全新 checkout，forecast_history.json 又是构建产物
+# （在 .gitignore 里，不入库），所以**不加缓存的话存档每次都是空的**：
+# 预测照常产出、页面照常渲染，但「历史预测回看」会永远停在
+#   「暂无已结算的历史预测 —— 命中率要等预测到期、且抓到目标日实际行情后才产生。」
+# 也就是说，不应用本补丁功能不会坏，只是命中率这一块永远攒不出样本。
+#
+# 本补丁给 deploy / wechat / daily 三个 job 各加一对 actions/cache 步骤：
+#   • 恢复上一次的存档（restore-keys 按前缀回退到最近一次可用快照）
+#   • 构建完成后按 run_id 存新 key（cache key 不可覆盖，所以每次 run 用新 key + 前缀回退）
+# 缓存丢失（7 天未命中被 GitHub 回收等）只会让回看重新从 0 条样本开始，不影响预测与推送。
+#
+# 备选方案（不想用 cache 时）：把 FORECAST_HISTORY 指到一个持久化存储，
+#   例如 `FORECAST_HISTORY=/path/to/volume/forecast_history.json python3 build_site.py`。
+#   环境变量在 forecast.default_history_path() 里读取，三个 job 都生效。
+#
+# 注: 落盘只发生在 build_site.py（建站）这一步；tools/wechat_push.py 只读存档，
+#     所以 --dry-run / --emit / --push 各跑一次也不会把同一条预测重复灌进去。
+
+--- a/.github/workflows/m.yml
++++ b/.github/workflows/m.yml
+@@ -14,6 +14,8 @@
+ #   build_site.py       → report.html           (把行情+社区+抓取日期注入页面与推送内容)
++#                                                同时现算 04 栏 AI 预测 (下一交易日) 并把预测写进
++#                                                forecast_history.json (先存档后结算，命中率回看的唯一数据源)
+ #   wechat_push.py --embed                       (把最新推送负载内嵌进 report.html)
+ #   wechat_push.py --emit _site/wechat.json
+ #   wechat_push.py --push --scheduled            (推送前日期宽松校验, 单品行情/社区失败不阻断)
+@@ -52,6 +54,14 @@
+       - name: 📥 检出仓库
+         uses: actions/checkout@v4
+ 
++      - name: 🔮 恢复 AI 预测存档 (forecast_history.json · 命中率回看的样本来源)
++        uses: actions/cache/restore@v4
++        with:
++          path: forecast_history.json
++          key: forecast-history-${{ github.run_id }}
++          restore-keys: |
++            forecast-history-
++
+       - name: 🌐 动态抓取行情 (market_data.py → market_data.json)
+         run: python3 market_data.py
+ 
+@@ -83,6 +93,13 @@
+       - name: 🏗️ 动态构建报告 (build_site.py → report.html · 行情+社区双注入)
+         run: python3 build_site.py
+ 
++      - name: 💾 保存 AI 预测存档 (供下次运行结算已到期的预测)
++        if: always()
++        uses: actions/cache/save@v4
++        with:
++          path: forecast_history.json
++          key: forecast-history-${{ github.run_id }}
++
+ #  说明: wechat / daily 两个 job 请照抄上面这对 restore / save 步骤 ——
+ #        restore 放在「📥 检出仓库」之后、抓行情之前；
+ #        save 放在「🏗️ 动态构建报告」之后（build_site.py 才是唯一落盘的地方）。

@@ -127,34 +127,39 @@ def stacked_bar(parts, width=24):
     return ''.join(g * n for (g, _), n in zip(parts, cells)), total
 
 
+# 微信单页有 10 万字符硬上限，而字符配图是逐行渲染的：每行三个 <td> 各带一串内联样式，
+# 行数一多，重复的样式字符串比图本身还贵（实测 6 张图里约七成字符是重复的 style）。
+# 所以共有属性（字号 / 颜色 / 字体）全部提到 <table> 上让单元格继承，
+# 每个 <td> 只留必须逐格不同的那几条 —— 纯样式瘦身，图长什么样一格没变。
+_FIG_TABLE = ('width:100%;border-collapse:collapse;margin:8px 0 0;background:#f4f7f4;'
+              'border:1px solid #007a35;border-left:3px solid #000;font-size:11px;color:#141414')
+_FIG_CAP = 'text-align:left;font-weight:700;font-size:12px;color:#007a35;padding:8px 10px 2px'
+_FIG_LABEL = 'padding:1px 8px;white-space:nowrap'
+_FIG_BAR = "padding:1px 0;font:12px Consolas,Menlo,'Courier New',monospace;white-space:pre;color:#000"
+_FIG_VALUE = 'padding:1px 8px;text-align:right;white-space:nowrap'
+_FIG_EMPTY = 'padding:4px 10px 8px'
+_FIG_NOTE = 'padding:2px 10px 8px;font-size:10px;color:#7d838b'
+
+
 def _rows_html(title, rows, note):
     """微信用表格装字符柱：标签、柱、数值分列，不靠中文等宽。"""
     body = [
-        '<table class="char-fig" style="width:100%;border-collapse:collapse;margin:8px 0 0;'
-        'background:#f4f7f4;border:1px solid #007a35;border-left:3px solid #000;">',
-        '<caption style="text-align:left;font-weight:700;font-size:12px;color:#007a35;'
-        'padding:8px 10px 2px;">◆ 字符配图 · ' + html.escape(title) + '</caption>',
+        f'<table class="char-fig" style="{_FIG_TABLE}">',
+        f'<caption style="{_FIG_CAP}">◆ 字符配图 · ' + html.escape(title) + '</caption>',
     ]
     if not rows:
         body.append(
-            '<tr><td style="padding:4px 10px 8px;font-size:11px;color:#141414;">'
+            f'<tr><td style="{_FIG_EMPTY}">'
             '（当次没有可画的数，本图不编柱，不回填历史点位）</td></tr>')
     else:
         for label, bar, value in rows:
+            # 柱尾的空格只是把单元格撑宽，表格已经按列对齐，去掉不影响观感
             body.append(
-                '<tr>'
-                f'<td style="padding:1px 8px;font-size:11px;color:#141414;white-space:nowrap;">'
-                f'{html.escape(str(label))}</td>'
-                '<td style="padding:1px 0;font-family:Consolas,Menlo,\'Courier New\',monospace;'
-                'font-size:12px;letter-spacing:0;white-space:pre;color:#000;">'
-                f'{html.escape(bar)}</td>'
-                '<td style="padding:1px 8px;font-size:11px;text-align:right;white-space:nowrap;'
-                f'color:#141414;">{html.escape(str(value))}</td>'
-                '</tr>')
+                f'<tr><td style="{_FIG_LABEL}">{html.escape(str(label))}</td>'
+                f'<td style="{_FIG_BAR}">{html.escape(str(bar).rstrip())}</td>'
+                f'<td style="{_FIG_VALUE}">{html.escape(str(value))}</td></tr>')
     if note:
-        body.append(
-            '<tr><td colspan="3" style="padding:2px 10px 8px;font-size:10px;color:#7d838b;">'
-            + html.escape(note) + '</td></tr>')
+        body.append(f'<tr><td colspan="3" style="{_FIG_NOTE}">' + html.escape(note) + '</td></tr>')
     body.append('</table>')
     return ''.join(body)
 
@@ -312,6 +317,74 @@ def sentiment_chart(sd):
     return _rows_html(title, rows, note), _plain(title, rows, note)
 
 
+def forecast_chart(data):
+    """AI 预测：预期涨跌幅发散柱 + 置信度有序柱。刻度按 σ 固定，不按当日最大值拉伸。
+
+    只画当次真的算出了预期的标的；预测缺席（行情未取到）时不编柱，
+    也绝不把上一版预测搬过来充数。
+    """
+    forecasts = (data or {}).get('forecasts') or []
+    title = 'AI 预测 diverging bar（预期涨跌幅）+ 置信度 barh'
+    note_base = ('预期涨跌幅零线居中，满刻度 ±1.5σ（模型对单日预测的硬上限）；'
+                 '置信度柱按 0–100% 固定刻度。对照 matplotlib 发散柱与 ordered barh。'
+                 '本图与正文同一次预测，缺数据不补 0。')
+    if not forecasts:
+        return _rows_html(title, [], note_base), _plain(title, [], note_base)
+
+    short = dict(QUOTE_ORDER)
+    rows = []
+    for f in forecasts:
+        mu = _num(f.get('mu_pct'))
+        sigma = _num(f.get('sigma')) or 1.0
+        if mu is None:
+            continue
+        name = short.get(f.get('key')) or str(f.get('name') or f.get('key') or '')
+        rows.append((name, diverging_bar(mu, 1.5 * sigma),
+                     f"{_fmt(mu)}% {f.get('dir_word') or ''}".strip()))
+    stance = (data or {}).get('stance') or {}
+    conf = _num(stance.get('confidence'))
+    if conf is not None:
+        rows.append(('平均置信度', pos_bar(conf * 100, 100), f'{conf * 100:.0f}%'))
+    z = _num(stance.get('z'))
+    if z is not None:
+        rows.append(('明日倾向', diverging_bar(z, 1.0),
+                     f"{_fmt(z)}σ {str(stance.get('label') or '').split('（')[0]}".strip()))
+    note = note_base + f" 目标日 {(data or {}).get('target_date') or '未获取'}。"
+    return _rows_html(title, rows, note), _plain(title, rows, note)
+
+
+def forecast_review_chart(review):
+    """历史预测回看：方向命中率 / 区间覆盖率有序柱（0–100% 固定刻度）。
+
+    只画**已结算**的样本；一条都没结算时不编柱 —— 不用当次行情给当次预测打分。
+    """
+    review = review or {}
+    title = '预测回看 ordered barh（命中率 · 已结算样本）'
+    settled = _num(review.get('settled')) or 0
+    note = ('只统计「目标日已抓到实际行情」的预测；未结算与作废的不计分。'
+            '刻度固定 0–100%，不按样本最大值拉伸。')
+    if not settled:
+        return _rows_html(title, [], note), _plain(title, [], note)
+    rows = []
+    hr = _num(review.get('hit_rate'))
+    if hr is not None:
+        rows.append(('方向命中率', pos_bar(hr * 100, 100),
+                     f"{hr * 100:.0f}% ({int(review.get('hits') or 0)}/{int(settled)})"))
+    br = _num(review.get('band_rate'))
+    if br is not None:
+        rows.append(('落在区间内', pos_bar(br * 100, 100, fill='='),
+                     f"{br * 100:.0f}% ({int(review.get('in_band') or 0)}/{int(settled)})"))
+    for v in (review.get('by_symbol') or [])[:6]:
+        rate = _num(v.get('hit_rate'))
+        if rate is None:
+            continue
+        rows.append((str(v.get('name') or v.get('key') or ''), pos_bar(rate * 100, 100, fill='+'),
+                     f"{rate * 100:.0f}% (n={int(v.get('n') or 0)})"))
+    tail = note + (f" 样本 {int(settled)} 条"
+                   + ('' if review.get('enough_sample') else '（样本不足，只作参考）') + '。')
+    return _rows_html(title, rows, tail), _plain(title, rows, tail)
+
+
 def macro_counts_chart(macro):
     """各小节入库条数。文件不可用时不画，避免把「清空的旧快照」画成实测 0。"""
     title = '宏观快讯条数 barh'
@@ -364,6 +437,19 @@ def _self_test():
     ok('配对缺腿不编 z', '不编柱' in html_p and 'z=' not in plain_p)
     html_s, plain_s = sentiment_chart({})
     ok('舆情空图不写来源名', '不编柱' in html_s and '米筐' not in html_s and 'RQ_' not in html_s)
+    html_f, plain_f = forecast_chart({})
+    ok('无预测不编柱', '不编柱' in html_f and '#' not in plain_f and '|' not in plain_f)
+    html_f, plain_f = forecast_chart({
+        'target_date': '', 'stance': {'z': 0.4, 'confidence': 0.6, 'label': '弱偏多'},
+        'forecasts': [{'key': 'HSI', 'name': '恒生指数', 'mu_pct': 0.5, 'sigma': 1.2,
+                       'dir_word': '看涨'}]})
+    ok('预测柱写出预期涨跌幅与倾向', '+0.50%' in plain_f and '明日倾向' in plain_f)
+    html_r, plain_r = forecast_review_chart({'settled': 0})
+    ok('没有已结算样本就不画命中率', '不编柱' in html_r and '#' not in plain_r)
+    html_r, plain_r = forecast_review_chart({'settled': 4, 'hits': 3, 'hit_rate': 0.75,
+                                             'in_band': 2, 'band_rate': 0.5,
+                                             'enough_sample': False, 'by_symbol': []})
+    ok('已结算样本才画命中率', '75%' in plain_r and '样本不足' in plain_r)
     failed = [n for n, c in checks if not c]
     if failed:
         raise SystemExit('自检失败: ' + '、'.join(failed))
