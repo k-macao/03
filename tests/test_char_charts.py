@@ -23,17 +23,17 @@ class TestChartGeometry(unittest.TestCase):
         pos = char_charts.diverging_bar(1.2, 1.6)
         neg = char_charts.diverging_bar(-0.8, 1.6)
         mid = pos.index('|')
-        self.assertIn('+', pos[mid + 1:])
-        self.assertNotIn('-', pos[mid + 1:])
-        self.assertIn('-', neg[:neg.index('|')])
-        self.assertNotIn('+', neg[:neg.index('|')])
+        self.assertIn(char_charts.POS, pos[mid + 1:])
+        self.assertNotIn(char_charts.NEG, pos[mid + 1:])
+        self.assertIn(char_charts.NEG, neg[:neg.index('|')])
+        self.assertNotIn(char_charts.POS, neg[:neg.index('|')])
         self.assertEqual(set(char_charts.diverging_bar(0, 1.6)), set('| '))
 
     def test_stacked_bar_preserves_share(self):
-        bar, total = char_charts.stacked_bar([('#', 6), ('=', 3), ('+', 3), ('.', 2)], 24)
+        bar, total = char_charts.stacked_bar([(char_charts.FULL, 6), (char_charts.DARK, 3), (char_charts.MID, 3), (char_charts.LIGHT, 2)], 24)
         self.assertEqual(len(bar), 24)
         self.assertEqual(total, 14)
-        self.assertGreater(bar.count('#'), bar.count('='))
+        self.assertGreater(bar.count(char_charts.FULL), bar.count(char_charts.DARK))
         self.assertNotIn(' ', bar)
 
     def test_missing_quotes_do_not_invent_bars(self):

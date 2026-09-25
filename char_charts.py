@@ -12,7 +12,7 @@ Figure 解剖：每张图有标题、轴刻度、柱端数值（bar_label）。�
   bar stacked                 构成：一条柱按占比堆叠，配图例
   axvline 阈值                决策线写在图注里（配对 |z|=1，做多 ±10 / +25）
 
-柱身只用半角字符（# + - = .），避免方块字在中文字体里变成双宽、把比例画歪。
+柱身用方块字形系列 █ ▓ ▒ ░（实心→深→中→浅，按灰度区分序列），情绪序列用 ▁ ▃ ▄ █ 四档高度。
 缺数据只留「不编柱」，不补 0、不回填历史点位。纯标准库。
 """
 import html
@@ -31,14 +31,19 @@ QUOTE_ORDER = (
     ('USDCNH', '离岸'), ('USDCNY', '在岸'),
 )
 
+# 字形系列：实心 → 深 → 中 → 浅，序列靠灰度区分（微信丢颜色也能读）
+FULL, DARK, MID, LIGHT = '\u2588', '\u2593', '\u2592', '\u2591'   # █ ▓ ▒ ░
+SPARK = ('\u2581', '\u2583', '\u2584', '\u2588')                  # ▁ ▃ ▄ █
+POS, NEG = FULL, DARK
+
+DIR_FILL = {1: FULL, -1: DARK, 0: LIGHT}
 COMMUNITY_PARTS = (
-    ('bull', '偏多', '#'),
-    ('bear', '偏空', '='),
-    ('neutral', '中性', '+'),
-    ('mixed', '分歧', '.'),
+    ('bull', '偏多', FULL),
+    ('bear', '偏空', DARK),
+    ('neutral', '中性', MID),
+    ('mixed', '分歧', LIGHT),
 )
 
-DIR_FILL = {1: '#', -1: '=', 0: '.'}
 DIR_WORD = {1: '利好', -1: '利空', 0: '中性'}
 
 
@@ -76,7 +81,7 @@ def _fmt(v, digits=2):
     return f'{v:+.{digits}f}'
 
 
-def pos_bar(value, scale, width=BAR_W, fill='#'):
+def pos_bar(value, scale, width=BAR_W, fill=FULL):
     """0 到 scale 的横向柱。刻度固定，不按当日最大值拉伸。"""
     if scale <= 0:
         return ' ' * width
@@ -86,14 +91,14 @@ def pos_bar(value, scale, width=BAR_W, fill='#'):
 
 
 def diverging_bar(value, limit, half=HALF):
-    """零线居中。正值在 | 右侧用 +，负值在左侧用 -。"""
+    """零线居中。正值在 | 右侧用 █，负值在左侧用 ▓。"""
     limit = abs(float(limit)) or 1.0
     v = max(-limit, min(limit, float(value)))
     n = int(round(abs(v) / limit * half))
     if v > 0:
-        left, right = ' ' * half, '+' * n + ' ' * (half - n)
+        left, right = ' ' * half, POS * n + ' ' * (half - n)
     elif v < 0:
-        left, right = ' ' * (half - n) + '-' * n, ' ' * half
+        left, right = ' ' * (half - n) + NEG * n, ' ' * half
     else:
         left, right = ' ' * half, ' ' * half
     return left + '|' + right
@@ -215,7 +220,7 @@ def forces_chart(scan):
         if score is None:
             continue
         direction = f.get('direction') or 0
-        fill = DIR_FILL.get(direction, '.')
+        fill = DIR_FILL.get(direction, LIGHT)
         name = str(f.get('name') or '').split('（')[0].split('(')[0]
         rows.append((name, pos_bar(score, 100, fill=fill),
                      f'{score:.0f} {DIR_WORD.get(direction, "中性")}'))
@@ -289,7 +294,7 @@ def sentiment_chart(sd):
     if pos is not None and neg is not None:
         rest = max(0.0, 100.0 - pos - neg)
         # 用百分数取整后再分配，避免把未标注的残差画成另一套口径
-        parts = [('#', int(round(pos))), ('=', int(round(neg))), ('.', int(round(rest)))]
+        parts = [(FULL, int(round(pos))), (DARK, int(round(neg))), (LIGHT, int(round(rest)))]
         bar, total = stacked_bar(parts, width=20)
         if total:
             rows.append(('多空构成', bar, f'正{pos:.0f} 负{neg:.0f}'))
@@ -309,7 +314,7 @@ def sentiment_chart(sd):
         vals = [_num(row.get('value')) for row in series[-12:]]
         lo, hi = min(vals), max(vals)
         span = (hi - lo) or 1.0
-        spark = ''.join('*' if (v - lo) / span >= 0.5 else '.' for v in vals)
+        spark = ''.join(SPARK[min(3, int((v - lo) / span * 4))] for v in vals)
         last = series[-1]
         rows.append(('情绪序列', spark, str(last.get('date') or '')[:10]))
     note = ('温度柱刻度 0–100，50 为中性。净情感零线居中。'
@@ -372,13 +377,13 @@ def forecast_review_chart(review):
                      f"{hr * 100:.0f}% ({int(review.get('hits') or 0)}/{int(settled)})"))
     br = _num(review.get('band_rate'))
     if br is not None:
-        rows.append(('落在区间内', pos_bar(br * 100, 100, fill='='),
+        rows.append(('落在区间内', pos_bar(br * 100, 100, fill=DARK),
                      f"{br * 100:.0f}% ({int(review.get('in_band') or 0)}/{int(settled)})"))
     for v in (review.get('by_symbol') or [])[:6]:
         rate = _num(v.get('hit_rate'))
         if rate is None:
             continue
-        rows.append((str(v.get('name') or v.get('key') or ''), pos_bar(rate * 100, 100, fill='+'),
+        rows.append((str(v.get('name') or v.get('key') or ''), pos_bar(rate * 100, 100, fill=MID),
                      f"{rate * 100:.0f}% (n={int(v.get('n') or 0)})"))
     tail = note + (f" 样本 {int(settled)} 条"
                    + ('' if review.get('enough_sample') else '（样本不足，只作参考）') + '。')
@@ -416,16 +421,16 @@ def _self_test():
 
     bar = diverging_bar(1.2, 1.6)
     mid = bar.index('|')
-    ok('正值的 + 在零线右侧', '+' in bar[mid + 1:] and '-' not in bar[mid + 1:])
+    ok('正值的 █ 在零线右侧', POS in bar[mid + 1:] and NEG not in bar[mid + 1:])
     neg = diverging_bar(-0.4, 1.6)
     mid = neg.index('|')
-    ok('负值的 - 在零线左侧', '-' in neg[:mid] and '+' not in neg[:mid])
+    ok('负值的 ▓ 在零线左侧', NEG in neg[:mid] and POS not in neg[:mid])
     zero = diverging_bar(0, 1.6)
     ok('零值不画柱', set(zero) <= set('| '))
-    ok('正柱长度随数值增加', pos_bar(80, 100).count('#') > pos_bar(20, 100).count('#'))
-    bar, total = stacked_bar([('#', 6), ('=', 3), ('+', 3), ('.', 2)], 24)
+    ok('正柱长度随数值增加', pos_bar(80, 100).count(FULL) > pos_bar(20, 100).count(FULL))
+    bar, total = stacked_bar([(FULL, 6), (DARK, 3), (MID, 3), (LIGHT, 2)], 24)
     ok('堆叠柱格子数等于宽度', len(bar) == 24 and total == 14)
-    ok('堆叠柱保留四个序列', set('#=+.') <= set(bar) and ' ' not in bar)
+    ok('堆叠柱保留四个序列', {FULL, DARK, MID, LIGHT} <= set(bar) and ' ' not in bar)
     html_q, plain_q = quotes_chart({})
     ok('无行情不编柱', '不编柱' in html_q and '%' not in plain_q.split('不编柱')[-1])
     html_q, plain_q = quotes_chart({'HSI': {'pct': 1.2}, 'WTI': {'pct': -0.4}})
@@ -438,14 +443,14 @@ def _self_test():
     html_s, plain_s = sentiment_chart({})
     ok('舆情空图不写来源名', '不编柱' in html_s and '米筐' not in html_s and 'RQ_' not in html_s)
     html_f, plain_f = forecast_chart({})
-    ok('无预测不编柱', '不编柱' in html_f and '#' not in plain_f and '|' not in plain_f)
+    ok('无预测不编柱', '不编柱' in html_f and FULL not in plain_f and '|' not in plain_f)
     html_f, plain_f = forecast_chart({
         'target_date': '', 'stance': {'z': 0.4, 'confidence': 0.6, 'label': '弱偏多'},
         'forecasts': [{'key': 'HSI', 'name': '恒生指数', 'mu_pct': 0.5, 'sigma': 1.2,
                        'dir_word': '看涨'}]})
     ok('预测柱写出预期涨跌幅与倾向', '+0.50%' in plain_f and '明日倾向' in plain_f)
     html_r, plain_r = forecast_review_chart({'settled': 0})
-    ok('没有已结算样本就不画命中率', '不编柱' in html_r and '#' not in plain_r)
+    ok('没有已结算样本就不画命中率', '不编柱' in html_r and FULL not in plain_r)
     html_r, plain_r = forecast_review_chart({'settled': 4, 'hits': 3, 'hit_rate': 0.75,
                                              'in_band': 2, 'band_rate': 0.5,
                                              'enough_sample': False, 'by_symbol': []})

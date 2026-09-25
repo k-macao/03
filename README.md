@@ -213,7 +213,7 @@ python3 -m unittest tests.test_quant_pair
 
 ## 📊 微信推送的字符配图
 
-配图对照 [matplotlib](https://github.com/matplotlib/matplotlib) 的 Figure / Axes 规矩（[plot types](https://matplotlib.org/stable/plot_types/index.html)）：每张图有标题、刻度、柱端数值；正负用零线分开，构成用一条堆叠柱，不靠颜色区分（微信里颜色会丢）。柱身只用半角字符，避免方块字在中文字体里变成双宽、把比例画歪。
+配图对照 [matplotlib](https://github.com/matplotlib/matplotlib) 的 Figure / Axes 规矩（[plot types](https://matplotlib.org/stable/plot_types/index.html)）：每张图有标题、刻度、柱端数值；正负用零线分开，构成用一条堆叠柱，不靠颜色区分（微信里颜色会丢）。柱身用方块字形系列 █ ▓ ▒ ░（实心→深→中→浅），情绪序列用 ▁ ▃ ▄ █ 四档高度。
 
 | 推送里的分析 | matplotlib 图种 | 字符图 |
 | --- | --- | --- |

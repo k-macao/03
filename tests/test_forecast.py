@@ -518,14 +518,14 @@ class TestForecastRendering(unittest.TestCase):
     def test_char_charts_never_invent_bars(self):
         empty_html, empty_plain = char_charts.forecast_chart({})
         self.assertIn('不编柱', empty_html)
-        self.assertNotIn('#', empty_plain)
+        self.assertNotIn('\u2588', empty_plain)
         d = fc.predict(market=BULL, now=NOW)
         html, plain = char_charts.forecast_chart(d)
         self.assertIn('恒指', plain)
         self.assertIn('明日倾向', plain)
         rev_html, rev_plain = char_charts.forecast_review_chart(fc.empty_review())
         self.assertIn('不编柱', rev_html)
-        self.assertNotIn('#', rev_plain)
+        self.assertNotIn('\u2588', rev_plain)
 
 
 if __name__ == '__main__':
