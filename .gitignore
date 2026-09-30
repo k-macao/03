@@ -20,3 +20,7 @@ sentiment_history.json
 api_probe_report.json
 verify_report.json
 verify_summary.txt
+
+# 极趣墨水屏同步构建产物（每次构建生成，不入库）
+page_*.png
+eink_preview/

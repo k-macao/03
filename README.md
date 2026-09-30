@@ -377,11 +377,64 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 
 Token 维护在 `report.html` 的 `PUSHPLUS_TOKEN` 常量中，网页按钮与推送工具共用。群组编码 `PUSHPLUS_TOPIC` 默认为 `'oai.1'`（一对多群组推送，网页按钮与命令行工具共用该常量）；如需改回一对一专属推送，将其留空 `''` 即可。
 
+## 🖥️ 极趣墨水屏同步 — E-Ink Sync (新增 · 复用 k-macao/10_sync 接口)
+
+> **本次新增**：读取 `k-macao/10_sync` 仓库接口文件，自动运行任务 yml 时同步推送到极趣墨水屏。
+
+### 接口来源
+
+- 原仓库：[k-macao/10_sync](https://github.com/k-macao/10_sync) — `main.py` 含 Zectrix 推送核心 `push_image()`、400×300 渲染与财新/东财多源回退
+- 本仓库封装：`tools/zectrix_client.py` — 从 `main.py` 提取的可复用客户端（推送+渲染+数据源），去业务绑定，保留离线兜底
+- 统一入口：`tools/eink_push.py` — 支持 `report`/`news`/`both` 三模式，顶栏统一 **章鱼 AI·全景分析**
+
+```bash
+# 本地预览（无需密钥，生成 page_*.png）
+python3 tools/eink_push.py --mode report --dry-run   # 03 日报浓缩 4 页：全景/行情/预测/宏观+舆情
+python3 tools/eink_push.py --mode news --dry-run     # 复用 10_sync：财新+东方财富 4 页
+python3 tools/eink_push.py --mode both --dry-run     # 报告 1-2 + 新闻 3-4
+
+# 真实推送（需配置密钥）
+export ZECTRIX_API_KEY=xxx
+export ZECTRIX_MAC=AA:BB:CC:DD:EE:FF
+python3 tools/eink_push.py --mode report --pages 1,2,3,4
+```
+
+### 工作流自动同步
+
+`.github/workflows/m.yml` 已集成 E-Ink 同步（4 个 job）：
+
+| Job | 触发 | E-Ink 动作 |
+|-----|------|------------|
+| `deploy` | push/main | dry-run 预览，验证渲染链路，产物进 `_site/page_*.png` |
+| `wechat` | push / 手动 | 真实推送（`report`/`both` 可选），密钥缺失自动降级 dry-run |
+| `daily` | 每天 09:00 北京时间 | 推送微信 + 同步墨水屏（report 模式） |
+| `eink` | push / schedule / 手动（新增） | 独立墨水屏同步，支持 report/news/both，复用 10_sync 接口 |
+
+Secrets（仓库 Settings → Secrets and variables → Actions）：
+
+| Name | 说明 | 获取 |
+|------|------|------|
+| `ZECTRIX_API_KEY` | 极趣云 API Key | https://cloud.zectrix.com |
+| `ZECTRIX_MAC` | 墨水屏 MAC | 如 `AA:BB:CC:DD:EE:FF` |
+
+未配置时自动降级为 dry-run，不阻断 Pages 部署与微信推送。
+
+### 报告模式 4 页布局
+
+- **P1** 每日全球全景扫描：5 大力量（重点/次要/噪音·利好/利空·分数）+ 是否可以做多
+- **P2** 行情快照：恒指/恒科/国企/标普/纳指/道指/黄金/原油/汇率实时
+- **P3** AI 预测 · 未来函数：基准日→目标日、明日盘面倾向、逐标的预测
+- **P4** 宏观快讯 + 舆情：5 类快讯标题 + 舆情温度计/风险分/社区多空
+
+数据直接复用 03 已有管线 `market_data.json` / `community_data.json` / `macro_data.json` / `sentiment_data.json` + `panorama.py` / `forecast.py`，缺失自动降级为「今日未获取」，不回填历史叙事。
+
+详见 `docs/eink-sync.md`。
+
 ## ⏰ 每天北京时间早上九点自动推送
 
-`.github/workflows/m.yml` 内置 `schedule` 定时任务（UTC `0 1 * * *`，即**北京时间每天 09:00**），自动执行「动态抓取行情+社区 → 动态建站 → `python3 tools/wechat_push.py --push --scheduled`」，无需手动操作即可把最新全景报告推送到微信，同时重新部署 Pages 站点。
+`.github/workflows/m.yml` 内置 `schedule` 定时任务（UTC `0 1 * * *`，即**北京时间每天 09:00**），自动执行「动态抓取行情+社区 → 动态建站 → `python3 tools/wechat_push.py --push --scheduled` + `python3 tools/eink_push.py --mode report`」，无需手动操作即可把最新全景报告推送到微信并同步到极趣墨水屏，同时重新部署 Pages 站点。
 
-> 提示：GitHub Actions 定时任务存在少量延迟属正常现象；若需精确到秒的定时，可结合仓库 Secrets (PUSHPLUS_TOKEN) 与外部 Cron 服务。
+> 提示：GitHub Actions 定时任务存在少量延迟属正常现象；若需精确到秒的定时，可结合仓库 Secrets (PUSHPLUS_TOKEN / ZECTRIX_API_KEY) 与外部 Cron 服务。
 
 ## 🐛 本次修复：红圈旧数据问题
 
