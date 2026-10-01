@@ -167,7 +167,7 @@ python3 -m unittest tests.test_panorama   # 13 项回归
 | 字符配图共有样式上提到 `<table>` | `char_charts._rows_html` | 字号/颜色/字体由单元格继承，每个 `<td>` 只留必须逐格不同的几条；柱尾多余空格去掉（表格本就按列对齐） |
 | AI 量化块四行要点改 `<br/>` 串接 | `quant_pair.render_wechat` / `render_wechat_list` | 省掉四组重复的 `<div style="margin-bottom:4px;">` |
 | 配对规则整篇只印一次 | `quant_pair.rule_note_wechat()`，落在推送页脚 | 那段 100 字的规则原先在 20 多个块里逐块重复；网页版无字符上限，仍逐块保留（`render_wechat(..., show_rule=True)` 可让单独出现的块自带规则） |
-| 核心量化指标 / 社区卡片去掉可继承声明 | `tools/wechat_push.py` | 外层已设 `color:#141414`，子元素不必再声明一遍 |
+| 核心量化指标 / 社区卡片去掉可继承声明 | `tools/wechat_push.py` | 外层已设 `color:#edf2ff`，子元素不必再声明一遍 |
 
 净效果（demo 数据实测）：字符配图 19,408 → 14,935，03 栏 40,556 → 33,020，
 **04 栏因此拿到最高一级的「完整版 + 字符配图」（15,221 字符），整页 92,781 < 95,000。**
@@ -340,23 +340,23 @@ python3 build_site.py                            # ⑤ 建站时把「因子读�
 | `panorama.py` | **01 栏「每日全球全景扫描」推理引擎**：把当次的 `market_data.json` + `macro_data.json` + `sentiment_data.json` + `community_data.json` 合成为**推动股价的 5 大力量**（重点 / 次要 / 噪音 · 利好 / 利空 / 中性 · 0~100 力量分）、三大关注面小结（宏观事件 / 板块轮动 / 情绪变化）与**是否可以做多**的合成分结论，并在每条力量后挂 `quant_pair` 的配对推荐；纯标准库纯函数、不联网不落盘，构建期由 `build_site.py` 与 `tools/wechat_push.py` 直接调用（**因此无需改 CI workflow**）。`python3 panorama.py` 打印文本摘要、`--json` 导出结构化结果、`--self-test` 规则自检 |
 | `tests/test_panorama.py` | 01 栏回归（13 项，零联网）：5 大力量与栏目要素齐全、多/空/横盘三种行情结论必须不同、噪音不计入做多合成分、突发风险分下调做多结论、四路数据缺失时降级为「本栏不编故事」、网页 `PANORAMA` 注入幂等、旧栏目名与写死历史内容不得回归 |
 | `build_site.py` | **动态建站**：把 `report.html` 模板中的 `{{占位符}}` 替换为最新行情/抓取日期/时间戳，把 `panorama.py` 的全景扫描注入 01 节 `<!-- PANORAMA -->` 占位区（哨兵 `<!-- /PANORAMA -->` 保证幂等），把 `community_data.json` 的 14 条最新研判注入 `<!-- COMMUNITY_LIST -->` 标记，把 `macro_data.json` 的快讯注入 02 节 `<!-- MACROLIST -->` 占位区（缺数据→「今日未获取」，回填哨兵 `<!-- /MACROLIST -->` 保证幂等），并把「因子读数 + 标的匹配（不含来源）」注入 `<!-- SENTIMENT_LIST -->` 标记，并把 `forecast.py` 的下一交易日预测注入 04 节 `<!-- FORECAST -->` 占位区（哨兵 `<!-- /FORECAST -->` 保证幂等，同时把当次预测写进 `forecast_history.json`；`--forecast-no-history` / `--check` 不落盘） |
-| `report.html` | 报告**模板源文件**（**电子杂志 × 电子墨水**风格 · 浅灰底 + 正文纯黑 + 深绿高对比标题 · 小字号竖版长页），内含"手动推送"按钮与 01 节 `<!-- PANORAMA -->`、`<!-- COMMUNITY_LIST:BEGIN/END -->`、02 节 `<!-- MACROLIST -->`、04 节 `<!-- FORECAST -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
-| `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `community_data.json` 双动态数据，转为微信兼容的单页完整内联样式 HTML，经 PushPlus **一对多**群组推送（群组编码 `oai.1`）到微信；04 栏由 `fit_forecast_block()` 按单页剩余字符预算在「完整版 → 精简版 → 一行摘要 → 只留指引」之间选一版，保证加了新栏目也不会撞上 95,000 推送门禁 |
+| `report.html` | 报告**模板源文件**（**电竞指挥中心 × 战术 HUD** · 深色海军蓝底 + 霓虹青 / 能量绿 / 战术紫 / 洋红高亮 · 响应式战情卡片），内含"手动推送"按钮与 01 节 `<!-- PANORAMA -->`、`<!-- COMMUNITY_LIST:BEGIN/END -->`、02 节 `<!-- MACROLIST -->`、04 节 `<!-- FORECAST -->` 动态注入标记；仓库中始终保持模板版本，构建产物不提交（误提交构建产物时 `git checkout -- report.html` 恢复） |
+| `tools/wechat_push.py` | 微信推送工具：读取 `market_data.json` + `community_data.json` 双动态数据，转为微信兼容的**深色电竞 HUD 单页内联样式 HTML**，以深海军蓝 + 电光青 / 荧光绿 / 战术紫 / 警戒红呈现，经 PushPlus **一对多**群组推送（群组编码 `oai.1`）；04 栏由 `fit_forecast_block()` 按单页剩余字符预算在「完整版 → 精简版 → 一行摘要 → 只留指引」之间选一版，保证加了新栏目也不会撞上 95,000 推送门禁 |
 | `.github/workflows/m.yml` | CI：动态抓取行情+校验+社区+宏观快讯 → 动态建站（三注入） → 部署 Pages + 一键触发微信单页推送 + **每天北京时间 09:00 定时自动推送** |
 | `docs/macro-ci-workflow.patch` | **待人工应用的 workflow 补丁**（GitHub App 无 `workflows` 权限）：三个 job 各加 `macro_data.py` 抓取步骤（失败不阻断、摘要进 Step Summary）+ `verify_quotes.py` 门禁（deploy 非阻断并公开 `verify_report.json`；wechat/daily FAIL 直接阻断推送） |
 
-## 页面风格系统 (Style A · 电子杂志 × 电子墨水)
+## 页面风格系统（电竞指挥中心 × 战术 HUD）
 
-参考 [Guizang PPT Skill](https://github.com/op7418/guizang-ppt-skill) 的 **Style A「电子杂志 × 电子墨水」**，改造成适合微信阅读的竖版长页面。
+`report.html` 与微信单页推送统一使用面向桌面和移动端的**游戏战情界面**：把市场数据当作实时情报，把章节导航、情绪筛选与推送操作设计成可交互的战术面板；霓虹装饰保持克制，不牺牲正文可读性。微信版全部使用内联样式，适配 PushPlus / 微信阅读。
 
-- **视觉基调**：电子杂志 × 电子墨水 (Editorial Magazine × E-Ink)，像 *Monocle* 杂志贴上了代码。
-- **字体系统**：全站使用黑体栈（SimHei / 微软雅黑 / 苹方 PingFang SC / Noto Sans SC），章节标题加粗纯黑，**全部字号偏小**（正文 12px 紧凑小字号）。
-- **调色系统**：
-  - 整体**浅灰色背景** `#eef0f2`
-  - **正文纯黑** `#141414`
-  - **标题深绿** `#007a35`（浅底高对比文字绿：对 `#f8f9fa` 约 5.2:1、对 `#eef0f2` 约 4.8:1，达 WCAG AA 4.5:1；原 `#00e05c` 荧光绿在浅底仅约 1.7:1，看不清，已弃用于浅底文字）
-  - **重点字体荧光绿文字 + 黑色背景** `#000` / `#39ff14`（霓虹绿高亮，黑底场景如顶部/底部/黑底徽章）
-  - 其余配搭均为深绿与黑色（按钮/Tab 激活态为深绿底 + 白字）。
+- **视觉基调**：深色竞技场 / 指挥中心。海军蓝近黑底、细网格与扫描线、切角徽章、发光状态灯和战术卡片，营造电竞 HUD 氛围。
+- **字体系统**：标题使用 Rajdhani 的竞速数字感，中文回退到 Noto Sans SC；Space Mono 用于状态、时间戳与数据标签，正文保持清晰易读。
+- **电竞配色**：
+  - 背景与面板：深海军蓝 `#060811` / `#0d1220`，正文冷白 `#edf2ff`。
+  - 主操作与上涨信号：电光青 `#4fe5ff`；重点指标：能量荧光绿 `#b6ff4a`。
+  - 战术分组：紫色 `#9673ff`、洋红 `#ff4d9a`；下跌 / 风险信号：警戒红 `#ff6b7d`。
+  - 不同颜色同时配合文字标签与边框，不单靠颜色表达多空；键盘焦点、高对比文字与减少动态效果偏好均有支持。
+- **交互细节**：顶部 LIVE 状态与 S+ 等级徽章、章节战术导航、按多空立场区分的情报卡片、霓虹筛选按钮和切角推送按钮；手机端自动折叠为双列战情信息。
 - **标题与署名**：网页标题为「章鱼 AI·全景分析（量化策略多因子分析）」，**微信推送标题为「章鱼 AI·全景分析（量化策略多因子分析）」**（推送卡片顶部大标题同步使用该名称），副标题「全网 AI 调研境内境外数据，由多个大模型混合部署」，**标题去除 pushplus 与时间戳**。正文末尾署名：**作者：章鱼 ai · 仅供参考，分析研究**，并附多模型协同说明。
 - **01 节每日全球全景扫描**：栏目为「**每日全球全景扫描** (Daily Global Panorama Scan)」——扫一遍今天全球市场，总结**推动股价的 5 大力量**，重点关注**宏观事件 / 板块轮动 / 情绪变化**，逐条标注**哪些是重点、哪些是噪音**与**如何利好利空**，最后给出**是否可以做多**的结论。**网页与微信推送两端同步呈现**（`report.html` 的 `<!-- PANORAMA -->` 注入区与 `tools/wechat_push.py` 的 `panorama_block`）。
 

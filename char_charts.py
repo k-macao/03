@@ -136,14 +136,14 @@ def stacked_bar(parts, width=24):
 # 行数一多，重复的样式字符串比图本身还贵（实测 6 张图里约七成字符是重复的 style）。
 # 所以共有属性（字号 / 颜色 / 字体）全部提到 <table> 上让单元格继承，
 # 每个 <td> 只留必须逐格不同的那几条 —— 纯样式瘦身，图长什么样一格没变。
-_FIG_TABLE = ('width:100%;border-collapse:collapse;margin:8px 0 0;background:#f4f7f4;'
-              'border:1px solid #007a35;border-left:3px solid #000;font-size:11px;color:#141414')
-_FIG_CAP = 'text-align:left;font-weight:700;font-size:12px;color:#007a35;padding:8px 10px 2px'
+_FIG_TABLE = ('width:100%;border-collapse:collapse;margin:8px 0 0;background:#0e1528;'
+              'border:1px solid #2b3855;border-left:3px solid #4fe5ff;font-size:11px;color:#dce5fb')
+_FIG_CAP = 'text-align:left;font-weight:700;font-size:12px;color:#4fe5ff;padding:8px 10px 2px'
 _FIG_LABEL = 'padding:1px 8px;white-space:nowrap'
-_FIG_BAR = "padding:1px 0;font:12px Consolas,Menlo,'Courier New',monospace;white-space:pre;color:#000"
+_FIG_BAR = "padding:1px 0;font:12px Consolas,Menlo,'Courier New',monospace;white-space:pre;color:#c1cce4"
 _FIG_VALUE = 'padding:1px 8px;text-align:right;white-space:nowrap'
 _FIG_EMPTY = 'padding:4px 10px 8px'
-_FIG_NOTE = 'padding:2px 10px 8px;font-size:10px;color:#7d838b'
+_FIG_NOTE = 'padding:2px 10px 8px;font-size:10px;color:#9aa6c3'
 
 
 def _rows_html(title, rows, note):

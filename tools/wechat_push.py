@@ -18,8 +18,8 @@
     预测先落盘 forecast_history.json、等目标日行情到位才结算命中率，绝不用当次行情给当次预测打分；
     行情缺席时降级为「今日未获取 —— 本栏不预测」，不回填上一版预测。
   • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
-  • 电子杂志 × 电子墨水风格 (Guizang PPT Skill · Style A): 浅灰底 + 正文纯黑 + 深绿高对比标题（浅底 #007a35，黑底霓虹绿 #39ff14）；
-    重点文字为荧光绿字 + 黑色底，装饰线深绿，全部字号偏小，适合微信竖版长页面阅读。
+  • 电竞指挥中心 × 战术 HUD 风格：深海军蓝底 + 冷白正文，电光青 / 荧光绿 / 战术紫 / 警戒红分层强调；
+    多空卡片按信号着色，所有样式均内联以适配 PushPlus / 微信阅读。
 
 动态抓取管线 (行情 + 社区 + 舆情因子 + 宏观快讯 四路动态):
   python3 market_data.py && python3 community_data.py && python3 macro_data.py && python3 build_site.py
@@ -253,9 +253,9 @@ def quant_html_inline(quant):
     # 四行要点用 <br/> 串起来而不是四个带 style 的 <div>：微信单页字符预算很紧，
     # 14 张卡片 × 4 组重复样式是一笔白花的开销，显示效果一致。
     return (
-        f'<div style="background:#f0f2f0;border:1px dashed #007a35;border-radius:6px;'
+        f'<div style="background:{WECHAT_PANEL_SOFT};color:{WECHAT_TEXT_SOFT};border:1px dashed {WECHAT_VIOLET};border-radius:4px;'
         f'padding:9px 11px;margin-top:9px;font-size:11px;line-height:1.7">'
-        f'<div style="color:#007a35;font-weight:700;font-size:12px">◆ 核心量化指标</div>'
+        f'<div style="color:{WECHAT_CYAN};font-weight:700;font-size:12px">◆ 核心量化指标</div>'
         f'◦ <strong>实体级情感得分：</strong>{s.get("display","—")} — {s.get("desc","")}<br/>'
         f'◦ <strong>新闻细分事件分类：</strong>{e.get("label","综合")} — {e.get("desc","")}<br/>'
         f'◦ <strong>相关性得分：</strong>{r.get("display","—")} — {r.get("desc","")}<br/>'
@@ -268,15 +268,27 @@ def quant_html_inline(quant):
 FORECAST_SLOT = '<!--FORECAST-SLOT-->'
 # 预算留白：给日期替换、内嵌脚本等后续步骤留出余量，别把安全线吃满
 FORECAST_MARGIN = 1200
-# 与 build_single_wechat_html() 内的局部配色保持一致（电子墨水风格 Style A）
-WECHAT_GREEN = '#007a35'
-WECHAT_NEON = '#39ff14'
-WECHAT_INK = '#141414'
+# PushPlus 使用全内联样式，配色和网页报告共享电竞 HUD 色板。
+WECHAT_BG = '#060811'
+WECHAT_PANEL = '#10172a'
+WECHAT_PANEL_SOFT = '#121b30'
+WECHAT_TEXT = '#edf2ff'
+WECHAT_TEXT_SOFT = '#c1cce4'
+WECHAT_MUTED = '#9aa6c3'
+WECHAT_BORDER = '#2b3855'
+WECHAT_CYAN = '#4fe5ff'
+WECHAT_GREEN = WECHAT_CYAN  # 保留旧参数名，供预测/全景渲染器作强调色使用
+WECHAT_NEON = '#b6ff4a'
+WECHAT_VIOLET = '#9673ff'
+WECHAT_PINK = '#ff4d9a'
+WECHAT_DANGER = '#ff6b7d'
+WECHAT_INK = WECHAT_TEXT
 
 
 def wechat_box(inner):
-    """与正文同款的浅底卡片外框（build_single_wechat_html 内的 box() 的模块级版本）。"""
-    return (f'<div style="background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;'
+    """微信推送中统一使用的深色 HUD 面板外框。"""
+    return (f'<div style="background:{WECHAT_PANEL};color:{WECHAT_TEXT};'
+            f'border:1px solid {WECHAT_BORDER};border-radius:4px;'
             f'padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;">{inner}</div>')
 
 
@@ -322,7 +334,7 @@ def fit_forecast_block(html, fc_data, neon=WECHAT_NEON, green=WECHAT_GREEN, ink=
           '完整内容见网页 04 节', file=sys.stderr)
     return html.replace(
         FORECAST_SLOT,
-        '<div style="font-size:11px;line-height:1.8;color:#7d838b;">'
+        '<div style="font-size:11px;line-height:1.8;color:#9aa6c3;">'
         'AI 预测（未来函数）本次因微信单页字符预算不足未随推送发出，完整内容见网页 04 节。</div>',
         1)
 
@@ -339,9 +351,9 @@ def build_single_wechat_html(now=None):
     ts = now.strftime('%Y-%m-%d %H:%M UTC')
     ts_full = now.strftime('%Y-%m-%d %H:%M:%S UTC')
 
-    GR = '#007a35'   # 深绿标题 (浅底文字高对比, 对 #f8f9fa 约 5.2:1, 达 WCAG AA)
-    NEON = '#39ff14' # 霓虹绿 (黑底高亮, 对 #000 约 15.5:1)
-    INK = '#141414'  # 正文纯黑
+    GR = WECHAT_CYAN
+    NEON = WECHAT_NEON
+    INK = WECHAT_TEXT
 
     # ---------- 动态行情注入 (market_data.json) ----------
     _md = load_market_data()
@@ -435,40 +447,45 @@ def build_single_wechat_html(now=None):
         return f'{ok}/{total} 个社区源同步成功 · 抓取于 {gen}'
 
     def key(t):
-        return f'<strong style="background:#000;color:{NEON};font-weight:700;padding:1px 5px;">{t}</strong>'
+        return (f'<strong style="background:#101b2c;color:{NEON};font-weight:700;'
+                f'padding:1px 5px;border:1px solid #435d31;border-radius:2px;">{t}</strong>')
 
     def h(t):
-        return (f'<div style="color:#000;font-family:\'黑体\',\'SimHei\',\'PingFang SC\',\'Hiragino Sans GB\',\'Microsoft YaHei\',\'Noto Sans SC\',sans-serif;font-size:15px;'
-                f'font-weight:700;border-left:4px solid {NEON};padding-left:9px;'
-                f'margin:24px 0 10px;">{t}</div>')
+        return (f'<div style="color:{INK};font-family:\'Rajdhani\',\'Noto Sans SC\',\'Microsoft YaHei\',sans-serif;font-size:16px;'
+                f'font-weight:700;border-left:4px solid {GR};border-bottom:1px solid {WECHAT_BORDER};'
+                f'background:#0a1020;padding:7px 10px;margin:24px 0 10px;">{t}</div>')
 
     def sub(t):
         return f'<div style="color:{GR};font-weight:700;font-size:13px;margin-bottom:6px;">{t}</div>'
 
     def box(inner):
-        return (f'<div style="background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;'
+        return (f'<div style="background:{WECHAT_PANEL};color:{WECHAT_TEXT_SOFT};'
+                f'border:1px solid {WECHAT_BORDER};border-radius:4px;'
                 f'padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;">{inner}</div>')
 
     def card(icon, no, name, label, vclass, quote, verdict, quant, meta):
-        chip = NEON if vclass in ('bull', 'mixed') else '#cfcfcf'
-        edge = GR
-        if vclass == 'bear':
-            edge = '#141414'
+        signal = {
+            'bull': WECHAT_CYAN,
+            'bear': WECHAT_DANGER,
+            'neutral': WECHAT_VIOLET,
+            'mixed': WECHAT_NEON,
+        }.get(vclass, WECHAT_VIOLET)
         q_html = quant_html_inline(quant)
         ai_html = quant_pair.render_wechat(quant_pair.recommend(
             f'{name} {quote} {verdict}', _quotes))
         return (
-            f'<div style="background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid {edge};'
-            f'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px">'
-            f'<div style="color:{GR};font-weight:700;font-size:13px">{icon} {no}. {name} '
-            f'<span style="background:#000;color:{chip};font-size:10px;padding:1px 6px;margin-left:4px">{label}</span></div>'
-            f'<div style="margin-top:6px;line-height:1.8"><strong>平台深度热评：</strong>{quote}</div>'
-            f'<div style="background:#eceef0;border-left:3px solid {GR};border-radius:4px;padding:8px 10px;'
-            f'margin-top:8px;font-size:11.5px;color:#0a0a0a;line-height:1.7">'
-            f'<strong>▶ AI 深度战术研判：</strong>{verdict}</div>'
+            f'<div style="background:{WECHAT_PANEL};color:{WECHAT_TEXT_SOFT};border:1px solid {WECHAT_BORDER};'
+            f'border-left:3px solid {signal};border-radius:4px;padding:12px 14px;margin:10px 0;font-size:12px">'
+            f'<div style="color:{WECHAT_TEXT};font-weight:700;font-size:13px">{icon} {no}. {name} '
+            f'<span style="background:{signal};color:#07101b;font-size:10px;font-weight:700;'
+            f'padding:2px 6px;margin-left:4px;border-radius:2px">{label}</span></div>'
+            f'<div style="margin-top:6px;line-height:1.8"><strong style="color:{WECHAT_CYAN};">平台深度热评：</strong>{quote}</div>'
+            f'<div style="background:{WECHAT_PANEL_SOFT};border:1px solid #24314b;border-left:3px solid {signal};'
+            f'border-radius:3px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:{WECHAT_TEXT_SOFT};line-height:1.7">'
+            f'<strong style="color:{WECHAT_CYAN};">▶ AI 深度战术研判：</strong>{verdict}</div>'
             f'{q_html}'
             f'{ai_html}'
-            f'<div style="color:#7d838b;font-size:10px;margin-top:6px;">{meta}</div>'
+            f'<div style="color:{WECHAT_MUTED};font-size:10px;margin-top:6px;">{meta}</div>'
             f'</div>')
 
     # ---------- 动态社区列表 ----------
@@ -593,7 +610,7 @@ def build_single_wechat_html(now=None):
     # ---------- 03B 舆情/新闻因子节点（sentiment_data.json 动态注入） ----------
     def sentiment_block():
         if not _sd:
-            return box('<strong style="color:#000;">AI 多空总览统计</strong> 舆情因子节点待生成：'
+            return box('<strong style="color:#edf2ff;">AI 多空总览统计</strong> 舆情因子节点待生成：'
                        '在境内出口执行 <strong>python3 sentiment_factors.py --live</strong>'
                        '（或 <strong>--mock</strong> 离线回放）后重建，'
                        '即可注入「标的匹配 + 因子读数」（对外不显示数据来源）。'
@@ -611,8 +628,8 @@ def build_single_wechat_html(now=None):
             return (t[:limit].rstrip(' ·、/，,') + '…') if limit and len(t) > limit else t
 
         rows.append(
-            '<div style="background:#f8f9fa;border:2px solid #d9dce0;border-left:3px solid #007a35;'
-            'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#141414;line-height:1.85;">'
+            '<div style="background:#10172a;border:2px solid #2b3855;border-left:3px solid #4fe5ff;'
+            'border-radius:6px;padding:12px 14px;margin:10px 0;font-size:12px;color:#edf2ff;line-height:1.85;">'
             + sub('◆ 市场舆情因子读数（多量化平台合并采集 · 可回测口径 · 不显示数据来源）')
             + key(f"舆情温度计 {m.get('sent_temp', '—')} · {m.get('label', '—')}")
             + f"　净情感 {m.get('net_senti', '—')}　负面占比 {m.get('neg_share', '—')}%"
@@ -623,7 +640,7 @@ def build_single_wechat_html(now=None):
               f"<br/>匹配日报标的 <strong>{mm.get('matched_news', 0)}</strong> 条"
               f"（匹配率 {(mm.get('coverage') or 0) * 100:.1f}%）· 采集关键词 "
               f"{'、'.join(mm.get('keywords_used') or []) or '—'}"
-              f"<br/><span style=\"color:#7d838b;font-size:10px;\">数据日期 {_sd.get('fetch_date', '—')} · "
+              f"<br/><span style=\"color:#9aa6c3;font-size:10px;\">数据日期 {_sd.get('fetch_date', '—')} · "
               + smatch.status_line(_sd)
               + f" · {'离线回放（fixtures）' if _sd.get('mode') == 'mock' else '联网实测'}</span>"
               + quant_pair.render_wechat(quant_pair.recommend(
@@ -632,9 +649,9 @@ def build_single_wechat_html(now=None):
               + '</div>')
 
         def row(icon, title, body):
-            return ('<div style="background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;'
-                    'padding:9px 12px;margin:8px 0;font-size:11.5px;color:#141414;line-height:1.8;">'
-                    f'<strong style="color:#000;">{icon} {title}</strong>　{body}</div>')
+            return ('<div style="background:#10172a;border:1px solid #2b3855;border-radius:6px;'
+                    'padding:9px 12px;margin:8px 0;font-size:11.5px;color:#edf2ff;line-height:1.8;">'
+                    f'<strong style="color:#edf2ff;">{icon} {title}</strong>　{body}</div>')
 
         for t in (mm.get('targets') or [])[:8]:
             top = (t.get('top_titles') or [{}])[0]
@@ -643,7 +660,7 @@ def build_single_wechat_html(now=None):
             rows.append(row('🎯', f"{t.get('name', '')}　命中 {t.get('hits', 0)} 条",
                             f"净情感 {t.get('net_senti')}　负面 {t.get('neg_share')}%"
                             f"　风险 {t.get('risk_score')}　温度 {t.get('sent_temp')}·{t.get('label', '')}"
-                            + (f"<br/><span style=\"color:#7d838b;font-size:10.5px;\">代表新闻："
+                            + (f"<br/><span style=\"color:#9aa6c3;font-size:10.5px;\">代表新闻："
                                f"{clean(top.get('title'), 46)}</span>" if top.get('title') else '')
                             + quant_pair.render_wechat(rec, compact=True)))
         for st in (_sd.get('stocks') or [])[:5]:
@@ -672,9 +689,9 @@ def build_single_wechat_html(now=None):
             cells = '<br/>' + '<br/>'.join(
                 f"· <strong>{r.get('platform', '').split('（')[0]}</strong>·"
                 f"{(r.get('name') or r.get('id', ''))[:26]}　{r.get('verdict_label')}"
-                f"　<strong style=\"color:#007a35;\">{r.get('score')}</strong> 分" for r in ev['ranking'][:6])
+                f"　<strong style=\"color:#4fe5ff;\">{r.get('score')}</strong> 分" for r in ev['ranking'][:6])
             rows.append(box(sub('◆ 量化平台现成舆情/新闻因子接入评测（9 阶段实测）') + cells
-                            + f"<br/><span style=\"color:#7d838b;font-size:10px;\">评测生成于 "
+                            + f"<br/><span style=\"color:#9aa6c3;font-size:10px;\">评测生成于 "
                               f"{ev.get('generated_at', '—')}；完整矩阵与上线方案见 docs/sentiment-api-eval.md"
                               f"；掘金无舆情接口（平台能力缺失，非故障）</span>"))
         return '\n'.join(rows) + char_charts.sentiment_chart(_sd)[0]
@@ -712,7 +729,7 @@ def build_single_wechat_html(now=None):
                 '道指 ' + qq('DJI') + '<br/>' +
                 '黄金 <b>' + qq('GOLD') + '</b> 美元/盎司 · WTI ' + qq('WTI') + ' · 布伦特 ' + qq('BRENT') +
                 ' · 美元/离岸人民币 ' + qq('USDCNH') + '<br/>' +
-                '<span style="color:#7d838b;font-size:10px;">行情日期 ' + asof('HSI') +
+                '<span style="color:#9aa6c3;font-size:10px;">行情日期 ' + asof('HSI') +
                 ' · Yahoo Finance / Stooq 多源回退 · ' + fetch_status() + ' · ' + community_fetch_status() + '</span>')
 
     def hsi_brief():
@@ -747,11 +764,11 @@ def build_single_wechat_html(now=None):
                   f'只保留当次实时行情；{avail["detail"]}')
             return (sub('◆ 宏观快讯 — 今日未获取') +
                     '⚠️ 未读到 <strong>macro_data.json</strong>：构建步骤 '
-                    '<code style="background:#eceef0;padding:1px 4px;">python3 macro_data.py</code> '
+                    f'<code style="background:#151e33;color:{WECHAT_CYAN};border:1px solid {WECHAT_BORDER};padding:1px 4px;">python3 macro_data.py</code> '
                     '未执行，或公开快讯源当次全部失败。<br/>'
                     '本栏<strong>不再回填历史叙事</strong>（旧文案写死在模板里正是上一版正文长期过期的根因），'
                     '只保留下方当次抓取的实时行情；宏观结论以每次重建后的最新一版为准。'
-                    + (f'<br/><span style="color:#7d838b;font-size:10px;">本次判定：{avail["detail"]}'
+                    + (f'<br/><span style="color:#9aa6c3;font-size:10px;">本次判定：{avail["detail"]}'
                        f'（{avail["reason"]}）</span>' if avail.get('detail') else '')
                     + '<br/><br/>' +
                     sub('◆ 港股市场 — 当次行情口径') + hsi_brief() + '<br/><br/>' + macro_live_quotes()
@@ -771,14 +788,14 @@ def build_single_wechat_html(now=None):
             for it in items:
                 ttl = (it.get('title') or '').strip()
                 sn = (it.get('snippet') or '').strip()
-                rows.append('<br/>· <strong style="color:#000;">[' + md_cn(it.get('published_date')) + ']</strong> '
+                rows.append('<br/>· <strong style="color:#4fe5ff;">[' + md_cn(it.get('published_date')) + ']</strong> '
                             + ttl
-                            + (('　<span style="color:#7d838b;font-size:10.5px;">' + sn[:68] + '</span>') if sn else '')
+                            + (('　<span style="color:#9aa6c3;font-size:10.5px;">' + sn[:68] + '</span>') if sn else '')
                             + quant_pair.render_wechat(quant_pair.recommend(
                                 f'{label} {ttl} {sn}', _quotes, hint=ckey), compact=True))
             parts.append(sub('◆ ' + label) + ''.join(rows) + '<br/><br/>')
 
-        note = ('<span style="color:#7d838b;font-size:10px;">'
+        note = ('<span style="color:#9aa6c3;font-size:10px;">'
                 f'宏观快讯 {summ.get("kept_items", 0)} 条入库 · 时效窗口 {win.get("max_age_days", "—")} 天'
                 f'（{win.get("since") or "—"} 起）· 公开源 {summ.get("ok", 0)}/{summ.get("total", 0)} 可用'
                 + (f' · 已拦截超窗 {summ.get("stale_dropped", 0)} 条 / 无日期 {summ.get("undated_dropped", 0)} 条'
@@ -789,13 +806,13 @@ def build_single_wechat_html(now=None):
 
         warn = ''
         if not (summ.get('kept_items') or 0):
-            warn = ('<div style="background:#eceef0;border-left:3px solid #141414;border-radius:4px;'
-                    'padding:8px 10px;margin:8px 0;font-size:11.5px;color:#0a0a0a;">'
+            warn = ('<div style="background:#151e33;border-left:3px solid #ff6b7d;border-radius:4px;'
+                    'padding:8px 10px;margin:8px 0;font-size:11.5px;color:#dce5fb;">'
                     f'⚠️ 当次 {summ.get("ok", 0)}/{summ.get("total", 0)} 个公开源可用，窗口（'
                     f'{win.get("max_age_days", "—")} 天）内没有任何可核验的宏观快讯 —— '
                     '本栏不复用任何历史叙事，宏观结论请以行情快照与 03/03B 节当次数据为准。</div>')
         elif empty_labels:
-            warn = ('<br/><span style="color:#7d838b;font-size:10px;">窗口内无匹配快讯的小节：'
+            warn = ('<br/><span style="color:#9aa6c3;font-size:10px;">窗口内无匹配快讯的小节：'
                     + '、'.join(empty_labels) + '（按时效留空，不回填旧文）</span>')
         return (sub('◆ 宏观快讯 — 每次构建现抓 · 发布日期见每条前缀') + note + '<br/><br/>'
                 + sub('◆ 港股市场 — 当次行情口径') + hsi_brief() + '<br/><br/>'
@@ -812,7 +829,7 @@ def build_single_wechat_html(now=None):
             '• <strong>大宗商品与供应链</strong>：' + macro_top('commodities') + '；<br/>',
             '• <strong>机构观点（恒指目标价）</strong>：' + macro_top('bank_views') + '；<br/>',
             '• <strong>情绪与社区面</strong>：' + vc_note + '；<br/>',
-            '<span style="color:#7d838b;font-size:10px;">结论逐条对应上方当次快讯与行情快照，'
+            '<span style="color:#9aa6c3;font-size:10px;">结论逐条对应上方当次快讯与行情快照，'
             '历史点位/均线读数不写入模板；如需回看前几日版本，以 GitHub Pages 历史构建为准。</span>',
         ]
         rows.append(quant_pair.render_wechat(quant_pair.recommend(
@@ -827,8 +844,8 @@ def build_single_wechat_html(now=None):
             community_counts[_c[4]] += 1
     community_overview_line = (
         key(f'偏多 {community_counts["bull"]} 家')
-        + f' · <strong style="color:#333;font-weight:700;">偏空 {community_counts["bear"]} 家</strong>'
-        + f' · <strong style="color:#333;font-weight:700;">中性 {community_counts["neutral"]} 家</strong> · '
+        + f' · <strong style="color:{WECHAT_DANGER};font-weight:700;">偏空 {community_counts["bear"]} 家</strong>'
+        + f' · <strong style="color:{WECHAT_VIOLET};font-weight:700;">中性 {community_counts["neutral"]} 家</strong> · '
         + key(f'多空分歧 {community_counts["mixed"]} 家')
         + f'（{len(communities)} 源当次研判汇总，随每次构建重新统计）')
     macro_freshness_note = (
@@ -868,12 +885,13 @@ def build_single_wechat_html(now=None):
         + '；跨平台配置答案延续「进攻端看算力与硬科技、防御端看高息与公用事业」的框架，'
           '具体点位与仓位以当日行情快照为准。')
 
-    html = f'''<div style="background:#eef0f2;color:#141414;font-family:'黑体','SimHei','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;font-size:12px;line-height:1.85;padding:16px 12px;">
+    html = f'''<div style="background:{WECHAT_BG};color:{WECHAT_TEXT};font-family:'黑体','SimHei','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans SC',sans-serif;font-size:12px;line-height:1.85;padding:16px 12px;">
 
-  <!-- 顶部标题 -->
-  <div style="background:#000;border-bottom:4px solid {NEON};padding:16px 12px 14px;margin:0 -12px 16px;">
-    <div style="color:{NEON};font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;">{TITLE}</div>
-    <div style="color:{NEON};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据，由多个大模型混合部署</div>
+  <!-- 顶部电竞 HUD 标题 -->
+  <div style="background:#10152b;background-image:linear-gradient(110deg,#091021 0%,#10152b 58%,#21132e 100%);border-bottom:3px solid {WECHAT_CYAN};padding:16px 12px 14px;margin:0 -12px 16px;">
+    <div style="color:{WECHAT_CYAN};font-family:'Space Mono','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.2px;margin-bottom:8px;">OCTO // COMMAND CENTER · LIVE DATA LINK</div>
+    <div style="color:{WECHAT_TEXT};font-family:'Rajdhani','Noto Sans SC','Microsoft YaHei',sans-serif;font-size:22px;font-weight:700;letter-spacing:1px;line-height:1.35;">{TITLE}</div>
+    <div style="color:{WECHAT_TEXT_SOFT};font-size:13px;margin-top:6px;font-family:'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;">全网 AI 调研境内境外数据 · 多模型混合部署 · 将市场信号编译为可执行战术</div>
   </div>
 
   {h('01 / 每日全球全景扫描 (Daily Global Panorama Scan · 5 大推动力量 · 每次构建现算)')}
@@ -885,10 +903,10 @@ def build_single_wechat_html(now=None):
 
   {h('03 / 社区论坛热评 (14 大平台详尽深入全景研判 · 每日动态抓取)')}
   {box(
-    f'<strong style="color:#000;font-size:13px;">AI 多空总览统计</strong> — 综合 {len(communities)} 个境内外核心社区信号：<br/>' +
+    f'<strong style="color:#edf2ff;font-size:13px;">AI 多空总览统计</strong> — 综合 {len(communities)} 个境内外核心社区信号：<br/>' +
     community_overview_line + '<br/>' +
-    '<strong style="color:#141414;">核心主线共识</strong>：' + community_thread_line + '<br/>' +
-    f'<span style="color:#7d838b;font-size:10px;">社区抓取日期 {_community_fetch_date} · {community_fetch_status()} · 14 源动态抓取已上线，每次构建自动刷新</span>'
+    '<strong style="color:#edf2ff;">核心主线共识</strong>：' + community_thread_line + '<br/>' +
+    f'<span style="color:#9aa6c3;font-size:10px;">社区抓取日期 {_community_fetch_date} · {community_fetch_status()} · 14 源动态抓取已上线，每次构建自动刷新</span>'
     + quant_pair.render_wechat(quant_pair.recommend(community_thread_line, _quotes, hint='hk_tape')) + fig_community)}
 
   {community_html}
@@ -901,16 +919,16 @@ def build_single_wechat_html(now=None):
 
   {h('07 / 核心结论与资产配置提示 (Boss Verdict & Strategic Allocation)')}
   {box(verdict_block())}
-  <div style="background:#eceef0;border-left:3px solid #141414;border-radius:4px;padding:10px 14px;margin-top:10px;font-size:12px;color:#333;line-height:1.8;">
-    <strong style="color:#0a0a0a;">⚠️ 风险提示与免责声明：</strong>本报告所有内容仅供信息交流与学习参考，不构成任何形式的投资建议或操作指引。资本市场有风险，投资决策需谨慎。数据来源于公开网络信息，可能存在延迟或统计误差，实际投资操作前请务必核实最新实时市场数据。
+  <div style="background:#151e33;border:1px solid #2b3855;border-left:3px solid {WECHAT_DANGER};border-radius:4px;padding:10px 14px;margin-top:10px;font-size:12px;color:#c1cce4;line-height:1.8;">
+    <strong style="color:{WECHAT_DANGER};">⚠️ 风险提示与免责声明：</strong>本报告所有内容仅供信息交流与学习参考，不构成任何形式的投资建议或操作指引。资本市场有风险，投资决策需谨慎。数据来源于公开网络信息，可能存在延迟或统计误差，实际投资操作前请务必核实最新实时市场数据。
   </div>
 
   <!-- 底部作者与结语 -->
-  <div style="background:#000;border-top:4px solid {NEON};padding:16px 12px 10px;margin:20px -12px 0;font-size:12px;color:#c8c8c8;line-height:1.9;">
+  <div style="background:#07101b;border-top:4px solid {NEON};padding:16px 12px 10px;margin:20px -12px 0;font-size:12px;color:#b7c2dd;line-height:1.9;">
     <strong style="color:{NEON};font-size:13px;">作者：章鱼 ai&nbsp;&nbsp;仅供参考，分析研究</strong><br/>
     全网境内外为你寻找蛛丝马迹 — 提供全景视野分析，由多模型协同推理决策。<br/>
-    <span style="color:#7d838b;font-size:10px;">生成时间：{ts_full} · 行情/社区/舆情/宏观快讯均为本次构建现抓 · 宏观快讯时效：{macro_freshness_note} · 字符配图与正文同一份当次数据 · 100K 完整单页版</span><br/>
-    <span style="color:#7d838b;font-size:10px;">{quant_pair.RULE}（全文各处「◆ AI 量化」块共用同一口径，故只在此处列一次）</span>
+    <span style="color:#9aa6c3;font-size:10px;">生成时间：{ts_full} · 行情/社区/舆情/宏观快讯均为本次构建现抓 · 宏观快讯时效：{macro_freshness_note} · 字符配图与正文同一份当次数据 · 100K 完整单页版</span><br/>
+    <span style="color:#9aa6c3;font-size:10px;">{quant_pair.RULE}（全文各处「◆ AI 量化」块共用同一口径，故只在此处列一次）</span>
   </div>
 
 </div>'''

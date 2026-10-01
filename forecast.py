@@ -845,10 +845,12 @@ def _review_web(rev):
 
 def _wechat_table(data, green):
     """逐标的预测表：微信里表格比一堆带边框的 div 省一大半字符，信息量不变。"""
-    th = ('padding:2px 4px;font-size:10px;color:#fff;background:#000;'
+    th = (f'padding:3px 5px;font-size:10px;color:#07101b;background:{green};'
           'text-align:left;white-space:nowrap;')
-    td = 'padding:2px 4px;font-size:10.5px;border-bottom:1px solid #d9dce0;white-space:nowrap;'
-    rows = [f'<table style="width:100%;border-collapse:collapse;margin:4px 0;">'
+    td = ('padding:3px 5px;font-size:10.5px;color:#dce5fb;'
+          'border-bottom:1px solid #2b3855;white-space:nowrap;')
+    rows = ['<table style="width:100%;border-collapse:collapse;margin:4px 0;'
+            'background:#0d1426;color:#dce5fb;border:1px solid #2b3855;">'
             f'<tr><th style="{th}">标的</th><th style="{th}">方向</th>'
             f'<th style="{th}">预期</th><th style="{th}">区间</th>'
             f'<th style="{th}">点位区间</th><th style="{th}">置信</th></tr>']
@@ -867,7 +869,7 @@ def _wechat_table(data, green):
     return ''.join(rows)
 
 
-def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414', compact=False):
+def render_wechat(data, neon='#b6ff4a', green='#4fe5ff', ink='#edf2ff', compact=False):
     """04 栏微信版 HTML（全内联样式，口径与网页版完全一致）。
 
     compact=True 时收敛为「倾向 + 逐标的表 + 回看一行」，砍掉驱动拆解 / 三路信号 /
@@ -878,7 +880,7 @@ def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414', compact=
         return f'<div style="color:{green};font-weight:700;font-size:13px;margin:10px 0 4px;">{t}</div>'
 
     def meta(t):
-        return f'<div style="color:#7d838b;font-size:10.5px;margin-top:6px;line-height:1.7;">{t}</div>'
+        return f'<div style="color:#9aa6c3;font-size:10.5px;margin-top:6px;line-height:1.7;">{t}</div>'
 
     head = (f'预测生成 {_esc(data["generated_at"])} · 基准日 '
             f'{_esc(data["base_date"] or "未获取")} · 目标日 '
@@ -898,7 +900,7 @@ def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414', compact=
 
     st = data['stance']
     out.append(sub('◆ 明日盘面倾向（港股加权）'))
-    out.append(f'<strong style="background:#000;color:{neon};font-weight:700;padding:1px 5px;">'
+    out.append(f'<strong style="background:#101b2c;color:{neon};font-weight:700;padding:2px 6px;border:1px solid #435d31;">'
                f'{_esc(st["label"])} · {_esc(fmt_signed(st["z"], 2, "σ"))} · '
                f'置信度 {int(st["confidence"] * 100)}%</strong>'
                f'<br/>{_esc(st["summary"])}')
@@ -938,7 +940,7 @@ def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414', compact=
     return ''.join(out)
 
 
-def render_wechat_line(data, green='#007a35'):
+def render_wechat_line(data, green='#4fe5ff'):
     """预算实在不够时的最后一版：一行摘要，宁可少说，也不删到让人误读。"""
     if not data.get('available'):
         return (f'<div style="color:{green};font-weight:700;font-size:12px;margin:8px 0 2px;">'
@@ -956,7 +958,7 @@ def render_wechat_line(data, green='#007a35'):
             '本条为微信单页字符预算内的摘要版，完整逐标的预测与驱动拆解见网页 04 节。</div>')
 
 
-def _review_wechat(rev, green='#007a35'):
+def _review_wechat(rev, green='#4fe5ff'):
     head = (f'<div style="color:{green};font-weight:700;font-size:13px;margin:10px 0 4px;">'
             '◆ 历史预测回看（先存档 · 后结算）</div>')
     rows = ''.join(
@@ -964,7 +966,7 @@ def _review_wechat(rev, green='#007a35'):
         f'{v["hit_rate"] * 100:.0f}% · 平均绝对误差 {v["mae_pct"]:.2f} 个百分点<br/>'
         for v in (rev.get('by_symbol') or [])[:6])
     return (head + _esc(rev.get('text') or '') + '<br/>' + rows
-            + f'<div style="color:#7d838b;font-size:10.5px;margin-top:4px;line-height:1.7;">'
+            + f'<div style="color:#9aa6c3;font-size:10.5px;margin-top:4px;line-height:1.7;">'
               '只对「目标日已抓到实际行情」的预测计分，绝不用当次行情给当次预测打分。</div>')
 
 

@@ -501,7 +501,15 @@ class TestForecastRendering(unittest.TestCase):
 
     def test_trimming_left_room_for_a_real_forecast_block(self):
         """压缩既有栏目的目的：微信 04 栏要拿到逐标的预测，而不是退成一行摘要。"""
-        env = {'FORECAST_HISTORY': self.hist}
+        # 本测试期待真实预测，因此明确提供当日行情；无行情生产路径仍须降级为「今日未获取」。
+        missing = os.path.join(self._tmp.name, 'missing.json')
+        env = {
+            'FORECAST_HISTORY': self.hist,
+            'MARKET_DATA': self._write('market_data.json', BULL),
+            'COMMUNITY_DATA': missing,
+            'SENTIMENT_DATA': missing,
+            'MACRO_DATA': missing,
+        }
         saved = {k: os.environ.get(k) for k in env}
         os.environ.update(env)
         try:
