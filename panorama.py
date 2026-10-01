@@ -786,16 +786,16 @@ def render_web(data):
     return '\n'.join(parts)
 
 
-def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414'):
-    """01 栏微信版 HTML（全内联样式，口径与网页版完全一致）。"""
+def render_wechat(data, neon='#b6ff4a', green='#4fe5ff', ink='#edf2ff'):
+    """01 栏微信版 HTML（电竞 HUD 深色面板，全内联样式）。"""
     def sub(t):
         return f'<div style="color:{green};font-weight:700;font-size:13px;margin-bottom:6px;">{t}</div>'
 
     def meta(t):
-        return f'<div style="color:#7d838b;font-size:10px;line-height:1.7;margin-top:6px;">{t}</div>'
+        return f'<div style="color:#9aa6c3;font-size:10px;line-height:1.7;margin-top:6px;">{t}</div>'
 
     v = data['verdict']
-    out = [f'<div style="background:#f8f9fa;border:1px solid #d9dce0;border-radius:6px;'
+    out = [f'<div style="background:#0d1426;border:1px solid #2b3855;border-radius:4px;'
            f'padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;color:{ink};">'
            + meta(f'扫描时间 {_esc(data["generated_at"])} · 行情日期 {_esc(data["quote_date"] or "未获取")} · '
                   f'数据覆盖 {int(data["coverage"] * 100)}% · {_esc(HEAD_NOTE)}')]
@@ -811,14 +811,14 @@ def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414'):
     for f in data['forces']:
         evs = ''.join('<br/>· ' + _ev_line(e) for e in f['evidence'][:3])
         out.append(
-            f'<div style="border-left:3px solid {green};background:#eceef0;border-radius:4px;'
-            f'padding:8px 10px;margin:8px 0;font-size:11.5px;line-height:1.75;">'
-            f'<strong style="color:#000;">{f["rank"]}. {_esc(f["name"])}</strong>'
-            f'<strong style="background:#000;color:{neon};font-size:10px;padding:1px 5px;margin-left:4px;">'
+            f'<div style="border:1px solid #26334e;border-left:3px solid {green};background:#121b30;'
+            f'color:{ink};border-radius:3px;padding:8px 10px;margin:8px 0;font-size:11.5px;line-height:1.75;">'
+            f'<strong style="color:{ink};">{f["rank"]}. {_esc(f["name"])}</strong>'
+            f'<strong style="background:#07101b;color:{neon};font-size:10px;padding:1px 5px;margin-left:4px;">'
             f'{_esc(f["tier"])} · {_esc(f["dir_word"])} · {f["score"]} 分</strong>'
             f'<br/><strong>归类：</strong>{_esc(f["category"])}　<strong>当次读数：</strong>{_esc(f["read"])}'
             + evs
-            + f'<br/><strong>如何利好利空：</strong>{_esc(f["impact"])}'
+            + f'<br/><strong style="color:{green};">如何利好利空：</strong>{_esc(f["impact"])}'
             + quant_pair.render_wechat(_force_ai(f, data))
             + '</div>')
 
@@ -837,7 +837,7 @@ def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414'):
         out.append('当次没有被判为噪音的力量：取到的信号都越过了各自的噪音阈值。<br/>')
 
     out.append('<br/>' + sub('◆ 是否可以做多'))
-    out.append(f'<strong style="background:#000;color:{neon};font-weight:700;padding:1px 5px;">'
+    out.append(f'<strong style="background:#101b2c;color:{neon};font-weight:700;padding:2px 6px;border:1px solid #435d31;">'
                f'{_esc(v["stance"])} · {_esc(v["score_text"])} · 置信度 {int(v["confidence"] * 100)}%</strong>')
     if v['bulls']:
         out.append('<br/><strong>偏多力量：</strong>' + '、'.join(_esc(b) for b in v['bulls']))
@@ -846,7 +846,7 @@ def render_wechat(data, neon='#39ff14', green='#007a35', ink='#141414'):
     for t in v['trigger']:
         out.append('<br/>' + _esc(t))
     for a in v['adjust']:
-        out.append('<br/><span style="color:#7d838b;font-size:10.5px;">调整项：' + _esc(a) + '</span>')
+        out.append('<br/><span style="color:#9aa6c3;font-size:10.5px;">调整项：' + _esc(a) + '</span>')
     out.append(meta(_esc(v['rule']) + '　本栏为规则化推导，不构成投资建议。'))
     out.append(quant_pair.render_wechat(v.get('ai_quant') or _focus_ai(
         {'category': '是否可以做多', 'summary': v.get('stance') or ''}, data),

@@ -505,13 +505,13 @@ def render_web_list(recs, note=''):
 #   ② 规则说明不再逐块重复 —— 由 rule_note_wechat() 在推送里整篇只印一次
 #      （show_rule=True 可让单独出现的块自带规则）。
 # 网页版没有字符上限，保持原样逐块带规则，不受影响。
-_WX_BOX = ('background:#f4f7f4;border:1px solid #007a35;border-left:3px solid #000;'
-           'border-radius:6px;padding:9px 11px;margin-top:9px;font-size:11px;line-height:1.7')
-_WX_COMPACT = ('background:#f4f7f4;border:1px solid #007a35;border-radius:4px;'
+_WX_BOX = ('background:#11182b;color:#dce5fb;border:1px solid #6f55b8;border-left:3px solid #ff4d9a;'
+           'border-radius:4px;padding:9px 11px;margin-top:9px;font-size:11px;line-height:1.7')
+_WX_COMPACT = ('background:#11182b;color:#dce5fb;border:1px solid #2b3855;border-radius:3px;'
                'padding:6px 8px;margin-top:6px;font-size:11px;line-height:1.65')
-_WX_TITLE = 'color:#000;font-weight:700;font-size:12px'
-_WX_CHIP = 'background:#000;color:#39ff14;font-size:10px;padding:1px 6px;margin-left:4px'
-_WX_META = 'color:#7d838b;font-size:10px;margin-top:6px'
+_WX_TITLE = 'color:#4fe5ff;font-weight:700;font-size:12px'
+_WX_CHIP = 'background:#b6ff4a;color:#07101b;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px'
+_WX_META = 'color:#9aa6c3;font-size:10px;margin-top:6px'
 
 
 def rule_note_wechat(label='AI 量化 · 配对交易'):
@@ -527,12 +527,12 @@ def render_wechat(rec, compact=False, note='', show_rule=False):
     """
     if not rec:
         return ''
-    note_html = (f'<div style="color:#7d838b;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
+    note_html = (f'<div style="color:#9aa6c3;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
                  if note else '')
     if compact:
         return (
             f'<div style="{_WX_COMPACT}">'
-            '<strong style="color:#007a35;">◆ AI 量化</strong> · 策略：' + _esc(rec['strategy_name'])
+            '<strong style="color:#4fe5ff;">◆ AI 量化</strong> · 策略：' + _esc(rec['strategy_name'])
             + ' · 标的组合：' + _esc(rec['pair_label'])
             + ' · 推荐：' + _esc(rec['stance']) + '。' + _esc(rec['recommendation'])
             + ' · 风险因子(48h)：' + _esc(rec['outlook']['risk'])
@@ -575,7 +575,7 @@ def render_wechat_list(recs, note=''):
         + '<br/>未来预测·48小时之后：' + _esc(r['outlook']['long'])
         for r in recs
     )
-    note_html = (f'<div style="color:#7d838b;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
+    note_html = (f'<div style="color:#9aa6c3;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
                  if note else '')
     return (
         f'<div style="{_WX_BOX}">'

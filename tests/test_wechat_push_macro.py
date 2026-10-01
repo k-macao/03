@@ -28,6 +28,7 @@ for _p in (REPO_ROOT, os.path.join(REPO_ROOT, 'tools')):
 
 import build_site as bs                       # noqa: E402  网页 02 节 MACROLIST 注入
 import macro_data as md                       # noqa: E402
+import sentiment_factors as sf                # noqa: E402
 import wechat_push as wp                      # noqa: E402
 
 # 曾经写死在推送模板里的历史事实（任何一条重新出现 = 旧文案回归）
@@ -45,13 +46,13 @@ STALE_MARKERS = [
 ]
 
 
-def _render(env):
+def _render(env, now=None):
     """在指定数据文件环境下渲染单页推送（屏蔽各源日志）。"""
     saved = {k: os.environ.get(k) for k in env}
     os.environ.update(env)
     try:
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            html, _ts, _tsf = wp.build_single_wechat_html()
+            html, _ts, _tsf = wp.build_single_wechat_html(now=now)
     finally:
         for k, v in saved.items():
             os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
@@ -73,6 +74,59 @@ class TestMacroSection(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
+
+    def test_wechat_output_uses_esports_palette(self):
+        """完整动态微信单页（宏观、舆情、社区、图表与预测）统一使用电竞深色配色。"""
+        now = datetime.now(timezone.utc)
+        today = now.strftime('%Y-%m-%d')
+        paths = {name: os.path.join(self._tmp.name, name) for name in
+                 ('market_data.json', 'community_data.json', 'sentiment_data.json',
+                  'macro_data.json', 'forecast_history.json')}
+        quotes = {
+            'HSI': {'name': '恒生指数', 'last': 26000, 'pct': 0.8, 'as_of': today, 'decimals': 2},
+            'HSTECH': {'name': '恒生科技指数', 'last': 5200, 'pct': 1.2, 'as_of': today, 'decimals': 2},
+            'HSCE': {'name': '恒生中国企业指数', 'last': 9000, 'pct': 0.6, 'as_of': today, 'decimals': 2},
+            'SPX': {'name': '标普 500', 'last': 6000, 'pct': 0.4, 'as_of': today, 'decimals': 2},
+            'NDQ': {'name': '纳斯达克', 'last': 21000, 'pct': 0.5, 'as_of': today, 'decimals': 2},
+            'DJI': {'name': '道琼斯', 'last': 43000, 'pct': 0.3, 'as_of': today, 'decimals': 2},
+            'GOLD': {'name': '现货黄金', 'last': 2650, 'pct': -0.2, 'as_of': today, 'decimals': 2},
+        }
+        with open(paths['market_data.json'], 'w', encoding='utf-8') as f:
+            json.dump({'fetch_date': today, 'quotes': quotes,
+                       'summary': {'ok': len(quotes), 'total': len(quotes), 'failed': []}}, f)
+        with open(paths['community_data.json'], 'w', encoding='utf-8') as f:
+            json.dump({'fetch_date': today, 'generated_at': today + ' 08:00:00 UTC',
+                       'summary': {'ok': 2, 'total': 2}, 'communities': [
+                {'key': 'FUTU', 'id': '01', 'name': '多方情报站', 'icon': '🛰️',
+                 'verdict_label': '偏多', 'verdict_class': 'bull',
+                 'quote': '恒科走强，北水持续流入', 'verdict': '动能偏强，留意盘中量能确认。'},
+                {'key': 'XUEQIU', 'id': '02', 'name': '风险观察站', 'icon': '🔭',
+                 'verdict_label': '偏空', 'verdict_class': 'bear',
+                 'quote': '短线波动上升，盈利兑现压力仍在', 'verdict': '仓位宜保守，等待风险指标回落。'},
+            ]}, f, ensure_ascii=False)
+        with open(paths['macro_data.json'], 'w', encoding='utf-8') as f:
+            json.dump(md.build(mock=True, quiet=True), f, ensure_ascii=False)
+        sf.run(mode='mock', out_path=paths['sentiment_data.json'], verbose=False)
+
+        env = {
+            'MARKET_DATA': paths['market_data.json'],
+            'COMMUNITY_DATA': paths['community_data.json'],
+            'SENTIMENT_DATA': paths['sentiment_data.json'],
+            'MACRO_DATA': paths['macro_data.json'],
+            'FORECAST_HISTORY': paths['forecast_history.json'],
+            'MACRO_AUTO_FETCH': '0',
+            'SENTIMENT_SHOW_API_EVAL': '0',
+        }
+        html = _render(env, now=now)
+        for token in ('background:#060811', 'OCTO // COMMAND CENTER', '逐标的预测',
+                      'background:#0d1426', 'background:#11182b', 'background:#0e1528',
+                      '市场舆情因子读数', '宏观快讯', 'color:#4fe5ff', 'color:#b6ff4a'):
+            self.assertIn(token, html)
+        for legacy in ('background:#eef0f2', 'background:#f8f9fa', 'background:#f4f7f4',
+                       'background:#f0f2f0', 'background:#eceef0', 'border:1px solid #d9dce0',
+                       'color:#141414', 'color:#007a35', 'color:#39ff14'):
+            self.assertNotIn(legacy, html, f'旧浅色或低对比度主题不应出现在微信推送: {legacy}')
+        self.assertLess(len(html), wp.CONTENT_SAFE_LIMIT, '全量深色主题仍须满足推送字符安全线')
 
     def test_push_title_is_consistent(self):
         title = '章鱼 AI·全景分析（量化策略多因子分析）'
