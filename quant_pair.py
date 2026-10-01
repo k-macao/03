@@ -315,6 +315,37 @@ def _leg(quotes, key):
     return {'key': key, 'name': q.get('name') or NAMES.get(key, key), 'pct': q.get('pct')}
 
 
+def _forecast_outlook(strategy, leg_a, leg_b, z):
+    """Explainable short-horizon ensemble; not a live external model/API call.
+
+    Uses a shrinkage blend of one-session tape momentum and pair mean-reversion,
+    with strategy volatility parameters as a proxy because this module has no price history.
+    """
+    pa, pb = leg_a.get('pct'), leg_b.get('pct')
+    if pa is None or pb is None:
+        return {
+            'risk': '行情缺失；宏观/资金流/情绪无数据。',
+            'short': '数据不足，不预测方向/幅度/置信度。',
+            'long': '数据不足，暂不判断。',
+        }
+    sigma = pair_sigma(strategy)
+    spread_z = z or 0.0
+    # Mix a damped tape signal with relative-value reversion; conservative shrinkage
+    drift = 0.20 * (pa + pb) - 0.15 * spread_z * sigma
+    vol_48h = math.sqrt(2.0) * math.sqrt(DAILY_SIGMA[strategy['leg_a']]**2 + DAILY_SIGMA[strategy['leg_b']]**2) / 2
+    projected = max(-2.0 * vol_48h, min(2.0 * vol_48h, drift * 2.0))
+    confidence = min(0.62, 0.35 + min(abs(spread_z), 2.0) * 0.08)
+    direction = '偏上涨' if projected > 0.08 else ('偏下跌' if projected < -0.08 else '区间震荡')
+    strength = '高' if abs(spread_z) >= 1.8 else ('中' if abs(spread_z) >= 1 else '低')
+    risk = (f'波动{strength}（48h代理±{vol_48h:.2f}%）；资金流/情绪按当次涨跌弱代理：{direction}；'
+            '宏观事件未接实时日历，方向未知。')
+    short = (f'48h{direction}，中枢{_fmt_pct(projected)}，波动区间±{vol_48h:.2f}%，'
+             f'置信度{confidence:.0%}（未校准）。')
+    long_dir = '中性偏多' if (pa + pb) > 0.2 else ('中性偏空' if (pa + pb) < -0.2 else '中性')
+    long = f'48h后展望：{long_dir}；低置信度情景，缺少多日序列，趋势持续性未知。'
+    return {'risk': risk, 'short': short, 'long': long}
+
+
 def recommend(text='', quotes=None, hint=None):
     """为一条内容找到配对策略，给出两只标的，并按规则推荐。
 
@@ -370,7 +401,9 @@ def recommend(text='', quotes=None, hint=None):
     else:
         why = '按本条内容的主题映射选定本策略。'
 
+    outlook = _forecast_outlook(strategy, leg_a, leg_b, z)
     return {
+        'outlook': outlook,
         'strategy_id': strategy['id'],
         'strategy_name': strategy['name'],
         'family': '配对交易',
@@ -405,6 +438,9 @@ def render_web(rec, compact=False, note=''):
             '<strong>◆ AI 量化</strong> · 策略：' + _esc(rec['strategy_name'])
             + ' · 标的组合：' + _esc(rec['pair_label'])
             + ' · 推荐：' + _esc(rec['stance']) + '。' + _esc(rec['recommendation'])
+            + ' · 风险因子(48h)：' + _esc(rec['outlook']['risk'])
+            + ' · 走势预测(48h)：' + _esc(rec['outlook']['short'])
+            + ' · 未来展望：' + _esc(rec['outlook']['long'])
             + (f' <span class="ai-quant-meta">{_esc(note)}</span>' if note else '')
             + '</div>'
         )
@@ -423,6 +459,11 @@ def render_web(rec, compact=False, note=''):
         '  </ul>\n'
         f'  <div class="ai-quant-meta">{_esc(rec["why"])} {_esc(rec["logic"])}</div>\n'
         f'  <div class="ai-quant-meta">{_esc(rec["rule"])}</div>\n'
+        '  <ul class="ai-quant-list ai-quant-forecast">'
+        f'<li><strong>风险因子预测 · 未来48小时：</strong>{_esc(rec["outlook"]["risk"])}</li>'
+        f'<li><strong>走势预测 · 未来48小时：</strong>{_esc(rec["outlook"]["short"])}</li>'
+        f'<li><strong>未来预测 · 48小时之后：</strong>{_esc(rec["outlook"]["long"])}</li>'
+        '</ul>'
         f'{note_html}'
         '</div>'
     )
@@ -439,7 +480,10 @@ def render_web_list(recs, note=''):
             '<li><strong>策略：</strong>' + _esc(r['strategy_name'])
             + ' · <strong>标的组合：</strong>' + _esc(r['pair_label'])
             + ' · <strong>推荐：</strong>' + _esc(r['stance'])
-            + '。' + _esc(r['recommendation']) + '</li>'
+            + '。' + _esc(r['recommendation'])
+            + '<br/><strong>风险因子预测·未来48小时：</strong>' + _esc(r['outlook']['risk'])
+            + '<br/><strong>走势预测·未来48小时：</strong>' + _esc(r['outlook']['short'])
+            + '<br/><strong>未来预测·48小时之后：</strong>' + _esc(r['outlook']['long']) + '</li>'
         )
     tail = f'<div class="ai-quant-meta">{_esc(note)}</div>' if note else ''
     return (
@@ -491,6 +535,9 @@ def render_wechat(rec, compact=False, note='', show_rule=False):
             '<strong style="color:#007a35;">◆ AI 量化</strong> · 策略：' + _esc(rec['strategy_name'])
             + ' · 标的组合：' + _esc(rec['pair_label'])
             + ' · 推荐：' + _esc(rec['stance']) + '。' + _esc(rec['recommendation'])
+            + ' · 风险因子(48h)：' + _esc(rec['outlook']['risk'])
+            + ' · 走势预测(48h)：' + _esc(rec['outlook']['short'])
+            + ' · 未来展望：' + _esc(rec['outlook']['long'])
             + ((' · ' + _esc(note)) if note else '')
             + '</div>'
         )
@@ -504,7 +551,10 @@ def render_wechat(rec, compact=False, note='', show_rule=False):
         f'◦ <strong>标的组合：</strong>{_esc(rec["pair_label"])}<br/>'
         f'◦ <strong>当次信号：</strong>{_esc(rec["signal"])}<br/>'
         f'◦ <strong>推荐：</strong>{_esc(rec["stance"])}。{_esc(rec["recommendation"])}'
-        f'（置信度 {conf}%）'
+        f'（置信度 {conf}%）<br/>'
+        f'◦ <strong>风险因子预测·未来48小时：</strong>{_esc(rec["outlook"]["risk"])}<br/>'
+        f'◦ <strong>走势预测·未来48小时：</strong>{_esc(rec["outlook"]["short"])}<br/>'
+        f'◦ <strong>未来预测·48小时之后：</strong>{_esc(rec["outlook"]["long"])}'
         f'<div style="{_WX_META}">{_esc(rec["why"])} {_esc(rec["logic"])}</div>'
         + (f'<div style="{_WX_META}">{_esc(rec["rule"])}</div>' if show_rule else '')
         + f'{note_html}</div>'
@@ -520,6 +570,9 @@ def render_wechat_list(recs, note=''):
         + ' · <strong>标的组合：</strong>' + _esc(r['pair_label'])
         + ' · <strong>推荐：</strong>' + _esc(r['stance'])
         + '。' + _esc(r['recommendation'])
+        + '<br/>风险因子预测·未来48小时：' + _esc(r['outlook']['risk'])
+        + '<br/>走势预测·未来48小时：' + _esc(r['outlook']['short'])
+        + '<br/>未来预测·48小时之后：' + _esc(r['outlook']['long'])
         for r in recs
     )
     note_html = (f'<div style="color:#7d838b;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
