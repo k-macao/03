@@ -200,6 +200,27 @@ button, a { -webkit-tap-highlight-color:transparent; }
 .hud-stat span { display:block; margin-bottom:4px; color:var(--muted); font:700 9px/1 var(--mono); letter-spacing:.1em; }
 .hud-stat strong { display:block; overflow:hidden; color:var(--ink); font:600 12px/1.3 var(--hei); text-overflow:ellipsis; white-space:nowrap; }
 .hud-stat strong.signal { color:var(--cyan); }
+/* 03B 舆情·新闻因子 的 KPI 卡组：build_site.py 的 _stat_card() 只发这几个 class，
+   模板必须自带样式，否则注入内容会掉成无样式默认块（深色底上糊成一片黑字）。 */
+.stat-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:10px;
+  margin:14px 0;
+}
+.stat-card {
+  position:relative;
+  overflow:hidden;
+  padding:14px 16px;
+  border:1px solid var(--border);
+  border-left:2px solid var(--cyan);
+  border-radius:8px;
+  background:linear-gradient(150deg, rgba(79,229,255,.085), rgba(13,18,32,.9) 62%);
+  box-shadow:inset 0 0 24px rgba(79,229,255,.05);
+}
+.stat-title { color:var(--muted); font:700 9px/1.2 var(--mono); letter-spacing:.12em; text-transform:uppercase; }
+.stat-val { margin:7px 0 8px; color:var(--neon); font:700 22px/1.2 var(--serif); text-shadow:0 0 14px rgba(182,255,74,.22); }
+.stat-desc { color:var(--muted-strong); font-size:11.5px; line-height:1.7; }
 .raid-nav {
   position:relative;
   z-index:2;
