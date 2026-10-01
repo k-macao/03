@@ -68,6 +68,11 @@ class TestPairEngine(unittest.TestCase):
             self.assertIn(rec['strategy_name'], blob)
             self.assertIn('推荐', blob)
         self.assertIn('data-ai-quant="1"', quant_pair.render_web(rec))
+        for label in ('风险因子预测', '走势预测', '未来预测'):
+            self.assertIn(label, quant_pair.render_web(rec))
+            self.assertIn(label, quant_pair.render_wechat(rec))
+        self.assertIn('置信度', rec['outlook']['short'])
+        self.assertIn('宏观', quant_pair.recommend('原油与布伦特', {})['outlook']['risk'])
 
 
 class TestAttachedAfterContent(unittest.TestCase):
