@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI 量化策略日报 — 极趣墨水屏同步推送 (E-Ink Sync)
+章鱼 AI·全景分析（量化策略多因子分析） — 极趣墨水屏同步推送 (E-Ink Sync)
 
 功能：
   1/ 读取 k-macao/10_sync 接口文件（已封装为 tools/zectrix_client.py）
@@ -20,7 +20,7 @@
 
 环境变量：
   ZECTRIX_API_KEY / ZECTRIX_MAC — 极趣云密钥与设备 MAC（与 10_sync 一致）
-  ZECTRIX_BOARD_TITLE — 顶栏文案，默认「章鱼 AI·全景分析」
+  ZECTRIX_BOARD_TITLE — 顶栏文案，默认「章鱼 AI·全景分析（量化策略多因子分析）」
   ZECTRIX_PAGES — 默认启用页面
 
 离线预览：
@@ -44,7 +44,7 @@ if REPO_ROOT not in sys.path:
 try:
     from tools.zectrix_client import (
         FONTS, BOARD_TITLE as DEFAULT_BOARD_TITLE,
-        push_image, wrap_text_by_pixels, dedupe_titles,
+        push_image, wrap_text_by_pixels, dedupe_titles, fit_title,
         source_label, make_page_header, render_two_pages,
         get_hotlist_data, get_eastmoney_news,
         ENABLED_PAGES as DEFAULT_PAGES,
@@ -54,7 +54,7 @@ except ImportError:
     # 兼容直接运行
     from zectrix_client import (
         FONTS, BOARD_TITLE as DEFAULT_BOARD_TITLE,
-        push_image, wrap_text_by_pixels, dedupe_titles,
+        push_image, wrap_text_by_pixels, dedupe_titles, fit_title,
         source_label, make_page_header, render_two_pages,
         get_hotlist_data, get_eastmoney_news,
         ENABLED_PAGES as DEFAULT_PAGES,
@@ -253,15 +253,8 @@ def draw_report_page(page_title, lines, fonts=None):
 
     # 顶栏
     draw.rounded_rectangle([(10, 10), (390, 45)], radius=8, fill=0)
-    title_text = page_title
-    try:
-        while draw.textlength(title_text, font=font_title) > 360 and len(title_text) > 4:
-            title_text = title_text[:-1]
-        if title_text != page_title:
-            title_text = title_text[:-1] + "…"
-    except Exception:
-        title_text = page_title[:14]
-    draw.text((20, 15), title_text, font=font_title, fill=255)
+    title_text, title_font, title_y = fit_title(draw, page_title, fonts)
+    draw.text((20, title_y), title_text, font=title_font, fill=255)
 
     y = 55
     line_height = 20
@@ -372,7 +365,7 @@ def push_news_pages(source="caixin", pages="1,2,3,4", east_column="345", board_t
 # CLI
 # ---------------------------------------------------------------------------
 def parse_args():
-    p = argparse.ArgumentParser(description="章鱼 AI·全景分析 — 极趣墨水屏同步推送")
+    p = argparse.ArgumentParser(description="章鱼 AI·全景分析（量化策略多因子分析） — 极趣墨水屏同步推送")
     p.add_argument("--mode", choices=["report","news","both"], default="report",
                    help="推送模式：report=03日报浓缩4页，news=财新+东方财富4页（复用10_sync），both=报告1-2 + 新闻3-4")
     p.add_argument("--pages", type=str, default=None,
@@ -382,7 +375,7 @@ def parse_args():
     p.add_argument("--east-column", type=str, default="345",
                    help="东方财富栏目ID（第3-4页）")
     p.add_argument("--title", type=str, default=None,
-                   help="覆盖顶栏文案（四页统一），默认 章鱼 AI·全景分析")
+                   help="覆盖顶栏文案（四页统一），默认 章鱼 AI·全景分析（量化策略多因子分析）")
     p.add_argument("--dry-run", action="store_true",
                    help="仅本地生成 page_*.png，不推送")
     p.add_argument("--api-key", type=str, default=None, help="Zectrix API Key（覆盖环境变量）")

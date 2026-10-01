@@ -24,7 +24,7 @@ from PIL import Image, ImageDraw, ImageFont
 # ---------------------------------------------------------------------------
 # 配置（与 10_sync 保持一致，允许环境变量覆盖）
 # ---------------------------------------------------------------------------
-BOARD_TITLE = os.environ.get("ZECTRIX_BOARD_TITLE", "章鱼 AI·全景分析")
+BOARD_TITLE = os.environ.get("ZECTRIX_BOARD_TITLE", "章鱼 AI·全景分析（量化策略多因子分析）")
 HEADER_SHOW_SOURCE = False
 HEADER_SHOW_PART = False
 HEADER_PREFIX = ""
@@ -178,6 +178,30 @@ def wrap_text_by_pixels(draw, text, font, max_width):
         lines.append(current_line)
     return lines
 
+def fit_title(draw, text, fonts=None, max_width=360, box_top=10, box_height=35):
+    """顶栏标题自适应：先逐级缩小字号完整显示，最小字号仍放不下才截断。"""
+    fonts = fonts or FONTS
+    font = fonts["title"]
+    path = fonts.get("path")
+    if path:
+        for size in range(24, 13, -1):
+            try:
+                candidate = ImageFont.truetype(path, size)
+                if draw.textlength(text, font=candidate) <= max_width:
+                    return text, candidate, box_top + max(0, (box_height - size) // 2)
+                font = candidate
+            except Exception:
+                break
+    fitted = text
+    try:
+        while draw.textlength(fitted, font=font) > max_width and len(fitted) > 4:
+            fitted = fitted[:-1]
+        if fitted != text:
+            fitted = fitted[:-1] + "…"
+    except Exception:
+        fitted = text[:14]
+    return fitted, font, 15 if font is fonts["title"] else box_top + 8
+
 def draw_news_list(draw, page_title, items, start_idx, fonts=None):
     fonts = fonts or FONTS
     font_title = fonts["title"]
@@ -185,15 +209,8 @@ def draw_news_list(draw, page_title, items, start_idx, fonts=None):
     font_small = fonts["small"]
 
     draw.rounded_rectangle([(10, 10), (390, 45)], radius=8, fill=0)
-    title_text = page_title
-    try:
-        while draw.textlength(title_text, font=font_title) > 360 and len(title_text) > 4:
-            title_text = title_text[:-1]
-        if title_text != page_title:
-            title_text = title_text[:-1] + "…"
-    except Exception:
-        title_text = page_title[:14]
-    draw.text((20, 15), title_text, font=font_title, fill=255)
+    title_text, title_font, title_y = fit_title(draw, page_title, fonts)
+    draw.text((20, title_y), title_text, font=title_font, fill=255)
 
     y, last_idx = 55, start_idx
     item_gap = 12
@@ -235,7 +252,7 @@ def source_label(source, override=None):
     return SOURCE_LABELS.get(source, source or "资讯")
 
 def make_page_header(label, part, board_title=None):
-    main = (board_title or BOARD_TITLE or "").strip() or "章鱼 AI·全景分析"
+    main = (board_title or BOARD_TITLE or "").strip() or "章鱼 AI·全景分析（量化策略多因子分析）"
     text = f"{HEADER_PREFIX}{main}"
     label = (label or "").strip()
     if HEADER_SHOW_SOURCE and label and label != main:

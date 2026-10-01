@@ -74,6 +74,38 @@ class TestMacroSection(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
 
+    def test_push_title_is_consistent(self):
+        title = '章鱼 AI·全景分析（量化策略多因子分析）'
+        self.assertEqual(wp.TITLE, title)
+        self.assertIn(title, _render(_no_data_env(self._tmp.name)))
+        with open(os.path.join(REPO_ROOT, 'report.html'), encoding='utf-8') as f:
+            report = f.read()
+        embedded = re.search(
+            r'<script id="wechat-parts" type="application/json">(.*?)</script>',
+            report, re.S,
+        )
+        self.assertIsNotNone(embedded)
+        payload = json.loads(embedded.group(1))
+        self.assertEqual(payload['title'], title)
+        for part in payload['parts']:
+            self.assertEqual(part['title'], title)
+            self.assertIn(title, part['content'])
+        self.assertIn("const pushTitle = '" + title + "';", report)
+        self.assertIn("part = { title: '" + title + "'", report)
+        self.assertIn('<title>' + title + '</title>', report)
+        self.assertIn('<h1>' + title + '</h1>', report)
+        self.assertNotIn('章鱼 AI 量化策略日报', report)
+
+    def test_eink_board_title_matches(self):
+        try:
+            import zectrix_client as zc
+        except ImportError as exc:            # 墨水屏可选依赖（requests / Pillow）未安装
+            self.skipTest(f'墨水屏依赖缺失: {exc}')
+        title = '章鱼 AI·全景分析（量化策略多因子分析）'
+        if not os.environ.get('ZECTRIX_BOARD_TITLE'):
+            self.assertEqual(zc.BOARD_TITLE, title)
+        self.assertTrue(zc.make_page_header('', '').startswith(zc.HEADER_PREFIX + zc.BOARD_TITLE))
+
     def test_no_hardcoded_history_anywhere(self):
         """快讯未获取时的渲染（最坏情况）也不得出现历史写死文案。"""
         html = _render(_no_data_env(self._tmp.name))
