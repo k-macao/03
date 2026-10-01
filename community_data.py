@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI 量化策略日报 — 14 大社区动态抓取 (community_data.py)
+章鱼 AI·全景分析（量化策略多因子分析） — 14 大社区动态抓取 (community_data.py)
 
 每次构建/推送前自动抓取 14 大社区最新研判，生成 community_data.json，
 供 build_site.py 与 tools/wechat_push.py 动态注入，实现「14 源动态抓取真正上线」：
@@ -431,7 +431,7 @@ def generate_verdict(community, hsi, fetch_date_cn):
     return base_verdicts.get(community['key'], f"{label}。{fetch_date_cn}行情 {hsi['last']}（{hsi['pct']}），箱体震荡中维持原有配置，等待右侧信号。")
 
 def main():
-    ap = argparse.ArgumentParser(description='章鱼 AI — 14 大社区动态抓取')
+    ap = argparse.ArgumentParser(description='章鱼 AI·全景分析（量化策略多因子分析） — 14 大社区动态抓取')
     ap.add_argument('--json', default='community_data.json', help='输出 JSON 路径')
     ap.add_argument('--market-data', default=MARKET_DATA_DEFAULT, help='行情数据 JSON 路径')
     ap.add_argument('--timeout', type=int, default=10, help='单次请求超时秒数')
