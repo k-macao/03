@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""AI 量化 · 配对交易回归：策略选择、两标的组合、当次行情推荐、网页/微信都挂在内容后面。"""
+"""AI 量化 · 跨域配对回归：策略选择、两标的跨域组合、当次行情推荐、网页/微信都挂在内容后面。"""
 import os
 import sys
 import unittest
@@ -29,8 +29,33 @@ class TestPairEngine(unittest.TestCase):
         self.assertEqual(rec['family'], '配对交易')
         self.assertIn('/', rec['pair_label'])
 
+    def test_every_recommendation_is_cross_domain(self):
+        """每内容两标的、跨域组合：任何主题 / 任何兜底路径都不许给出同域价差。"""
+        quotes = _quotes(HSTECH=1.2, HSI=0.3, HSCE=-0.4, SPX=0.5, NDQ=1.1, DJI=0.2,
+                         GOLD=-0.6, WTI=2.4, BRENT=1.8, USDCNH=0.1, USDCNY=0.05)
+        themes = ['原油与霍尔木兹', '美联储降息与美债', '内房与高息', '恒生科技轮动',
+                  '道指蓝筹', '离岸人民币汇差', '铜锂稀土', '避险对冲', '没有任何主题词',
+                  'A股与港股的估值差', '地缘供应链']
+        for text in themes:
+            for hint in (None, 'tape', 'sentiment'):
+                rec = quant_pair.recommend(text, quotes, hint=hint)
+                da, db = rec['domain_a'], rec['domain_b']
+                self.assertNotEqual(
+                    da, db,
+                    f'「{text}」(hint={hint}) 给出了同域组合：{rec["pair_label"]} ({rec["domain_pair"]})')
+                self.assertTrue(rec['cross_domain'])
+                self.assertNotEqual(rec['leg_a']['key'], rec['leg_b']['key'])
+                self.assertIn(rec['leg_a']['key'], quant_pair.DOMAIN)
+                self.assertIn(rec['leg_b']['key'], quant_pair.DOMAIN)
+
+    def test_catalog_is_cross_domain_and_deduplicated(self):
+        self.assertEqual(quant_pair.cross_domain_catalog_errors(), [])
+        self.assertTrue(all(quant_pair.is_cross_domain(s) for s in quant_pair.STRATEGIES))
+        pairs = {(s['leg_a'], s['leg_b']) for s in quant_pair.STRATEGIES}
+        self.assertEqual(len(pairs), len(quant_pair.STRATEGIES))
+
     def test_missing_quotes_do_not_invent_a_direction(self):
-        rec = quant_pair.recommend('原油与布伦特', {})
+        rec = quant_pair.recommend('原油与炼厂开工', {})
         self.assertEqual(rec['action'], 'no_data')
         self.assertEqual(rec['stance'], '数据不足')
         self.assertNotIn('%', rec['signal'])
@@ -39,20 +64,25 @@ class TestPairEngine(unittest.TestCase):
             self.assertNotIn(bad, blob)
 
     def test_theme_picks_the_pair_and_quote_picks_the_side(self):
-        quotes = _quotes(HSTECH=0.2, HSI=0.1, WTI=2.4, BRENT=0.2, GOLD=0.1, USDCNH=0.0)
-        oil = quant_pair.recommend('富途在讨论原油、WTI 与布伦特价差', quotes, hint='FUTU')
-        self.assertEqual(oil['strategy_id'], 'oil_curve')
-        self.assertEqual((oil['leg_a']['key'], oil['leg_b']['key']), ('WTI', 'BRENT'))
+        quotes = _quotes(HSTECH=0.2, HSCE=0.2, WTI=2.4, BRENT=0.2, GOLD=0.1,
+                         USDCNH=0.0, SPX=0.3, NDQ=3.2)
+        oil = quant_pair.recommend('富途在讨论原油与炼厂价差', quotes, hint='FUTU')
+        self.assertEqual(oil['strategy_id'], 'oil_hk')
+        self.assertEqual((oil['leg_a']['key'], oil['leg_b']['key']), ('WTI', 'HSCE'))
+        self.assertEqual(oil['domain_pair'], '能源 × 港股')
         self.assertEqual(oil['action'], 'short_a_long_b')
         self.assertIn('做空', oil['stance'])
         self.assertIn('做多', oil['stance'])
 
-        weak = quant_pair.recommend('恒生科技相对恒指', _quotes(HSTECH=-1.6, HSI=0.4), hint='rotation')
-        self.assertEqual(weak['strategy_id'], 'hk_growth_value')
+        weak = quant_pair.recommend('恒生科技相对纳指的成长轮动',
+                                    _quotes(HSTECH=-1.6, NDQ=0.4), hint='rotation')
+        self.assertEqual(weak['strategy_id'], 'hk_tech_us_tech')
+        self.assertEqual(weak['domain_pair'], '港股 × 美股')
         self.assertEqual(weak['action'], 'long_a_short_b')
 
     def test_small_spread_is_a_wait(self):
-        rec = quant_pair.recommend('恒生科技', _quotes(HSTECH=0.05, HSI=0.04), hint='hk_growth_value')
+        rec = quant_pair.recommend('恒生科技 纳斯达克',
+                                   _quotes(HSTECH=0.05, NDQ=0.04), hint='hk_tech_us_tech')
         self.assertEqual(rec['action'], 'wait')
         self.assertEqual(rec['stance'], '观望')
         self.assertIn('不建配对仓', rec['recommendation'])
@@ -62,17 +92,29 @@ class TestPairEngine(unittest.TestCase):
         self.assertEqual(rec['strategy_id'], 'gold_fx')
         for blob in (quant_pair.render_web(rec), quant_pair.render_wechat(rec),
                      quant_pair.render_web(rec, compact=True),
-                     quant_pair.render_wechat(rec, compact=True)):
+                     quant_pair.render_wechat(rec, compact=True),
+                     quant_pair.render_wechat_mini(rec)):
             self.assertIn('AI 量化', blob)
-            self.assertIn('标的组合', blob)
+            self.assertIn('跨域', blob)
             self.assertIn(rec['strategy_name'], blob)
             self.assertIn('推荐', blob)
+        self.assertIn('跨域组合', quant_pair.render_web(rec))
         self.assertIn('data-ai-quant="1"', quant_pair.render_web(rec))
+        self.assertIn('data-domain-pair="贵金属 × 汇率"', quant_pair.render_web(rec))
         for label in ('风险因子预测', '走势预测', '未来预测'):
             self.assertIn(label, quant_pair.render_web(rec))
             self.assertIn(label, quant_pair.render_wechat(rec))
         self.assertIn('置信度', rec['outlook']['short'])
-        self.assertIn('宏观', quant_pair.recommend('原油与布伦特', {})['outlook']['risk'])
+        self.assertIn('宏观', quant_pair.recommend('原油与供应', {})['outlook']['risk'])
+
+    def test_mini_render_keeps_pair_and_stance(self):
+        """超紧凑版（34 源同一页时用）也必须保留策略 / 跨域两标的 / 推荐。"""
+        rec = quant_pair.recommend('美联储利率与黄金', _quotes(GOLD=1.2, USDCNH=-0.3), hint='fed')
+        mini = quant_pair.render_wechat_mini(rec)
+        self.assertIn(rec['pair_label'], mini)
+        self.assertIn(rec['domain_pair'], mini)
+        self.assertIn(rec['stance'], mini)
+        self.assertLess(len(mini), 400, '超紧凑版要真的紧凑')
 
 
 class TestAttachedAfterContent(unittest.TestCase):
@@ -80,16 +122,19 @@ class TestAttachedAfterContent(unittest.TestCase):
         communities = [
             {'id': '01', 'key': 'FUTU', 'icon': '🐮', 'name': '富途牛牛社区',
              'verdict_label': '偏多', 'verdict_class': 'bull',
-             'quote': '讨论原油与布伦特', 'verdict': '观望', 'meta': '最新读取 2026-09-24'},
+             'quote': '讨论原油与炼厂价差', 'verdict': '观望', 'meta': '最新读取 2026-09-24'},
             {'id': '02', 'key': 'WALLSTREETCN', 'icon': '🌐', 'name': '华尔街见闻社区',
              'verdict_label': '中性', 'verdict_class': 'neutral',
              'quote': '美联储利率与黄金', 'verdict': '防守', 'meta': '最新读取 2026-09-24'},
         ]
-        html = bs.build_community_html(communities, market=_quotes(WTI=1.5, BRENT=0.2, GOLD=0.8, USDCNH=-0.2))
+        html = bs.build_community_html(communities, market=_quotes(
+            WTI=1.5, HSCE=0.2, GOLD=0.8, USDCNH=-0.2, HSI=0.3, SPX=0.5))
         self.assertEqual(html.count('class="ai-quant"'), 2)
-        self.assertIn('两油价差配对', html)
-        self.assertIn('黄金与离岸流动性配对', html)
-        self.assertIn('标的组合', html)
+        self.assertIn('原油 × 港股价值', html)
+        self.assertIn('黄金 × 离岸人民币', html)
+        self.assertIn('跨域组合', html)
+        for dp in ('能源 × 港股', '贵金属 × 汇率'):
+            self.assertIn(dp, html)
 
     def test_panorama_force_cards_carry_the_block(self):
         market = {'fetch_date': '2026-09-17', 'quotes': {
@@ -118,7 +163,7 @@ class TestAttachedAfterContent(unittest.TestCase):
         data = md.build(mock=True, quiet=True)
         html = bs.build_macro_html(data, market=_quotes(WTI=1.2, BRENT=0.1, HSI=-0.4, HSCE=0.2))
         self.assertGreaterEqual(html.count('AI 量化'), 3)
-        self.assertIn('标的组合', html)
+        self.assertIn('跨域组合', html)
         for bad in STALE:
             self.assertNotIn(bad, html)
         tpl = '<div><!-- AI_QUANT:QUOTES --></div><!-- AI_QUANT:VERDICT -->'
@@ -142,8 +187,9 @@ class TestAttachedAfterContent(unittest.TestCase):
                     os.environ.pop(k, None)
                 else:
                     os.environ[k] = v
-        self.assertGreaterEqual(html.count('AI 量化'), 14, '14 个社区卡片各自要有一块 AI 量化')
-        self.assertIn('标的组合', html)
+        self.assertGreaterEqual(html.count('AI 量化'), 34, '34 个社区卡片各自要有一块 AI 量化')
+        self.assertIn('跨域组合', html)
+        self.assertIn('34 源动态抓取已上线', html)
         self.assertIn('配对交易', html)
         self.assertLess(len(html), 95000)
         for bad in STALE:

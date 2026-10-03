@@ -5,7 +5,7 @@
 
 读取 market_data.json + community_data.json (+ sentiment_data.json + macro_data.json)，
 把 report.html 模板中的 {{占位符}} 替换为最新抓取数据，并动态注入 01 节每日全球全景扫描、
-14 大社区最新研判、02 节宏观/财经快讯与「舆情因子接入实测」区块，
+34 大社区最新研判（14 原有 + 20 新增）、02 节宏观/财经快讯与「舆情因子接入实测」区块，
 同时在每个社区卡片后追加核心量化指标（实体级情感、事件分类、相关性、新颖度），
 生成最终 report.html（页面源文件，供 GitHub Pages 部署与 wechat_push.py 内嵌）。
 
@@ -14,12 +14,13 @@
   {{QUOTE_DATE_CN}}       恒指最新行情日期，如 "8 月 28 日"
   {{HSI_LAST}} {{HSI_CHG}} {{HSI_PCT}} {{HSI_ASOF}}   各行情标的（见 market_data.py）
   {{GOLD_LAST}} {{WTI_LAST}} {{BRENT_LAST}} …         同上，全量标的
-  {{CD_01}} .. {{CD_14}}  14 大社区「最新读取」日期（取抓取日，即当天）
+  {{CD_01}} .. {{CD_34}}  34 大社区「最新读取」日期（取抓取日，即当天）
+  {{COMMUNITY_TOTAL}} / {{COMMUNITY_TYPE_TOTAL}} / {{CF_*}}  03 节社区源数、类型数与多空家数（现算）
   {{FETCH_STATUS}}        数据源同步状态文案
   {{COMMUNITY_FETCH_STATUS}}  社区抓取状态文案
 
 社区动态注入:
-  - 若存在 community_data.json，则解析其中 14 条社区数据，生成最新社区 HTML 列表，
+  - 若存在 community_data.json，则解析其中 34 条社区数据，生成最新社区 HTML 列表，
     替换模板中 <!-- COMMUNITY_LIST:BEGIN --> ... <!-- COMMUNITY_LIST:END --> 之间的内容
   - 若不存在，则保留模板原有静态社区内容（仅日期占位符会被刷新），保证向后兼容
 
@@ -171,18 +172,49 @@ def build_tokens(data, now, community_data=None, sentiment_data=None):
     tokens['{{QUOTE_DATE_CN}}'] = quote_date_cn(quotes.get('HSI'))
     tokens['{{HSI_CHG_DESC}}'] = _chg_desc(quotes.get('HSI'))
 
-    # 14 大社区「最新读取」日期 = 社区抓取日（若有社区数据则取社区的 fetch_date，否则取行情的 fetch_date）
+    # 34 大社区「最新读取」日期 = 社区抓取日（若有社区数据则取社区的 fetch_date，否则取行情的 fetch_date）
     if community_data and community_data.get('fetch_date'):
         cd = community_data.get('fetch_date')
     else:
         cd = tokens['{{FETCH_DATE}}']
-    for i in range(1, 15):
+    for i in range(1, 35):   # 34 大社区（14 原有 + 20 新增）
         tokens[f'{{{{CD_{i:02d}}}}}'] = cd
 
     tokens['{{FETCH_STATUS}}'] = _fetch_status(data)
     tokens['{{COMMUNITY_FETCH_STATUS}}'] = _community_fetch_status(community_data)
+    tokens.update(_community_tokens(community_data))
     tokens.update(_sentiment_tokens(sentiment_data, tokens['{{FETCH_DATE}}']))
     return tokens
+
+
+# 无社区数据时，模板里保留的是 14 张静态卡片 —— 计数口径必须与之一致
+FALLBACK_COMMUNITY_TOTAL = 14
+FALLBACK_COMMUNITY_COUNTS = {'bull': 6, 'bear': 3, 'neutral': 3, 'mixed': 2}
+
+
+def _community_tokens(community_data):
+    """03 节标题 / 筛选按钮的社区口径 token（源数、类型数、多空家数）。
+
+    写死「14 平台 / 偏多 6 家」在扩到 34 源后会当场过期，因此这里统一从
+    community_data.json 现算；缺数据时才退回模板静态卡片的 14 源口径。
+    """
+    comms = [c for c in ((community_data or {}).get('communities') or []) if isinstance(c, dict)]
+    counts = dict(FALLBACK_COMMUNITY_COUNTS)
+    if comms:
+        counts = {'bull': 0, 'bear': 0, 'neutral': 0, 'mixed': 0}
+        for c in comms:
+            k = c.get('verdict_class')
+            if k in counts:
+                counts[k] += 1
+    types = {c.get('ctype') for c in comms if c.get('ctype')}
+    return {
+        '{{COMMUNITY_TOTAL}}': str(len(comms) if comms else FALLBACK_COMMUNITY_TOTAL),
+        '{{COMMUNITY_TYPE_TOTAL}}': str(len(types)) if types else '—',
+        '{{CF_BULL}}': str(counts['bull']),
+        '{{CF_BEAR}}': str(counts['bear']),
+        '{{CF_NEUTRAL}}': str(counts['neutral']),
+        '{{CF_MIXED}}': str(counts['mixed']),
+    }
 
 
 def _sentiment_tokens(s, fallback_date):
@@ -340,7 +372,7 @@ def build_ai_quant_html(text, market=None, hint=None, compact=False, note=''):
 
 
 def build_community_html(communities, market=None):
-    """根据 community_data.json 生成 14 个社区的 HTML 列表，包含核心量化指标与 AI 量化配对"""
+    """根据 community_data.json 生成 34 个社区的 HTML 列表，包含核心量化指标与跨域 AI 量化配对"""
     html_parts = []
     for c in communities:
         icon = c.get('icon', '📌')
@@ -894,7 +926,7 @@ def inject_sentiment(template, block_html):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='章鱼 AI·全景分析（量化策略多因子分析） — 动态建站（行情+社区+舆情三动态+量化指标）')
+    ap = argparse.ArgumentParser(description='章鱼 AI·全景分析（量化策略多因子分析） — 动态建站（行情+社区+舆情三动态+量化指标+跨域配对）')
     ap.add_argument('--data', default='market_data.json', help='行情数据 JSON 路径')
     ap.add_argument('--community', default='community_data.json', help='社区数据 JSON 路径')
     ap.add_argument('--sentiment', default='sentiment_data.json',
