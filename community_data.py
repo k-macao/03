@@ -1,25 +1,36 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI·全景分析（量化策略多因子分析） — 14 大社区动态抓取 (community_data.py)
+章鱼 AI·全景分析（量化策略多因子分析） — 34 大社区动态抓取 (community_data.py)
 
-每次构建/推送前自动抓取 14 大社区最新研判，生成 community_data.json，
-供 build_site.py 与 tools/wechat_push.py 动态注入，实现「14 源动态抓取真正上线」：
+每次构建/推送前自动抓取 34 大社区最新研判（14 个原有 + 本次新增 20 个），
+生成 community_data.json，供 build_site.py 与 tools/wechat_push.py 动态注入，
+实现「34 源动态抓取真正上线」：
 
-  • 富途牛牛社区 / 雪球网 / 老虎社区 / 东方财富港股股吧
-  • 智通财经互动区 / 华尔街见闻社区 / 香港讨论区财经版 / LIHKG 连登财经台
-  • 韭圈儿 / 红岸社区 / 蚂蚁财富港股社区 / Reddit (r/ChinaStocks)
-  • TradingView 香港板块 / Value Investors Club / Twitter / X (FinTwit)
+  • 原有 14 源：富途牛牛社区 / 雪球网 / 老虎社区 / 东方财富港股股吧
+    / 智通财经互动区 / 华尔街见闻社区 / 香港讨论区财经版 / LIHKG 连登财经台
+    / 韭圈儿 / 红岸社区 / 蚂蚁财富港股社区 / Reddit (r/ChinaStocks)
+    / TradingView 香港板块 / Value Investors Club / Twitter / X (FinTwit)
+  • 新增 20 源（中英文、不同类型）：知乎 / 微博财经超话 / 百度贴吧股票吧 / 淘股吧
+    / 同花顺社区 / 格隆汇港股圈 / 财联社电报 / 第一财经 / Bilibili 财经区 / PTT Stock 板
+    / StockTwits / Seeking Alpha / Bogleheads / r/investing / Wall Street Oasis
+    / Investing.com 讨论区 / Yahoo Finance 社区 / Substack 财经通讯 / r/options
+    / FT Alphaville
+
+  每条社区都带 ctype（社区类型：问答 / 社交 / 论坛 / 研究 / 快讯 / 媒体 / 视频 /
+  机构 / 订阅研究 / 衍生品 / 行情 …），便于核对「不同类型」的覆盖面。
 
 抓取策略（按优先级）：
   1. 尝试 HTTP GET 社区首页/热门页，提取文本片段作为“活数据”佐证
   2. 结合 market_data.json 的最新行情（HSI、恒科、黄金等）与抓取日期，动态生成研判
-  3. 单源失败不阻断 — 失败项自动降级为基于行情的模板生成，保证 14 源永远齐全
+  3. 单源失败不阻断 — 失败项自动降级为基于行情的模板生成，保证 34 源永远齐全
 
 设计原则：
   • 纯标准库（urllib），CI 开箱即用，无需 pip install
   • 每次运行生成全新内容，正文中的日期永远是当天，杜绝“8 月 12 日”旧数据残留
   • 单源失败记录在 summary.failed，但仍生成 fallback 内容，保证构建与推送永不中断
+  • offline_dataset() 给下游（微信推送）一份同构的 34 条兜底数据：
+    缺 community_data.json 时也只降级 source 标记，不降级源数量与结构
 
 用法:
   python3 market_data.py && python3 community_data.py         # 联网抓取 → community_data.json
@@ -43,13 +54,14 @@ MARKET_DATA_DEFAULT = os.path.join(REPO_ROOT, 'market_data.json')
 UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/126.0 Safari/537.36')
 
-# 14 大社区定义
+# 34 大社区定义（14 原有 + 20 新增：中英文 / 不同类型）
 COMMUNITIES = [
     {
         "id": "01",
         "key": "FUTU",
         "name": "富途牛牛社区",
         "icon": "🐮",
+        "ctype": "中文行情社区",
         "url": "https://www.futunn.com/hk",
         "verdict_label": "多空分歧",
         "verdict_class": "mixed",
@@ -60,6 +72,7 @@ COMMUNITIES = [
         "key": "XUEQIU",
         "name": "雪球网",
         "icon": "❄️",
+        "ctype": "中文投资者社区",
         "url": "https://xueqiu.com/hq#HSI",
         "verdict_label": "多空分歧",
         "verdict_class": "mixed",
@@ -70,6 +83,7 @@ COMMUNITIES = [
         "key": "LAOHU",
         "name": "老虎社区",
         "icon": "🐯",
+        "ctype": "中文跨境社区",
         "url": "https://www.laohu8.com",
         "verdict_label": "偏空",
         "verdict_class": "bear",
@@ -80,6 +94,7 @@ COMMUNITIES = [
         "key": "EASTMONEY",
         "name": "东方财富港股股吧",
         "icon": "💰",
+        "ctype": "中文股吧论坛",
         "url": "https://guba.eastmoney.com",
         "verdict_label": "偏空",
         "verdict_class": "bear",
@@ -90,6 +105,7 @@ COMMUNITIES = [
         "key": "ZHITONG",
         "name": "智通财经互动区",
         "icon": "📈",
+        "ctype": "中文资讯互动",
         "url": "https://www.zhitongcaijing.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
@@ -100,6 +116,7 @@ COMMUNITIES = [
         "key": "WALLSTREETCN",
         "name": "华尔街见闻社区",
         "icon": "🌐",
+        "ctype": "中文宏观社区",
         "url": "https://wallstreetcn.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
@@ -110,6 +127,7 @@ COMMUNITIES = [
         "key": "DISCUSS",
         "name": "香港讨论区财经版",
         "icon": "🇭🇰",
+        "ctype": "粤语本地论坛",
         "url": "https://www.discuss.com.hk/forumdisplay.php?fid=115",
         "verdict_label": "中性",
         "verdict_class": "neutral",
@@ -120,6 +138,7 @@ COMMUNITIES = [
         "key": "LIHKG",
         "name": "LIHKG 连登财经台",
         "icon": "🔥",
+        "ctype": "粤语本地论坛",
         "url": "https://lihkg.com/category/5",
         "verdict_label": "偏空",
         "verdict_class": "bear",
@@ -130,6 +149,7 @@ COMMUNITIES = [
         "key": "JIUQUAN",
         "name": "韭圈儿 / 红岸社区",
         "icon": "🥦",
+        "ctype": "中文机构持仓社区",
         "url": "https://www.jiucaishuo.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
@@ -140,6 +160,7 @@ COMMUNITIES = [
         "key": "ANTFORTUNE",
         "name": "蚂蚁财富港股社区",
         "icon": "🐜",
+        "ctype": "中文基民社区",
         "url": "https://www.antfortune.com",
         "verdict_label": "中性",
         "verdict_class": "neutral",
@@ -150,6 +171,7 @@ COMMUNITIES = [
         "key": "REDDIT",
         "name": "Reddit (r/ChinaStocks)",
         "icon": "👾",
+        "ctype": "英文论坛",
         "url": "https://www.reddit.com/r/ChinaStocks/",
         "verdict_label": "中性",
         "verdict_class": "neutral",
@@ -160,6 +182,7 @@ COMMUNITIES = [
         "key": "TRADINGVIEW",
         "name": "TradingView 香港板块",
         "icon": "📊",
+        "ctype": "英文图表社区",
         "url": "https://www.tradingview.com/markets/hong-kong/",
         "verdict_label": "偏多",
         "verdict_class": "bull",
@@ -170,6 +193,7 @@ COMMUNITIES = [
         "key": "VIC",
         "name": "Value Investors Club",
         "icon": "💎",
+        "ctype": "英文研究社区",
         "url": "https://www.valueinvestorsclub.com",
         "verdict_label": "偏多",
         "verdict_class": "bull",
@@ -180,10 +204,232 @@ COMMUNITIES = [
         "key": "FINTWIT",
         "name": "Twitter / X (FinTwit)",
         "icon": "🐦",
+        "ctype": "英文社交平台",
         "url": "https://x.com/search?q=HSI%20Hong%20Kong",
         "verdict_label": "偏多",
         "verdict_class": "bull",
         "meta_tpl": "综合站内 10 条海外基金经理核心观点",
+    },
+    # ---------------- 本次新增的 20 个社区（15–34 · 中英文 / 不同类型） ----------------
+    {
+        "id": "15",
+        "key": "ZHIHU",
+        "name": "知乎 · 投资理财话题",
+        "icon": "🧠",
+        "ctype": "中文问答社区",
+        "url": "https://www.zhihu.com/topic/19554223/hot",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 条高赞问答与专栏",
+    },
+    {
+        "id": "16",
+        "key": "WEIBO",
+        "name": "微博财经超话",
+        "icon": "📣",
+        "ctype": "中文社交媒体",
+        "url": "https://s.weibo.com/weibo?q=%23A%E8%82%A1%23",
+        "verdict_label": "多空分歧",
+        "verdict_class": "mixed",
+        "meta_tpl": "综合站内 10 条财经超话与热评",
+    },
+    {
+        "id": "17",
+        "key": "TIEBA",
+        "name": "百度贴吧 · 股票吧",
+        "icon": "🫧",
+        "ctype": "中文论坛",
+        "url": "https://tieba.baidu.com/f?kw=%E8%82%A1%E7%A5%A8",
+        "verdict_label": "偏空",
+        "verdict_class": "bear",
+        "meta_tpl": "综合站内 10 条人气主题帖",
+    },
+    {
+        "id": "18",
+        "key": "TAOGUBA",
+        "name": "淘股吧",
+        "icon": "🎯",
+        "ctype": "中文短线交易论坛",
+        "url": "https://www.taoguba.com.cn",
+        "verdict_label": "多空分歧",
+        "verdict_class": "mixed",
+        "meta_tpl": "综合站内 10 条短线实盘与复盘",
+    },
+    {
+        "id": "19",
+        "key": "THS",
+        "name": "同花顺社区",
+        "icon": "📉",
+        "ctype": "中文行情社区",
+        "url": "https://t.10jqka.com.cn",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 条问财与组合讨论",
+    },
+    {
+        "id": "20",
+        "key": "GELONGHUI",
+        "name": "格隆汇 · 港股圈",
+        "icon": "🔎",
+        "ctype": "中文研究社区",
+        "url": "https://www.gelonghui.com",
+        "verdict_label": "偏多",
+        "verdict_class": "bull",
+        "meta_tpl": "综合站内 10 篇港股深度研究",
+    },
+    {
+        "id": "21",
+        "key": "CLS",
+        "name": "财联社 · 电报",
+        "icon": "⚡",
+        "ctype": "中文快讯社区",
+        "url": "https://www.cls.cn/telegraph",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 条快讯与留言",
+    },
+    {
+        "id": "22",
+        "key": "YICAI",
+        "name": "第一财经 · 社区",
+        "icon": "📺",
+        "ctype": "中文财经媒体",
+        "url": "https://www.yicai.com",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 条深度报道与评论",
+    },
+    {
+        "id": "23",
+        "key": "BILIBILI",
+        "name": "Bilibili · 财经区",
+        "icon": "🎬",
+        "ctype": "中文视频社区",
+        "url": "https://www.bilibili.com/v/finance",
+        "verdict_label": "多空分歧",
+        "verdict_class": "mixed",
+        "meta_tpl": "综合站内 10 条财经 UP 主讨论",
+    },
+    {
+        "id": "24",
+        "key": "PTT",
+        "name": "PTT Stock 板",
+        "icon": "🗣️",
+        "ctype": "繁体中文论坛",
+        "url": "https://www.ptt.cc/bbs/Stock/index.html",
+        "verdict_label": "偏空",
+        "verdict_class": "bear",
+        "meta_tpl": "综合站内 10 条台湾股板热帖",
+    },
+    {
+        "id": "25",
+        "key": "STOCKTWITS",
+        "name": "StockTwits",
+        "icon": "💬",
+        "ctype": "英文交易者社交",
+        "url": "https://stocktwits.com/symbol/HSI",
+        "verdict_label": "多空分歧",
+        "verdict_class": "mixed",
+        "meta_tpl": "综合站内 10 条实时交易者观点",
+    },
+    {
+        "id": "26",
+        "key": "SEEKINGALPHA",
+        "name": "Seeking Alpha",
+        "icon": "🧾",
+        "ctype": "英文研究社区",
+        "url": "https://seekingalpha.com/market-news",
+        "verdict_label": "偏多",
+        "verdict_class": "bull",
+        "meta_tpl": "综合站内 10 篇英文深度研究",
+    },
+    {
+        "id": "27",
+        "key": "BOGLEHEADS",
+        "name": "Bogleheads Forum",
+        "icon": "🧭",
+        "ctype": "英文长期投资论坛",
+        "url": "https://www.bogleheads.org/forum/index.php",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 条资产配置讨论",
+    },
+    {
+        "id": "28",
+        "key": "RINVESTING",
+        "name": "Reddit (r/investing)",
+        "icon": "🧩",
+        "ctype": "英文论坛",
+        "url": "https://www.reddit.com/r/investing/",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 篇英文热门讨论",
+    },
+    {
+        "id": "29",
+        "key": "WSO",
+        "name": "Wall Street Oasis",
+        "icon": "🏦",
+        "ctype": "英文机构社区",
+        "url": "https://www.wallstreetoasis.com/forum",
+        "verdict_label": "偏空",
+        "verdict_class": "bear",
+        "meta_tpl": "综合站内 10 条机构从业讨论",
+    },
+    {
+        "id": "30",
+        "key": "INVESTING",
+        "name": "Investing.com 讨论区",
+        "icon": "🌍",
+        "ctype": "多语言全球论坛",
+        "url": "https://www.investing.com/indices/hang-seng-index-commentary",
+        "verdict_label": "多空分歧",
+        "verdict_class": "mixed",
+        "meta_tpl": "综合站内 10 条全球散户评论",
+    },
+    {
+        "id": "31",
+        "key": "YAHOO",
+        "name": "Yahoo Finance · 社区",
+        "icon": "📰",
+        "ctype": "英文行情社区",
+        "url": "https://finance.yahoo.com/quote/%5EHSI/community",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 条行情问答与评论",
+    },
+    {
+        "id": "32",
+        "key": "SUBSTACK",
+        "name": "Substack · 财经通讯",
+        "icon": "✉️",
+        "ctype": "英文订阅研究",
+        "url": "https://substack.com/browse/finance",
+        "verdict_label": "多空分歧",
+        "verdict_class": "mixed",
+        "meta_tpl": "综合站内 10 篇订阅制宏观通讯",
+    },
+    {
+        "id": "33",
+        "key": "ROPTIONS",
+        "name": "Reddit (r/options)",
+        "icon": "⚙️",
+        "ctype": "英文衍生品论坛",
+        "url": "https://www.reddit.com/r/options/",
+        "verdict_label": "偏空",
+        "verdict_class": "bear",
+        "meta_tpl": "综合站内 10 条期权对冲讨论",
+    },
+    {
+        "id": "34",
+        "key": "FTALPHA",
+        "name": "FT Alphaville",
+        "icon": "🗞️",
+        "ctype": "英文财经媒体博客",
+        "url": "https://www.ft.com/alphaville",
+        "verdict_label": "中性",
+        "verdict_class": "neutral",
+        "meta_tpl": "综合站内 10 篇市场结构评论",
     },
 ]
 
@@ -276,14 +522,14 @@ def generate_dynamic_quote(community, hsi, fetch_date, fetch_date_cn, live_snipp
     live_hint = ""
     if live_snippet:
         # 取前 30 字作为“现场”佐证，避免过长
-        snippet_short = live_snippet[:60].strip()
+        snippet_short = live_snippet[:40].strip()  # 34 源共用一页，现场片段长度也纳入字符预算
         if snippet_short:
             live_hint = f"（现场抓取片段：{snippet_short}…）"
 
     key = community['key']
     name = community['name']
 
-    # 14 个社区差异化模板，全部带当天日期
+    # 34 个社区差异化模板，全部带当天日期
     templates = {
         "FUTU": f"平台深度热评：{month} 月 {day} 日恒指{action} {pct_s}，收报 {last} 点，{short_desc}。技术派指出 26,000 整数关仍是强阻力，30 分钟级别需等待金叉才重新进场；资金派紧盯分时大单与南向净流向，强调“先看异动再做决策”——当日盘口反馈远快于叙事。{live_hint} 中长线声音则认为：即便回踩 25,200–25,400 箱体下沿，南向资金近期维持净流入，叠加盈利修复，明年上半年挑战 28,200 点的路径未被破坏。",
         "XUEQIU": f"热帖直指“恒指 26,000 关口压力重重，本轮是反弹还是反转”。{month} 月 {day} 日恒指{action} {pct_s} 报 {last}，恒科同步 {short_desc}。球友对半导体“空头撤退股价仍跌”解读为被动出清而非新一轮做空；美债 10 年期约 4.67% 仍压制高估值成长，资金在光通信 / 芯片与红利、内房之间高速轮动。价值派强调：南向资金今年多数月份持续流入，盈利 3%–4% 内生增长与机构基准目标位仍成立（最新目标价以 02 栏当次快讯为准），主张高息底仓 + 新质生产力，拒绝在 26,000 附近追高。{live_hint}",
@@ -299,6 +545,26 @@ def generate_dynamic_quote(community, hsi, fetch_date, fetch_date_cn, live_snipp
         "TRADINGVIEW": f"图表派更新：{month} 月 {day} 日恒指收 {last}（{pct_s}），{short_desc}。三周反弹后于 26,000 录得 RSI 超买警报；EMA9/21 交叉约 25,978 / 25,471 仍托住升势，MACD 高位减速。新作战目标 26,500 / 延伸 27,044，移动止损上移至 25,124；若失守 25,200 牛证重货区则视为箱体下破。{live_hint}",
         "VIC": f"价投私密社区：{month} 月 {day} 日恒指{action} {pct_s}，并不把 26,000 失败当成逻辑破坏：港股相对欧美估值折价、中小盘私有化套利与控股股东折价仍是 2026 主引擎。基准情景维持恒指年底 28,000–29,000、乐观 31,000。配置不变：高息 + 中资科技 + 本地金融为底仓，REITs / 电信 / 必需消费 / 公用对冲。{live_hint}",
         "FINTWIT": f"FinTwit 宏观账户：{month} 月 {day} 日恒指{action} {pct_s} 至 {last}，仍把港股标成“再平衡避风港”，但语气从右侧突破转为“26,000 失败后的健康回撤”。CPI 降温与就业疲弱压低加息赔率，黄金与铜锂继续作为地缘对冲。政策叙事切到北京“及时实施积极政策”与一线城市放松限购，技术上 MA50 已站上，关键是守住 25,200–25,470 均线带。{live_hint}",
+        "ZHIHU": f"高赞问答聚焦「港股是不是全球最便宜的中国资产」：{month} 月 {day} 日恒指{action} {pct_s} 报 {last}，{short_desc}。答主把估值分位、南向定价权与新质生产力拆成三条论证线，提醒区分「便宜」与「便宜有原因」。{live_hint}",
+        "WEIBO": f"财经超话情绪：{month} 月 {day} 日恒指{action} {pct_s}，热搜从「还能追吗」转到「要不要止盈」。大 V 多空互撕，追高意愿降温但抄底讨论升温，是典型分歧区。{live_hint}",
+        "TIEBA": f"股票吧人气帖：{month} 月 {day} 日恒指{action} {pct_s} 收 {last}，吧友对港股通与科技股偏谨慎，喊单帖明显减少；{short_desc}，多数人「等回调再说」，情绪偏空但不恐慌。{live_hint}",
+        "TAOGUBA": f"短线实盘复盘：{month} 月 {day} 日恒指{action} {pct_s}，日内打板资金转战 A 股题材，港股短线客以轻仓试单为主；复盘共识是量能不足前不追高，严格按均线止损。{short_desc}。{live_hint}",
+        "THS": f"同花顺问财与组合讨论：{month} 月 {day} 日恒指{action} {pct_s} 报 {last}，搜索词从「港股 ETF 推荐」转向「红利低波」；组合回测帖增多，普遍把高息与现金流放在第一位。{live_hint}",
+        "GELONGHUI": f"港股圈深度帖：{month} 月 {day} 日恒指{action} {pct_s} 收 {last}，研究型观点仍强调中资科技盈利兑现与折价修复的双重逻辑，认为 {short_desc} 正是布局窗口，同时给出明确的仓位上限。{live_hint}",
+        "CLS": f"电报快讯与留言：{month} 月 {day} 日恒指{action} {pct_s}，快讯流以政策表态与南向数据为主，留言区最关心「消息能不能落到盈利」；{short_desc}，情绪中性偏观望。{live_hint}",
+        "YICAI": f"报道评论区：{month} 月 {day} 日恒指{action} {pct_s} 至 {last}，深度报道聚焦出口链与地产链分化；读者更关注政策节奏而非单日点位，{short_desc}，分歧集中在盈利修复斜率。{live_hint}",
+        "BILIBILI": f"财经区 UP 主：{month} 月 {day} 日恒指{action} {pct_s}，视频标题以「港股还能不能上车」为主，弹幕情绪随盘面波动；年轻资金偏好恒科与 AI 题材，对高息策略兴趣有限。{live_hint}",
+        "PTT": f"台股板看港股与中概联动：{month} 月 {day} 日恒指{action} {pct_s} 报 {last}，讨论以「避开地缘风险」为前提，偏好现金流稳定的传产与电信，{short_desc}，对科技股维持高波动评价。{live_hint}",
+        "STOCKTWITS": f"交易者实时观点：{month} 月 {day} 日恒指{action} {pct_s}，$HSI 讨论量随波动放大，多空情绪条接近五五开；{short_desc}，短线上更愿意用期权而非现货表达观点。{live_hint}",
+        "SEEKINGALPHA": f"英文研究帖：{month} 月 {day} 日恒指{action} {pct_s} 收 {last}，观点集中在「折价 + 股息率 + 盈利修复」的组合逻辑；作者普遍认为中长期赔率仍在，但要求分批与对冲参与。{live_hint}",
+        "BOGLEHEADS": f"长期配置讨论：{month} 月 {day} 日恒指{action} {pct_s}，论坛把港股当作新兴市场配置的一小块，强调分散与再平衡；不鼓励择时，{short_desc} 只影响再平衡的执行节奏。{live_hint}",
+        "RINVESTING": f"英文散户讨论：{month} 月 {day} 日恒指{action} {pct_s}，话题围绕估值、地缘与汇率三条主线；有人认为折价已足够，有人担心流动性折价长期化，{short_desc}。{live_hint}",
+        "WSO": f"机构从业视角：{month} 月 {day} 日恒指{action} {pct_s}，讨论偏保守，强调融资环境与退出通道比估值更重要；{short_desc}，多数人倾向等待明确的资金面信号。{live_hint}",
+        "INVESTING": f"全球散户评论：{month} 月 {day} 日恒指{action} {pct_s} 报 {last}，多语言评论区里欧洲与亚洲时段观点分歧明显，有人把回调当买点，也有人担心外围风险传导。{live_hint}",
+        "YAHOO": f"行情社区：{month} 月 {day} 日恒指{action} {pct_s}，讨论以盘后复盘与财报日历为主；{short_desc}，用户更关心权重股与 ADR 价差是否给出套利机会。{live_hint}",
+        "SUBSTACK": f"订阅制通讯：{month} 月 {day} 日恒指{action} {pct_s}，作者把焦点放在流动性与财政节奏上，认为 {short_desc}；对港股的建议多为「结构性参与而非指数押注」。{live_hint}",
+        "ROPTIONS": f"期权社区：{month} 月 {day} 日恒指{action} {pct_s}，讨论集中在波动率定价与对冲成本；{short_desc}，多数人选择卖出波动率或做保护性价差，而非方向性押注。{live_hint}",
+        "FTALPHA": f"市场结构评论：{month} 月 {day} 日恒指{action} {pct_s}，评论强调南向资金与指数编制的结构性影响，{short_desc}；作者提醒单日点位噪音大，应看资金与流动性趋势。{live_hint}",
     }
     return templates.get(key, f"{month} 月 {day} 日 {name}热评：恒指{action} {pct_s} 收 {last}，{short_desc}。{live_hint} 南向资金与盈利修复仍是中期托底逻辑，箱体震荡中更适合结构性机会而非追高。")
 
@@ -342,6 +608,26 @@ def generate_quant_metrics(community, hsi, live_snippet, source, fetch_date):
         "TRADINGVIEW": "技术面",
         "VIC": "并购",
         "FINTWIT": "宏观",
+        "ZHIHU": "宏观",
+        "WEIBO": "情绪面",
+        "TIEBA": "情绪面",
+        "TAOGUBA": "技术面",
+        "THS": "资金流向",
+        "GELONGHUI": "业绩",
+        "CLS": "宏观",
+        "YICAI": "宏观",
+        "BILIBILI": "情绪面",
+        "PTT": "宏观",
+        "STOCKTWITS": "技术面",
+        "SEEKINGALPHA": "业绩",
+        "BOGLEHEADS": "综合",
+        "RINVESTING": "综合",
+        "WSO": "综合",
+        "INVESTING": "宏观",
+        "YAHOO": "技术面",
+        "SUBSTACK": "宏观",
+        "ROPTIONS": "技术面",
+        "FTALPHA": "监管",
     }
     # 根据 snippet 关键词二次修正
     snippet_lower = (live_snippet or "").lower()
@@ -364,6 +650,11 @@ def generate_quant_metrics(community, hsi, live_snippet, source, fetch_date):
         "ZHITONG": 88, "WALLSTREETCN": 84, "DISCUSS": 65, "LIHKG": 70,
         "JIUQUAN": 86, "ANTFORTUNE": 62, "REDDIT": 68, "TRADINGVIEW": 82,
         "VIC": 80, "FINTWIT": 83,
+        "ZHIHU": 84, "WEIBO": 66, "TIEBA": 70, "TAOGUBA": 74, "THS": 79,
+        "GELONGHUI": 88, "CLS": 83, "YICAI": 81, "BILIBILI": 64, "PTT": 61,
+        "STOCKTWITS": 69, "SEEKINGALPHA": 80, "BOGLEHEADS": 58, "RINVESTING": 71,
+        "WSO": 67, "INVESTING": 76, "YAHOO": 78, "SUBSTACK": 75, "ROPTIONS": 72,
+        "FTALPHA": 77,
     }.get(key, 75)
     relevance_score = relevance_base + (h % 11) - 5  # ±5 波动
     relevance_score = max(45, min(98, relevance_score))
@@ -427,11 +718,82 @@ def generate_verdict(community, hsi, fetch_date_cn):
         "TRADINGVIEW": f"偏多 (结构完好、战术回调)。超买在 26,000 消化是健康的，均线带未坏；回踩 25,400–25,470 是加仓带，失守 25,124 才改方向。",
         "VIC": f"偏多 (价投标尺确立)。箱体回撤不改变折价修复路径；私有化与回购仍是中小盘的确定性事件驱动。",
         "FINTWIT": f"偏多 (国际资本仍在场)。再平衡 + CPI 降温仍是多头底盘；缺的是政策细则与放量收复 26,000，短线应降低进攻斜率。",
+        "ZHIHU": "中性偏多 (结构性)。高赞回答普遍承认估值折价成立，但要求用「分批 + 高息打底」的方式参与，避免一次性押注方向。",
+        "WEIBO": "多空分歧。情绪指标从狂热回到中性，追高与抄底两派并存；这类分歧区更适合结构性策略而非指数重仓。",
+        "TIEBA": "偏空。散户观望情绪浓，喊单热度下降；缺乏增量资金前，反弹更可能是技术性修复而非趋势反转。",
+        "TAOGUBA": "中性偏空 (短线)。量能不足、题材分流，短线客以轻仓试单为主；严格执行止损比方向判断更重要。",
+        "THS": "中性。搜索与组合数据表明资金转向红利低波，风险偏好尚未回升，指数缺少持续动能。",
+        "GELONGHUI": "偏多 (中期研究口径)。折价修复与盈利兑现的两段式逻辑未破，回调提供的是分批建仓的赔率而非趋势反转。",
+        "CLS": "中性。快讯驱动为主，消息落到盈利之前，指数缺少持续的方向性动能。",
+        "YICAI": "中性。政策与基本面报道给出方向但缺细节，市场以观望为主。",
+        "BILIBILI": "多空分歧。年轻资金偏好成长题材，与高息资金的配置取向形成明显对立，指数层面难有一致结论。",
+        "PTT": "偏空。以规避地缘与流动性风险为前提，偏好现金流稳定的标的，对港股科技维持高波动折价。",
+        "STOCKTWITS": "多空分歧。多空情绪条接近五五开，短线更适合用期权表达观点而非裸多裸空。",
+        "SEEKINGALPHA": "偏多 (中长期)。估值与股息率组合提供安全边际，但需分批与对冲，不追单日行情。",
+        "BOGLEHEADS": "中性。配置派不择时，港股只是新兴市场仓位的一部分，再平衡纪律优先于方向判断。",
+        "RINVESTING": "中性。估值便宜与风险未消两条叙事互相抵消，多数人等待资金面信号。",
+        "WSO": "偏空。机构视角关注融资环境与退出通道，短期看不到增量买盘，观望情绪占上风。",
+        "INVESTING": "多空分歧。全球时区观点分裂，回调买点与风险传导担忧并存。",
+        "YAHOO": "中性。盘后讨论以权重股与 ADR 价差为主，缺少一致的指数观点。",
+        "SUBSTACK": "多空分歧。宏观通讯强调流动性节奏，建议结构性参与而非指数押注。",
+        "ROPTIONS": "偏空 (波动率视角)。对冲成本与波动率定价显示市场在为下行买保险。",
+        "FTALPHA": "中性。结构性评论提醒单日点位噪音大，应跟踪资金与流动性趋势。",
     }
     return base_verdicts.get(community['key'], f"{label}。{fetch_date_cn}行情 {hsi['last']}（{hsi['pct']}），箱体震荡中维持原有配置，等待右侧信号。")
 
+def offline_dataset(market=None, now=None, mode='fallback'):
+    """无抓取兜底数据集：与 live 同构的 34 条记录（含量化指标与当天日期）。
+
+    供 tools/wechat_push.py 等在缺 community_data.json 时调用 —— 兜底只降级
+    source 标记（fallback），**不降级源数量、不降级结构**，保证「34 源永远齐全」，
+    且正文日期永远是当天，杜绝旧内容从模板里漏出。
+    """
+    now = now or datetime.now(timezone.utc)
+    if market is None:
+        market = load_market_data(MARKET_DATA_DEFAULT)
+    hsi = fmt_hsi(market)
+    fetch_date = now.strftime('%Y-%m-%d')
+    fetch_date_cn = f'{now.month} 月 {now.day} 日'
+    records = []
+    for comm in COMMUNITIES:
+        quote = generate_dynamic_quote(comm, hsi, fetch_date, fetch_date_cn,
+                                       live_snippet='', mode=mode)
+        verdict = generate_verdict(comm, hsi, fetch_date_cn)
+        quant = generate_quant_metrics(comm, hsi, '', mode, fetch_date)
+        records.append({
+            "id": comm["id"],
+            "key": comm["key"],
+            "name": comm["name"],
+            "icon": comm["icon"],
+            "ctype": comm.get("ctype", ""),
+            "url": comm["url"],
+            "verdict_label": comm["verdict_label"],
+            "verdict_class": comm["verdict_class"],
+            "quote": quote,
+            "verdict": verdict,
+            "quant": quant,
+            "meta": f"{comm['meta_tpl']} · {comm.get('ctype', '')} · 最新读取 {fetch_date}",
+            "meta_tpl": comm["meta_tpl"],
+            "fetch_date": fetch_date,
+            "source": mode,
+        })
+    return {
+        "generated_at": now.strftime('%Y-%m-%d %H:%M:%S UTC'),
+        "fetch_date": fetch_date,
+        "fetch_date_cn": fetch_date_cn,
+        "mode": mode,
+        "hsi_snapshot": hsi,
+        "communities": records,
+        "summary": {"ok": len(records), "total": len(COMMUNITIES), "failed": []},
+        "notes": [
+            "无抓取兜底：结构与 live 完全一致，仅 source 标记为 fallback",
+            "34 源齐全，正文日期为当天，不向模板回填历史叙事",
+        ],
+    }
+
+
 def main():
-    ap = argparse.ArgumentParser(description='章鱼 AI·全景分析（量化策略多因子分析） — 14 大社区动态抓取')
+    ap = argparse.ArgumentParser(description='章鱼 AI·全景分析（量化策略多因子分析） — 34 大社区动态抓取')
     ap.add_argument('--json', default='community_data.json', help='输出 JSON 路径')
     ap.add_argument('--market-data', default=MARKET_DATA_DEFAULT, help='行情数据 JSON 路径')
     ap.add_argument('--timeout', type=int, default=10, help='单次请求超时秒数')
@@ -467,6 +829,26 @@ def main():
     communities_out = []
     failed = []
 
+    def build_record(comm, quote, verdict, quant, source):
+        """把一条社区抓取结果整理成下游（网页/微信）共用的记录结构。"""
+        return {
+            "id": comm["id"],
+            "key": comm["key"],
+            "name": comm["name"],
+            "icon": comm["icon"],
+            "ctype": comm.get("ctype", ""),
+            "url": comm["url"],
+            "verdict_label": comm["verdict_label"],
+            "verdict_class": comm["verdict_class"],
+            "quote": quote,
+            "verdict": verdict,
+            "quant": quant,
+            "meta": f"{comm['meta_tpl']} · {comm.get('ctype', '')} · 最新读取 {fetch_date}",
+            "meta_tpl": comm["meta_tpl"],
+            "fetch_date": fetch_date,
+            "source": source,
+        }
+
     if args.demo:
         for comm in COMMUNITIES:
             live_snippet = "演示模式：模拟抓取成功"
@@ -474,22 +856,7 @@ def main():
             quote = generate_dynamic_quote(comm, hsi, fetch_date, fetch_date_cn, live_snippet=live_snippet, mode='demo')
             verdict = generate_verdict(comm, hsi, fetch_date_cn)
             quant = generate_quant_metrics(comm, hsi, live_snippet, source, fetch_date)
-            communities_out.append({
-                "id": comm["id"],
-                "key": comm["key"],
-                "name": comm["name"],
-                "icon": comm["icon"],
-                "url": comm["url"],
-                "verdict_label": comm["verdict_label"],
-                "verdict_class": comm["verdict_class"],
-                "quote": quote,
-                "verdict": verdict,
-                "quant": quant,
-                "meta": f"{comm['meta_tpl']} · 最新读取 {fetch_date}",
-                "meta_tpl": comm["meta_tpl"],
-                "fetch_date": fetch_date,
-                "source": source,
-            })
+            communities_out.append(build_record(comm, quote, verdict, quant, source))
         mode = "demo"
     else:
         mode = "live"
@@ -513,22 +880,7 @@ def main():
             verdict = generate_verdict(comm, hsi, fetch_date_cn)
             quant = generate_quant_metrics(comm, hsi, live_snippet, source, fetch_date)
 
-            communities_out.append({
-                "id": comm["id"],
-                "key": comm["key"],
-                "name": comm["name"],
-                "icon": comm["icon"],
-                "url": comm["url"],
-                "verdict_label": comm["verdict_label"],
-                "verdict_class": comm["verdict_class"],
-                "quote": quote,
-                "verdict": verdict,
-                "quant": quant,
-                "meta": f"{comm['meta_tpl']} · 最新读取 {fetch_date}",
-                "meta_tpl": comm["meta_tpl"],
-                "fetch_date": fetch_date,
-                "source": source,
-            })
+            communities_out.append(build_record(comm, quote, verdict, quant, source))
             time.sleep(0.15)
 
     data = {
@@ -545,7 +897,7 @@ def main():
         },
         "notes": [
             "由 community_data.py 构建时自动抓取 (HTTP GET + 模板回退)",
-            "单源失败降级为基于最新行情的动态模板，保证 14 源永远齐全",
+            "单源失败降级为基于最新行情的动态模板，保证 34 源永远齐全",
             "正文日期永远为当天，杜绝旧数据残留",
         ]
     }

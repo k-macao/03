@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-章鱼 AI·全景分析（量化策略多因子分析） — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 14 源动态抓取)
+章鱼 AI·全景分析（量化策略多因子分析） — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 34 源动态抓取)
 
 将 report.html 转换为微信 (PushPlus HTML 模板) 兼容的内联样式 HTML，
 生成 wechat.json 供网页按钮使用，并可直接推送至 PushPlus。
@@ -9,7 +9,7 @@
 核心特点:
   • 一对多群组推送: 默认推送至 oai.1 群组 (PUSHPLUS_TOPIC='oai.1')，群内所有关注成员同步接收。
   • 单页完整推送: 每次只推一条完整微信卡片 (单页全文)，解除 19,000 限制 (上限 100,000 字符)，无需分条分发与等待。
-  • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 14 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
+  • 每次推送均重新抓取: 不复用上一轮抓取结果；推送前逐条核对 34 个频道的「最新读取」标记，抓取失败/缺项时不得推送。
   • 01 栏每日全球全景扫描: 由 panorama.py 在推送前现算 —— 推动股价的 5 大力量（重点/次要/噪音 ·
     利好/利空 · 0~100 力量分）、宏观事件/板块轮动/情绪变化三大关注面、以及「是否可以做多」的
     合成分结论；四路数据全缺时降级为「本栏不编故事」，不回填历史叙事。
@@ -17,7 +17,7 @@
     预测区间 / 点位区间 / 置信度 / 驱动拆解）与明日盘面倾向；目标日严格晚于行情基准日，
     预测先落盘 forecast_history.json、等目标日行情到位才结算命中率，绝不用当次行情给当次预测打分；
     行情缺席时降级为「今日未获取 —— 本栏不预测」，不回填上一版预测。
-  • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、14 大社区论坛逐一展开长文深度战术研判。
+  • 全板块 AI 深度详尽分析: 宏观、利率、港股资金流、34 大社区论坛逐一展开长文深度战术研判。
   • 电竞指挥中心 × 战术 HUD 风格：深海军蓝底 + 冷白正文，电光青 / 荧光绿 / 战术紫 / 警戒红分层强调；
     多空卡片按信号着色，所有样式均内联以适配 PushPlus / 微信阅读。
 
@@ -60,6 +60,7 @@ if REPO_ROOT not in sys.path:
 import sentiment_match as smatch                          # noqa: E402  采集→匹配→脱敏展示层
 import panorama                                           # noqa: E402  01 栏「每日全球全景扫描」推理引擎
 import macro_data as macro_data_mod                       # noqa: E402  02 栏快讯可用性判定（兜底口径单一事实源）
+import community_data as community_mod                    # noqa: E402  34 大社区兜底数据集（缺 community_data.json 时同构生成）
 import quant_pair                                         # noqa: E402  每条内容后的 AI 量化配对
 import char_charts                                        # noqa: E402  推送字符配图（matplotlib 图种的字符版）
 import forecast as forecast_mod                           # noqa: E402  04 栏「AI 预测 · 未来函数」推理引擎
@@ -80,11 +81,12 @@ TITLE = '章鱼 AI·全景分析（量化策略多因子分析）'
 CONTENT_LIMIT = 100000
 CONTENT_SAFE_LIMIT = 95000
 MAX_PUSH_RETRIES = 3
-EXPECTED_CHANNEL_COUNT = 14
+# 34 大社区（14 原有 + 20 新增）：推送前逐频道核对「最新读取」标记的期望条数
+EXPECTED_CHANNEL_COUNT = 34
 
 MINUS = '\u2212'  # U+2212 真正的减号，与全文风格一致
 
-# 14 大社区「综合站内 … 最新读取 YYYY-MM-DD」逐频道标记 (用于推送前逐条核对)
+# 34 大社区「综合站内 … 最新读取 YYYY-MM-DD」逐频道标记 (用于推送前逐条核对)
 CHANNEL_READ_RE = re.compile(r'综合站内[^<]*?最新读取\s+(20\d{2}-\d{2}-\d{2})')
 
 
@@ -102,7 +104,7 @@ def load_market_data():
 
 
 def load_community_data():
-    """读取 community_data.py 生成的 community_data.json（14 大社区动态抓取）。
+    """读取 community_data.py 生成的 community_data.json（34 大社区动态抓取）。
 
     路径可用环境变量 COMMUNITY_DATA 覆盖；文件缺失/损坏时返回 {}，
     此时正文回退到内置兜底社区数据（但日期会被刷新为当天），保证离线也能正常推送。
@@ -251,7 +253,7 @@ def quant_html_inline(quant):
     r = quant.get('relevance', {})
     n = quant.get('novelty', {})
     # 四行要点用 <br/> 串起来而不是四个带 style 的 <div>：微信单页字符预算很紧，
-    # 14 张卡片 × 4 组重复样式是一笔白花的开销，显示效果一致。
+    # 34 张卡片 × 4 组重复样式是一笔白花的开销，显示效果一致。
     return (
         f'<div style="background:{WECHAT_PANEL_SOFT};color:{WECHAT_TEXT_SOFT};border:1px dashed {WECHAT_VIOLET};border-radius:4px;'
         f'padding:9px 11px;margin-top:9px;font-size:11px;line-height:1.7">'
@@ -263,6 +265,105 @@ def quant_html_inline(quant):
         f'</div>'
     )
 
+
+def quant_metrics_line(quant):
+    """核心量化指标压成一行（社区「标准版」用）：四个读数一个不少，只压样式。"""
+    if not quant:
+        return ''
+    s = (quant.get('sentiment') or {}).get('display', '—')
+    e = (quant.get('event') or {}).get('label', '综合')
+    r = (quant.get('relevance') or {}).get('display', '—')
+    n = (quant.get('novelty') or {}).get('display', '—')
+    return (
+        f'<div style="background:{WECHAT_PANEL_SOFT};border:1px dashed {WECHAT_VIOLET};border-radius:3px;'
+        f'padding:5px 8px;margin-top:6px;font-size:10.5px;color:{WECHAT_TEXT_SOFT};">'
+        f'◆ 核心量化指标：情感 {s} · 事件 {e} · 相关性 {r} · 新颖度 {n}</div>'
+    )
+
+
+def _clip_text(text, limit):
+    text = str(text or '')
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip(' ·、/，,') + '…'
+
+
+def community_card(c, level='full', quotes=None):
+    """一张社区卡片。level 决定详略（微信单页字符预算有限，34 源要挤进同一页）：
+
+        full          完整版：热评 + 战术研判 + 四行核心量化指标 + 完整 AI 量化块
+        standard      标准版：热评(220) + 研判(140) + 一行量化指标 + 精简 AI 量化块
+        compact_plus  精简版：热评(200) + 一行核心量化指标（读数不删，只压样式）+ 迷你 AI 量化
+        compact       紧凑版：热评(150) + 迷你 AI 量化
+        roster        名录版：一行一名（含跨域配对的标的组合与推荐）+ 抓取标记
+
+    四档都带「最新读取」标记与跨域配对（两标的、跨域），只是详略不同；
+    无论哪一档，数字都来自同一份当次数据。
+    """
+    icon = c.get('icon', '📌')
+    no = c.get('id', '01')
+    name = c.get('name', '未知社区')
+    label = c.get('label', '中性')
+    vclass = c.get('vclass', 'neutral')
+    quote = c.get('quote') or ''
+    verdict = c.get('verdict') or ''
+    quant = c.get('quant') or {}
+    meta = c.get('meta') or ''
+    signal = {'bull': WECHAT_CYAN, 'bear': WECHAT_DANGER,
+              'neutral': WECHAT_VIOLET, 'mixed': WECHAT_NEON}.get(vclass, WECHAT_VIOLET)
+    rec = quant_pair.recommend(f'{name} {quote} {verdict}', quotes or {}, hint=c.get('key'))
+    ai_compact = quant_pair.render_wechat(rec, compact=True)
+    chip = (f'<span style="background:{signal};color:#07101b;font-size:10px;font-weight:700;'
+            f'padding:2px 6px;margin-left:4px;border-radius:2px">{label}</span>')
+    head = (f'<div style="color:{WECHAT_TEXT};font-weight:700;font-size:13px">{icon} {no}. {name} '
+            f'{chip}</div>')
+    meta_html = f'<div style="color:{WECHAT_MUTED};font-size:10px;margin-top:6px;">{meta}</div>'
+
+    if level == 'roster':
+        pair = (f'{rec.get("domain_pair", "")}｜{rec.get("pair_label", "")}｜{rec.get("stance", "")}')
+        return (
+            f'<div style="border-bottom:1px solid #1b2540;padding:5px 0;font-size:11px;color:{WECHAT_TEXT_SOFT};">'
+            f'{icon} <strong style="color:{WECHAT_TEXT};">{no}. {name}</strong>【{label}】'
+            f' · 跨域配对：{pair} · {_clip_text(quote, 60)}'
+            f'<div style="color:{WECHAT_MUTED};font-size:9.5px;">{meta}</div></div>'
+        )
+
+    if level == 'compact':
+        body = (f'<div style="margin-top:6px;line-height:1.8">'
+                f'<strong style="color:{WECHAT_CYAN};">平台深度热评：</strong>{_clip_text(quote, 150)}</div>')
+    elif level == 'compact_plus':
+        body = (f'<div style="margin-top:6px;line-height:1.8">'
+                f'<strong style="color:{WECHAT_CYAN};">平台深度热评：</strong>{_clip_text(quote, 200)}</div>')
+    elif level == 'standard':
+        body = (f'<div style="margin-top:6px;line-height:1.8">'
+                f'<strong style="color:{WECHAT_CYAN};">平台深度热评：</strong>{_clip_text(quote, 220)}</div>'
+                f'<div style="background:{WECHAT_PANEL_SOFT};border:1px solid #24314b;border-left:3px solid {signal};'
+                f'border-radius:3px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:{WECHAT_TEXT_SOFT};line-height:1.7">'
+                f'<strong style="color:{WECHAT_CYAN};">▶ AI 深度战术研判：</strong>{_clip_text(verdict, 140)}</div>')
+    else:  # full
+        body = (f'<div style="margin-top:6px;line-height:1.8">'
+                f'<strong style="color:{WECHAT_CYAN};">平台深度热评：</strong>{quote}</div>'
+                f'<div style="background:{WECHAT_PANEL_SOFT};border:1px solid #24314b;border-left:3px solid {signal};'
+                f'border-radius:3px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:{WECHAT_TEXT_SOFT};line-height:1.7">'
+                f'<strong style="color:{WECHAT_CYAN};">▶ AI 深度战术研判：</strong>{verdict}</div>')
+
+    quant_html = quant_html_inline(quant) if level == 'full' else (
+        quant_metrics_line(quant) if level in ('standard', 'compact_plus') else '')
+    ai_html = ai_compact if level in ('full', 'standard') else quant_pair.render_wechat_mini(rec)
+    return (
+        f'<div style="background:{WECHAT_PANEL};color:{WECHAT_TEXT_SOFT};border:1px solid {WECHAT_BORDER};'
+        f'border-left:3px solid {signal};border-radius:4px;padding:12px 14px;margin:10px 0;font-size:12px">'
+        f'{head}{body}{quant_html}{ai_html}{meta_html}</div>'
+    )
+
+
+def community_section(communities, level='full', quotes=None):
+    return '\n'.join(community_card(c, level, quotes) for c in communities)
+
+
+# 03 栏在正文里的占位槽：34 源社区按剩余预算选详略等级（完整 → 标准 → 紧凑 → 名录）
+COMMUNITY_SLOT = '<!--COMMUNITY-SLOT-->'
+COMMUNITY_MARGIN = 1500
 
 # 04 栏在正文里的占位槽：正文先留槽，量完其余部分再决定这一栏能放多详尽的一版。
 FORECAST_SLOT = '<!--FORECAST-SLOT-->'
@@ -292,6 +393,69 @@ def wechat_box(inner):
             f'padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;">{inner}</div>')
 
 
+def forecast_block_candidates(fc_data, neon=WECHAT_NEON, green=WECHAT_GREEN, ink=WECHAT_INK):
+    """04 栏的候选版本（从详到略）。拆成函数是为了让 03 栏知道「最少要给 04 留多少」。"""
+    box = wechat_box
+    full = box(forecast_mod.render_wechat(fc_data, neon=neon, green=green, ink=ink))
+    charts = char_charts.forecast_chart(fc_data)[0]
+    if (fc_data.get('review') or {}).get('settled'):
+        charts += char_charts.forecast_review_chart(fc_data['review'])[0]
+    return [
+        ('完整版 + 字符配图', full + '\n  ' + charts),
+        ('完整版', full),
+        ('精简版 + 预测配图', box(forecast_mod.render_wechat(
+            fc_data, neon=neon, green=green, ink=ink, compact=True))
+            + '\n  ' + char_charts.forecast_chart(fc_data)[0]),
+        ('精简版', box(forecast_mod.render_wechat(
+            fc_data, neon=neon, green=green, ink=ink, compact=True))),
+        ('一行摘要', box(forecast_mod.render_wechat_line(fc_data, green=green))),
+    ]
+
+
+def fit_community_block(html, communities, fc_data=None, quotes=None):
+    """把 34 源社区塞进微信单页的剩余预算里（与 04 栏同一套「按预算收敛」思路）。
+
+    社区从 14 源扩到 34 源之后，逐条完整卡片会直接顶穿 100K 硬上限，
+    因此 03 栏按剩余预算逐级收敛（每一档都保留全部 34 源、都带跨域配对与抓取标记）：
+
+        完整版（热评 + 研判 + 四行量化指标 + 完整 AI 量化）
+          → 标准版（热评 + 研判 + 一行量化指标 + 精简 AI 量化）
+            → 紧凑版（热评截断 + 精简 AI 量化）
+              → 名录版（一行一名：跨域配对 + 推荐 + 抓取标记）
+
+    预算里先给 04 栏留出**最小可用**的一版（一行摘要 + 余量），否则 34 源会把预测栏挤没；
+    真正发哪一版预测由随后的 fit_forecast_block() 按实际剩余预算决定。
+    """
+    if COMMUNITY_SLOT not in html:
+        return html
+    base = len(html) - len(COMMUNITY_SLOT)
+    reserves = [0]
+    if fc_data is not None:
+        try:
+            candidates = forecast_block_candidates(fc_data)
+            # 优先给 04 栏留「完整版」，放不下再退到最小一版（一行摘要）
+            full_fc = next((len(b) for lbl, b in candidates if lbl == '完整版'), 0)
+            reserves = [full_fc, min(len(b) for _lbl, b in candidates)]
+        except Exception:
+            reserves = [0]
+    levels = [('完整版', 'full'), ('标准版', 'standard'), ('精简版', 'compact_plus'),
+              ('紧凑版', 'compact'), ('名录版', 'roster')]
+    for reserve in reserves:
+        budget = CONTENT_SAFE_LIMIT - base - reserve - COMMUNITY_MARGIN
+        for label, level in levels:
+            block = community_section(communities, level, quotes=quotes)
+            if len(block) <= budget:
+                if level != 'full':
+                    print(f'  ✂️ 微信推送 03 栏：{len(communities)} 源社区按剩余预算 '
+                          f'{budget} 字符采用「{label}」（每一版都含全部源与跨域配对，仅详略不同；'
+                          f'04 栏预留 {reserve} 字符）')
+                return html.replace(COMMUNITY_SLOT, block, 1)
+    block = community_section(communities, 'roster', quotes=quotes)
+    print(f'  ⚠️ 微信推送 03 栏：预算不足以放下完整名录，仍以「名录版」发出 '
+          f'{len(communities)} 源（每源保留跨域配对与抓取标记）', file=sys.stderr)
+    return html.replace(COMMUNITY_SLOT, block, 1)
+
+
 def fit_forecast_block(html, fc_data, neon=WECHAT_NEON, green=WECHAT_GREEN, ink=WECHAT_INK):
     """把 04 栏塞进微信单页剩余的字符预算里。
 
@@ -307,23 +471,8 @@ def fit_forecast_block(html, fc_data, neon=WECHAT_NEON, green=WECHAT_GREEN, ink=
     """
     if FORECAST_SLOT not in html:
         return html
-    box = wechat_box
     budget = CONTENT_SAFE_LIMIT - (len(html) - len(FORECAST_SLOT)) - FORECAST_MARGIN
-
-    full = box(forecast_mod.render_wechat(fc_data, neon=neon, green=green, ink=ink))
-    charts = char_charts.forecast_chart(fc_data)[0]
-    if (fc_data.get('review') or {}).get('settled'):
-        charts += char_charts.forecast_review_chart(fc_data['review'])[0]
-    candidates = [
-        ('完整版 + 字符配图', full + '\n  ' + charts),
-        ('完整版', full),
-        ('精简版 + 预测配图', box(forecast_mod.render_wechat(
-            fc_data, neon=neon, green=green, ink=ink, compact=True))
-            + '\n  ' + char_charts.forecast_chart(fc_data)[0]),
-        ('精简版', box(forecast_mod.render_wechat(
-            fc_data, neon=neon, green=green, ink=ink, compact=True))),
-        ('一行摘要', box(forecast_mod.render_wechat_line(fc_data, green=green))),
-    ]
+    candidates = forecast_block_candidates(fc_data, neon=neon, green=green, ink=ink)
     for label, block in candidates:
         if len(block) <= budget:
             if label != '完整版 + 字符配图':
@@ -344,7 +493,7 @@ def build_single_wechat_html(now=None):
 
     动态数据:
       - market_data.json: 行情数字、行情快照
-      - community_data.json: 14 大社区最新研判（每次构建自动抓取，杜绝旧数据）
+      - community_data.json: 34 大社区最新研判（每次构建自动抓取，杜绝旧数据）
       若文件缺失时回退到内置兜底数据，但日期统一刷新为当天，保证离线可推送。
     """
     now = now or datetime.now(timezone.utc)
@@ -463,149 +612,49 @@ def build_single_wechat_html(now=None):
                 f'border:1px solid {WECHAT_BORDER};border-radius:4px;'
                 f'padding:14px 16px;margin:10px 0;font-size:12px;line-height:1.85;">{inner}</div>')
 
-    def card(icon, no, name, label, vclass, quote, verdict, quant, meta):
-        signal = {
-            'bull': WECHAT_CYAN,
-            'bear': WECHAT_DANGER,
-            'neutral': WECHAT_VIOLET,
-            'mixed': WECHAT_NEON,
-        }.get(vclass, WECHAT_VIOLET)
-        q_html = quant_html_inline(quant)
-        ai_html = quant_pair.render_wechat(quant_pair.recommend(
-            f'{name} {quote} {verdict}', _quotes))
-        return (
-            f'<div style="background:{WECHAT_PANEL};color:{WECHAT_TEXT_SOFT};border:1px solid {WECHAT_BORDER};'
-            f'border-left:3px solid {signal};border-radius:4px;padding:12px 14px;margin:10px 0;font-size:12px">'
-            f'<div style="color:{WECHAT_TEXT};font-weight:700;font-size:13px">{icon} {no}. {name} '
-            f'<span style="background:{signal};color:#07101b;font-size:10px;font-weight:700;'
-            f'padding:2px 6px;margin-left:4px;border-radius:2px">{label}</span></div>'
-            f'<div style="margin-top:6px;line-height:1.8"><strong style="color:{WECHAT_CYAN};">平台深度热评：</strong>{quote}</div>'
-            f'<div style="background:{WECHAT_PANEL_SOFT};border:1px solid #24314b;border-left:3px solid {signal};'
-            f'border-radius:3px;padding:8px 10px;margin-top:8px;font-size:11.5px;color:{WECHAT_TEXT_SOFT};line-height:1.7">'
-            f'<strong style="color:{WECHAT_CYAN};">▶ AI 深度战术研判：</strong>{verdict}</div>'
-            f'{q_html}'
-            f'{ai_html}'
-            f'<div style="color:{WECHAT_MUTED};font-size:10px;margin-top:6px;">{meta}</div>'
-            f'</div>')
+    # ---------- 动态社区列表（34 源：14 原有 + 20 新增，中英文/不同类型） ----------
+    # 缺 community_data.json 时走 community_data.offline_dataset()：同一个模板引擎现算 34 条，
+    # 结构与 live 完全一致（只把 source 标记为 fallback），不再在推送工具里另写一份兜底文案 ——
+    # 两处各写一套正是「兜底 14 源」与「动态 34 源」口径打架的根源。
+    def community_record(c):
+        """community_data.json（或兜底数据集）→ 渲染层统一的记录结构。"""
+        meta = c.get('meta') or f"{c.get('meta_tpl', '综合站内 10 条讨论')} · 最新读取 {_community_fetch_date}"
+        meta = re.sub(r'最新读取\s+20\d{2}-\d{2}-\d{2}', f'最新读取 {_community_fetch_date}', meta)
+        if '最新读取' not in meta:
+            meta = f"{meta} · 最新读取 {_community_fetch_date}"
+        quant = c.get('quant')
+        if not quant:
+            try:
+                raw_pct = float((c.get('quote', '').count('%')))
+            except Exception:
+                raw_pct = 0
+            quant = gen_quant_fallback(c.get('key', ''), c.get('verdict_class', 'neutral'),
+                                       _community_fetch_date, raw_pct, c.get('quote', ''),
+                                       c.get('source', 'fallback'))
+        return {
+            'icon': c.get('icon', '📌'),
+            'id': c.get('id', '01'),
+            'key': c.get('key', ''),
+            'name': c.get('name', '未知社区'),
+            'label': c.get('verdict_label', '中性'),
+            'vclass': c.get('verdict_class', 'neutral'),
+            'quote': c.get('quote', ''),
+            'verdict': c.get('verdict', ''),
+            'quant': quant,
+            'meta': meta,
+            'ctype': c.get('ctype', ''),
+        }
 
-    # ---------- 动态社区列表 ----------
     communities = []
     if _communities_raw:
-        # 使用 community_data.json 的 14 条动态数据
-        for c in _communities_raw:
-            meta = c.get('meta') or f"{c.get('meta_tpl','综合站内 10 条讨论')} · 最新读取 {_community_fetch_date}"
-            meta = re.sub(r'最新读取\s+20\d{2}-\d{2}-\d{2}', f'最新读取 {_community_fetch_date}', meta)
-            if '最新读取' not in meta:
-                meta = f"{meta} · 最新读取 {_community_fetch_date}"
-            quant = c.get('quant')
-            if not quant:
-                # 尝试生成 fallback 量化指标
-                try:
-                    raw_pct = float((c.get('quote','').count('%')))
-                except:
-                    raw_pct = 0
-                quant = gen_quant_fallback(c.get('key',''), c.get('verdict_class','neutral'), _community_fetch_date, raw_pct, c.get('quote',''), c.get('source','fallback'))
-            communities.append((
-                c.get('icon','📌'),
-                c.get('id','01'),
-                c.get('name','未知社区'),
-                c.get('verdict_label','中性'),
-                c.get('verdict_class','neutral'),
-                c.get('quote',''),
-                c.get('verdict',''),
-                quant,
-                meta
-            ))
-        print(f'  🧩 微信推送：已加载 {len(communities)} 个动态社区源（来自 community_data.json，含核心量化指标）')
+        communities = [community_record(c) for c in _communities_raw]
+        print(f'  🧩 微信推送：已加载 {len(communities)} 个动态社区源'
+              f'（来自 community_data.json，含核心量化指标与跨域配对）')
     else:
-        # 回退：内置兜底社区数据，但日期动态刷新为当天
-        # 使用当天日期生成动态内容，杜绝 8 月 12 日旧数据
-        now_m = now.month
-        now_d = now.day
-        hsi_last = qq('HSI')
-        hsi_pct = pct('HSI')
-        # 动态模板（与 community_data.py 保持一致的当天日期）
-        fallback_quotes = [
-            (f'{now_m} 月 {now_d} 日恒指收报 {hsi_last} 点（{hsi_pct}），技术派指出 26,000 整数关连续受阻后短线动能转弱，需等待金叉才重新进场；资金派紧盯分时大单与南向净流向，强调“先看异动再做决策”。中长线声音则认为：即便回踩 25,200–25,400 箱体下沿，南向资金近期维持净流入，叠加盈利修复，明年上半年挑战 28,200 点的路径未被破坏。',
-             '短线偏空 · 中期偏多。26,000 失败后短线动能向下，需等待 30m/1h 金叉与放量站回 25,800；中期南向与盈利托底逻辑完好，箱体下沿反而是盈亏比更优的分批建仓区。'),
-            (f'热帖直指“恒指 26,000 关口压力重重，本轮是反弹还是反转”。{now_m} 月 {now_d} 日恒指收 {hsi_last}（{hsi_pct}），恒科同步震荡。球友对半导体“空头撤退股价仍跌”解读为被动出清；价值派强调：南向资金持续流入与低估值高息底仓的安全边际仍在，主张高息底仓 + 新质生产力。',
-             '短线偏空 · 中期偏多。成长股出清尚未结束；但南向月度级回流与低估值高息底仓，为中期提供足够安全边际。'),
-            (f'跨境账户情绪：{now_m} 月 {now_d} 日港股震荡（恒指 {hsi_pct}），外资 trim China exposure 快于内资的格局仍在；地缘与油价扰动叠加华尔街科技回撤，亚洲时段反弹乏力。社区对折价配售仍敏感，操作共识是继续观望，等待金叉与 25,800 放量收复。',
-             '偏空观望。外资定价的离岸市场对地缘与美股映射更敏感，港股“先跌于 A 股”格局未改；在缺乏右侧信号前不宜抄底。'),
-            (f'股吧情绪：{now_m} 月 {now_d} 日恒指震荡 {hsi_pct}，科网与内房分化明显。讨论焦点从“还能不能追”转为“会不会回踩箱体下沿”。内房脉冲被解读为政策博弈炒作而非趋势反转。',
-             '短线偏空。散户从狂热切换到观望，低开低走与科网兑现共振；内房脉冲难改大盘箱体下修的短线基调。'),
-            (f'席位与衍生品视角：{now_m} 月 {now_d} 日恒指牛熊街货比约 49:51，熊证重货区落在 26,200–26,299、牛证重货区在 25,200–25,299，与现货箱体高度吻合。收 {hsi_last}（{hsi_pct}），光通信获摩根大通加仓，芯片股逆市走强。',
-             '偏多 (结构性机遇)。街货比中性、机构在光通信与高息两端同时加仓，箱体内更适合用期权做结构，而不是裸空指数。'),
-            (f'宏观对冲盘聚焦：{now_m} 月 {now_d} 日恒指 {hsi_pct} 至 {hsi_last}，社区主流叙事仍是“全球资金从韩日美股拥挤多头再平衡至低估港股 + 国内政策托底”，但强调 26,000 失败后应以防守姿态做多：黄金与铜铝锂及高息低贝塔。',
-             '中性偏多 (防御姿态做多)。CPI 降温打开估值修复窗口，霍尔木兹与油价则封住上行斜率；适合用高息 + 贵金属底仓承接再平衡资金。'),
-            (f'本地炒鬼：{now_m} 月 {now_d} 日恒指 {hsi_pct}，共识是“又係 26,000 附近派货”。内房脉冲被当成政策消息博弈，多数人表示“睇得、唔好追”。共识仍是港股弱于 A 股、先跌后上，必须等金叉同南向持续净流入先至加仓。',
-             '中性。本土零售维持防守观望，内房脉冲难改仓位结构；右侧金叉出现前不宜激进加仓。'),
-            (f'连登交易员：{now_m} 月 {now_d} 日恒指 {hsi_pct}，未能放量突破 26,200–26,500，短线动能转弱。主流策略切到期权 / 牛熊证做波动率，街货比 49:51 被解读为多空打平、适合两边开仓；硬止损纪律被反复强调。',
-             '短线偏空 (超买回调兑现中)。26,000 失败后波动率交易优于方向单；未站回 25,800–26,000 前，杠杆多头盈亏比不佳。'),
-            (f'公募与港股通持仓透视：{now_m} 月 {now_d} 日恒指 {hsi_pct} 报 {hsi_last}，南向资金近期维持净流入；近一月主力流向资讯科技、原材料、医疗保健。机构共识未改：估值修复 + 科技盈利是 2026 主引擎，箱体震荡是机构完成高低切换的窗口。',
-             '偏多 (中期基本面驱动)。月度级南向与外资回流比单日指数涨跌更有信息量；箱体震荡是机构完成高低切换的窗口。'),
-            (f'基民社区：{now_m} 月 {now_d} 日恒指 {hsi_pct}，散户港股 ETF 申购与搜索热度随指数回踩降温，讨论从“还能不能追”转为“定投要不要暂停”。理财顾问仍主推高息红利、REITs、电信与公用事业作为底仓。',
-             '中性 (狂热降温)。散户 FOMO 消退降低了短线见顶压力，但尚未出现恐慌性申赎；适合把仓位从追涨切换回定投式防御底仓。'),
-            (f'英文社区：{now_m} 月 {now_d} 日恒指 {hsi_pct}，仍把港股当作投资中国核心资产最便利的离岸通道，VIE / ADR 等价性讨论未停。增量话题切到宏观：美国 CPI 与就业数据降低加息紧迫性；霍尔木兹和解预期反复、油价走高被视作主要外部扰动。',
-             '中性。外资认可通道与估值，但在地缘与政策细节落地前维持审慎评估，等待 CPI 后续路径与中概业绩季。'),
-            (f'图表派更新：{now_m} 月 {now_d} 日恒指收 {hsi_last}（{hsi_pct}），三周反弹后于 26,000 录得超买警报；EMA9/21 交叉约 25,978 / 25,471 仍托住升势，MACD 高位减速。新作战目标 26,500 / 延伸 27,044，移动止损上移至 25,124。',
-             '偏多 (结构完好、战术回调)。超买在 26,000 消化是健康的，均线带未坏；回踩 25,400–25,470 是加仓带，失守 25,124 才改方向。'),
-            (f'价投私密社区：{now_m} 月 {now_d} 日恒指 {hsi_pct}，并不把 26,000 失败当成逻辑破坏：港股相对欧美估值折价、中小盘私有化套利与控股股东折价仍是 2026 主引擎。基准情景维持恒指年底 28,000–29,000、乐观 31,000。',
-             '偏多 (价投标尺确立)。箱体回撤不改变折价修复路径；私有化与回购仍是中小盘的确定性事件驱动。'),
-            (f'FinTwit 宏观账户：{now_m} 月 {now_d} 日恒指 {hsi_pct} 至 {hsi_last}，仍把港股标成“再平衡避风港”，但语气从右侧突破转为“26,000 失败后的健康回撤”。CPI 降温与就业疲弱压低加息赔率，黄金与铜锂继续作为地缘对冲。',
-             '偏多 (国际资本仍在场)。再平衡 + CPI 降温仍是多头底盘；缺的是政策细则与放量收复 26,000，短线应降低进攻斜率。'),
-        ]
-        base = [
-            ('🐮', '1', '富途牛牛社区', '多空分歧', 'mixed'),
-            ('❄️', '2', '雪球网', '多空分歧', 'mixed'),
-            ('🐯', '3', '老虎社区', '偏空', 'bear'),
-            ('💰', '4', '东方财富港股股吧', '偏空', 'bear'),
-            ('📈', '5', '智通财经互动区', '偏多', 'bull'),
-            ('🌐', '6', '华尔街见闻社区', '偏多', 'bull'),
-            ('🇭🇰', '7', '香港讨论区财经版', '中性', 'neutral'),
-            ('🔥', '8', 'LIHKG 连登财经台', '偏空', 'bear'),
-            ('🥦', '9', '韭圈儿 / 红岸社区', '偏多', 'bull'),
-            ('🐜', '10', '蚂蚁财富港股社区', '中性', 'neutral'),
-            ('👾', '11', 'Reddit (r/ChinaStocks)', '中性', 'neutral'),
-            ('📊', '12', 'TradingView 香港板块', '偏多', 'bull'),
-            ('💎', '13', 'Value Investors Club', '偏多', 'bull'),
-            ('🐦', '14', 'Twitter / X (FinTwit)', '偏多', 'bull'),
-        ]
-        metas = [
-            '综合站内 10 条热门长帖与讨论',
-            '综合站内 10 条深度研报与讨论',
-            '综合站内 10 条热门跨境讨论',
-            '综合站内 10 条高互动主题帖',
-            '综合站内 10 条专业席位跟踪分析',
-            '综合站内 10 条宏观深度长文',
-            '综合站内 10 条粤语热门讨论贴',
-            '综合站内 10 条高频交易讨论链',
-            '综合站内 10 篇机构仓位拆解报告',
-            '综合站内 10 条基民热评与定投贴',
-            '综合站内 10 篇外文热门深度分析',
-            '综合站内 10 套专业技术分析图表与指标',
-            '综合站内 10 篇顶尖私密价值分析研报',
-            '综合站内 10 条海外基金经理核心观点',
-        ]
-        for i, ((icon,no,name,label,vclass), (q,v), meta_tpl) in enumerate(zip(base, fallback_quotes, metas)):
-            # 生成 fallback 量化指标
-            try:
-                raw_pct_val = float(pct('HSI').replace('%','').replace('−','-').replace('+','')) if 'HSI' in q else 0
-            except:
-                raw_pct_val = 0
-            quant = gen_quant_fallback(name, vclass, _community_fetch_date, raw_pct_val, q, "fallback")
-            communities.append((
-                icon, no, name, label, vclass, q, v,
-                quant,
-                f'{meta_tpl} · 最新读取 {_community_fetch_date}'
-            ))
-        print(f'  ⚠️ 微信推送：未找到 community_data.json，回退到动态模板（{len(communities)} 个源，日期已刷新为 {_community_fetch_date}，含量化指标）')
-
-
-    community_html = '\n'.join(
-        card(icon, no, name, label, vclass, quote, verdict, quant, meta)
-        for icon, no, name, label, vclass, quote, verdict, quant, meta in communities
-    )
+        _fb = community_mod.offline_dataset(_md, now=now)
+        communities = [community_record(c) for c in _fb.get('communities', [])]
+        print(f'  ⚠️ 微信推送：未找到 community_data.json，回退到 community_data.offline_dataset() '
+              f'（{len(communities)} 个源，日期已刷新为 {_community_fetch_date}，结构与 live 一致）')
 
     # ---------- 03B 舆情/新闻因子节点（sentiment_data.json 动态注入） ----------
     def sentiment_block():
@@ -820,7 +869,7 @@ def build_single_wechat_html(now=None):
 
     def verdict_block():
         """07 结论：逐条挂当次快讯/行情，不再写死 7-8 月事实与历史点位。"""
-        vc_note = (f'14 源社区当次研判汇总：偏多 {community_counts["bull"]} 家 · 偏空 {community_counts["bear"]} 家'
+        vc_note = (f'{len(communities)} 源社区当次研判汇总：偏多 {community_counts["bull"]} 家 · 偏空 {community_counts["bear"]} 家'
                    f' · 中性 {community_counts["neutral"]} 家 · 分歧 {community_counts["mixed"]} 家')
         rows = [
             '• <strong>全球宏观面</strong>：' + macro_top('macro') + '；<br/>',
@@ -840,8 +889,8 @@ def build_single_wechat_html(now=None):
     # ---------- 03 首段：多空统计与主线共识改为当次数据推导 ----------
     community_counts = {'bull': 0, 'bear': 0, 'neutral': 0, 'mixed': 0}
     for _c in communities:
-        if len(_c) > 4 and _c[4] in community_counts:
-            community_counts[_c[4]] += 1
+        if (_c.get('vclass') or '') in community_counts:
+            community_counts[_c['vclass']] += 1
     community_overview_line = (
         key(f'偏多 {community_counts["bull"]} 家')
         + f' · <strong style="color:{WECHAT_DANGER};font-weight:700;">偏空 {community_counts["bear"]} 家</strong>'
@@ -901,15 +950,15 @@ def build_single_wechat_html(now=None):
   {h('02 / 全球经济与财经动态 (Global Macro & HK Battlefield · 快讯每次构建现抓)')}
   {box(macro_block())}
 
-  {h('03 / 社区论坛热评 (14 大平台详尽深入全景研判 · 每日动态抓取)')}
+  {h(f'03 / 社区论坛热评 ({len(communities)} 大平台详尽深入全景研判 · 每日动态抓取 · 含跨域配对)')}
   {box(
     f'<strong style="color:#edf2ff;font-size:13px;">AI 多空总览统计</strong> — 综合 {len(communities)} 个境内外核心社区信号：<br/>' +
     community_overview_line + '<br/>' +
     '<strong style="color:#edf2ff;">核心主线共识</strong>：' + community_thread_line + '<br/>' +
-    f'<span style="color:#9aa6c3;font-size:10px;">社区抓取日期 {_community_fetch_date} · {community_fetch_status()} · 14 源动态抓取已上线，每次构建自动刷新</span>'
+    f'<span style="color:#9aa6c3;font-size:10px;">社区抓取日期 {_community_fetch_date} · {community_fetch_status()} · {len(communities)} 源动态抓取已上线（中英文 / 不同类型），每次构建自动刷新</span>'
     + quant_pair.render_wechat(quant_pair.recommend(community_thread_line, _quotes, hint='hk_tape')) + fig_community)}
 
-  {community_html}
+  {COMMUNITY_SLOT}
 
   {h('03B / 舆情·新闻因子：多平台采集 → 标的匹配 (Sentiment & News Factor Bench · 不显示数据来源)')}
   {sentiment_block()}
@@ -932,10 +981,12 @@ def build_single_wechat_html(now=None):
   </div>
 
 </div>'''
-    # 04 栏按微信单页剩余字符预算选版本（完整 → 精简 → 一行摘要），见 fit_forecast_block()
+    # 03 栏（34 源社区）与 04 栏按微信单页剩余字符预算各自选详略版本：
+    # 先按「给 04 栏留出最小一版」的预算填充社区，再由 fit_forecast_block() 用剩下的预算选预测版本。
+    html = fit_community_block(html, communities, fc_data=_fc, quotes=_quotes)
     html = fit_forecast_block(html, _fc)
 
-    # 14 大社区「最新读取」日期统一刷新为当日抓取日期（动态抓取真正上线）
+    # 34 大社区「最新读取」日期统一刷新为当日抓取日期（动态抓取真正上线）
     html = re.sub(r'(最新读取\s+)(20\d{2}-\d{2}-\d{2})',
                   lambda m: m.group(1) + _fetch_date, html)
     return html.strip(), ts, ts_full
@@ -945,7 +996,7 @@ def extract_fetch_dates(text):
     return sorted(set(re.findall(r'最新读取\s+(20\d{2}-\d{2}-\d{2})', text)))
 
 def assert_fetch_dates_are_today(parts, now, strict=True):
-    """推送前逐条核对 14 个频道「最新读取」标记，缺项或非当天时拒绝推送。"""
+    """推送前逐条核对 34 个频道「最新读取」标记，缺项或非当天时拒绝推送。"""
     today = now.strftime('%Y-%m-%d')
     reads = []
     for title, content in parts:
@@ -1089,7 +1140,7 @@ def run_push_preflight(strict=False, timeout=8, report_path=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='章鱼 AI·全景分析（量化策略多因子分析） — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 14 源动态)')
+    ap = argparse.ArgumentParser(description='章鱼 AI·全景分析（量化策略多因子分析） — 微信推送工具 (一对多群组 oai.1 · 单页详尽完整版 · 34 源动态)')
     ap.add_argument('--source', default=SOURCE_HTML, help='报告 HTML 文件路径')
     ap.add_argument('--emit', metavar='PATH', help='写出 wechat.json 的路径')
     ap.add_argument('--embed', action='store_true',

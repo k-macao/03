@@ -96,11 +96,15 @@ class TestPushFigures(unittest.TestCase):
             self.assertNotIn(bad, html)
 
     def test_quote_figure_uses_the_push_snapshot(self):
+        # 配对图只画「两腿都在」的组合，且组合必须跨域（见 quant_pair.DOMAIN）：
+        # 因此快照里同时给出港股与美股两条腿，否则本图按「不编柱」处理。
         payload = {'fetch_date': '2026-09-24', 'quotes': {
             'HSI': {'name': '恒生指数', 'pct': 1.2, 'as_of': '2026-09-24'},
             'HSTECH': {'name': '恒生科技指数', 'pct': -0.8, 'as_of': '2026-09-24'},
+            'SPX': {'name': '标普 500', 'pct': 0.4, 'as_of': '2026-09-24'},
+            'NDQ': {'name': '纳斯达克', 'pct': 1.6, 'as_of': '2026-09-24'},
             'WTI': {'name': 'WTI 原油', 'pct': 2.4, 'as_of': '2026-09-24'},
-            'BRENT': {'name': '布伦特原油', 'pct': 0.3, 'as_of': '2026-09-24'},
+            'GOLD': {'name': '现货黄金', 'pct': -0.3, 'as_of': '2026-09-24'},
         }}
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, 'market_data.json')
