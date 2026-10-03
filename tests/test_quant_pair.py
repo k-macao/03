@@ -161,17 +161,31 @@ class TestAttachedAfterContent(unittest.TestCase):
     def test_macro_items_and_quote_marker_get_a_block(self):
         import macro_data as md
         data = md.build(mock=True, quiet=True)
-        html = bs.build_macro_html(data, market=_quotes(WTI=1.2, BRENT=0.1, HSI=-0.4, HSCE=0.2))
+        full = _quotes(WTI=1.2, BRENT=0.1, HSI=-0.4, HSCE=0.2, HSTECH=0.6, GOLD=0.3,
+                       SPX=0.4, NDQ=0.5, DJI=0.1, USDCNH=-0.1, USDCNY=-0.05)
+        html = bs.build_macro_html(data, market=full)
         self.assertGreaterEqual(html.count('AI 量化'), 3)
         self.assertIn('跨域组合', html)
         for bad in STALE:
             self.assertNotIn(bad, html)
+        # 行情不足：两腿不齐的那些条目**整段隐藏**（不是渲染成「数据不足」），其余照常
+        thin = bs.build_macro_html(data, market=_quotes(WTI=1.2, BRENT=0.1, HSI=-0.4, HSCE=0.2))
+        self.assertGreaterEqual(thin.count('AI 量化'), 1)
+        self.assertLess(thin.count('AI 量化'), html.count('AI 量化'))
+        self.assertNotIn('数据不足', thin, '行情不足时不得再铺「数据不足」段')
         tpl = '<div><!-- AI_QUANT:QUOTES --></div><!-- AI_QUANT:VERDICT -->'
-        filled = bs.fill_ai_quant_markers(tpl, market=_quotes(HSI=0.2, HSCE=-0.8))
+        filled = bs.fill_ai_quant_markers(
+            tpl, market=_quotes(HSI=0.2, HSCE=-0.8, SPX=0.3, NDQ=0.4))
         self.assertNotIn('AI_QUANT:', filled)
         self.assertGreaterEqual(filled.count('AI 量化'), 2)
+        # 只有同域两腿（恒指 / 恒生国企）时给不出跨域组合 → 两个标记都整段隐藏
+        hidden = bs.fill_ai_quant_markers(tpl, market=_quotes(HSI=0.2, HSCE=-0.8))
+        self.assertNotIn('AI_QUANT:', hidden)
+        self.assertNotIn('AI 量化', hidden)
+        self.assertNotIn('数据不足', hidden)
 
-    def test_wechat_fallback_puts_one_block_on_every_community(self):
+    def test_wechat_fallback_hides_the_block_when_quotes_are_missing(self):
+        """行情不足：34 张社区卡照旧齐全，但每张卡的 AI 量化段整段隐藏。"""
         missing = os.path.join(REPO_ROOT, 'tests', 'fixtures', 'no-such-quant.json')
         saved = {}
         keys = ('MARKET_DATA', 'COMMUNITY_DATA', 'SENTIMENT_DATA', 'MACRO_DATA', 'MACRO_AUTO_FETCH')
@@ -187,13 +201,31 @@ class TestAttachedAfterContent(unittest.TestCase):
                     os.environ.pop(k, None)
                 else:
                     os.environ[k] = v
-        self.assertGreaterEqual(html.count('AI 量化'), 34, '34 个社区卡片各自要有一块 AI 量化')
-        self.assertIn('跨域组合', html)
         self.assertIn('34 源动态抓取已上线', html)
-        self.assertIn('配对交易', html)
+        self.assertNotIn('数据不足', html, '行情不足时整段隐藏，不再铺「数据不足」段')
+        self.assertNotIn('◆ AI 量化 · 配对交易', html, '块标题也不渲染')
+        self.assertNotIn('◆ AI 量化｜', html, '迷你版同样整段隐藏（名录版也不写「数据不足」）')
         self.assertLess(len(html), 95000)
         for bad in STALE:
             self.assertNotIn(bad, html)
+
+    def test_wechat_blocks_come_back_once_the_quotes_are_there(self):
+        """同一份 34 源：行情齐全时每张卡照旧各挂一块（两标的跨域组合）。"""
+        market = _quotes(HSI=0.2, HSTECH=1.1, HSCE=-0.4, SPX=0.3, NDQ=0.6, DJI=0.1,
+                         GOLD=0.4, WTI=1.3, BRENT=0.9, USDCNH=-0.1, USDCNY=-0.05)
+        d = wp.community_mod.offline_dataset(market)
+        # community_card 读的是卡片的展示字段（label / vclass），与 offline_dataset 的
+        # verdict_label / verdict_class 同名不同键，这里按 build_single_wechat_html 的映射对齐
+        communities = [{'icon': c.get('icon'), 'id': c.get('id'), 'name': c.get('name'),
+                        'label': c.get('verdict_label'), 'vclass': c.get('verdict_class'),
+                        'quote': c.get('quote'), 'verdict': c.get('verdict'),
+                        'quant': c.get('quant'), 'meta': c.get('meta'), 'key': c.get('key')}
+                       for c in d['communities']]
+        html = wp.community_section(communities, 'full', quotes=market)
+        self.assertEqual(html.count('◆ AI 量化'), 34, '34 张卡各挂一块')
+        self.assertNotIn('数据不足', html)
+        self.assertEqual(html.count('跨域组合：'), 34)
+        self.assertEqual(html.count('推荐：'), 34)
 
 
 if __name__ == '__main__':
