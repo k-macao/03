@@ -108,7 +108,8 @@ FORECAST_MARK = '<!-- FORECAST -->'
 FORECAST_BEGIN = '<!-- FORECAST:BEGIN -->'
 FORECAST_END = '<!-- FORECAST:END -->'
 FORECAST_CLOSE = '<!-- /FORECAST -->'
-# 行情快照与 07 结论是模板静态块，构建时在标记处补上 AI 量化（重复构建只替换标记，不追加）
+# 行情快照与 07 结论是模板静态块，构建时在标记处补上 AI 量化（重复构建只替换标记，不追加）；
+# 行情不足时这些标记一律替换为空串（整段隐藏），不留「数据不足」占位
 AI_QUANT_QUOTES = '<!-- AI_QUANT:QUOTES -->'
 AI_QUANT_VERDICT = '<!-- AI_QUANT:VERDICT -->'
 
@@ -366,7 +367,11 @@ def build_quant_html(quant):
 
 
 def build_ai_quant_html(text, market=None, hint=None, compact=False, note=''):
-    """一条内容 → 一条 AI 量化配对（网页版）。行情不全时只说明数据不足。"""
+    """一条内容 → 一条 AI 量化配对（网页版）。
+
+    行情不全（两腿涨跌幅不齐）时**整段隐藏** —— 返回空串，不渲染「数据不足」段；
+    数据层照旧返回 action='no_data'（quant_pair.is_hidden 可判），只是不进页面。
+    """
     rec = quant_pair.recommend(text or '', market, hint=hint)
     return quant_pair.render_web(rec, compact=compact, note=note)
 
@@ -1004,6 +1009,7 @@ def main():
               '可先运行 python3 sentiment_factors.py --mock 生成', file=sys.stderr)
 
     now = datetime.now(timezone.utc)
+    quant_pair.reset_hidden_render_count()      # 行情不足的隐藏处数：本次构建单独计数
 
     # 02 节快讯产物：缺失 / 写坏 / 旧快照时**就地补抓一次**（构建期兜底）。
     # 线上 workflow 至今没有 macro_data.py 这一步（补丁待有 workflows 权限的账号应用），
@@ -1098,6 +1104,10 @@ def main():
     macro_summ = (macro_data or {}).get('summary') or {}
     print(f"   宏观快讯: {_macro_status(macro_data)}"
           + (f" · 入库 {macro_summ.get('kept_items')} 条" if macro_data else ''))
+    hidden_n = quant_pair.hidden_render_count()
+    if hidden_n:
+        print(f'  🔒 行情不足：{hidden_n} 处 AI 量化配对已整段隐藏（两腿涨跌幅不齐，'
+              '不渲染「数据不足」，也不编方向）')
 
 
 if __name__ == '__main__':

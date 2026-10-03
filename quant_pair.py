@@ -20,7 +20,9 @@
     z ≥ 1       做空 A、做多 B（A 相对偏强，等待回归）
 
 σ 与 ρ 是策略参数（典型日波动、预设相关系数），不是某一天的行情事实。
-两腿涨跌幅缺任何一条，就输出「数据不足」，不编方向、不回填历史点位。
+两腿涨跌幅缺任何一条，就输出「数据不足」，不编方向、不回填历史点位 ——
+并且**整段不渲染**（见下方「行情不足 → 整段隐藏」）：与其把一段「数据不足 / 不预测方向」
+铺在每条内容后面，不如什么都不放。数据层照旧返回 action='no_data'，供调用方判断。
 
 纯标准库、纯函数、不联网。网页与微信共用本模块，避免两套口径漂移。
 
@@ -507,9 +509,59 @@ def recommend(text='', quotes=None, hint=None):
     }
 
 
-def render_web(rec, compact=False, note=''):
-    """网页版。compact=True 时收成一行，仍包含策略 / 标的组合 / 推荐。"""
+# ---------------------------------------------------------------------------
+# 行情不足 → 整段隐藏（默认；网页 / 微信 / 迷你三档同一口径）
+# ---------------------------------------------------------------------------
+# 两腿涨跌幅缺任何一条时，本段除了「数据不足 / 不预测方向 / 暂不判断」没有任何信息，
+# 铺在每条内容后面只是噪音 —— 因此**整段不渲染**（不是渲染成灰色占位）。
+# 数据层不受影响：recommend() 照旧返回 action='no_data' 与 stance='数据不足'，
+# 构建日志、自检、图表与调用方照旧可以据此判断；只是不再印到页面上。
+# 内部排查需要看到这段文案时：QUANT_SHOW_NO_DATA=1
+SHOW_NO_DATA_ENV = 'QUANT_SHOW_NO_DATA'
+
+
+def show_no_data():
+    """行情不足时是否仍渲染「数据不足」段：默认 False（整段隐藏）。"""
+    return str(os.environ.get(SHOW_NO_DATA_ENV, '')).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def is_hidden(rec):
+    """本条配对是否整段隐藏（rec 为空、或行情不足且未开排查开关时均为 True）。
+
+    所有渲染函数对隐藏的 rec 一律返回空串；调用方（构建日志、名录版等）也可以据此判断。
+    """
     if not rec:
+        return True
+    return rec.get('action') == 'no_data' and not show_no_data()
+
+
+_HIDDEN_RENDERS = [0]          # 本次进程里被整段隐藏的处数（构建/推送日志用）
+
+
+def hidden_render_count():
+    return _HIDDEN_RENDERS[0]
+
+
+def reset_hidden_render_count():
+    _HIDDEN_RENDERS[0] = 0
+
+
+def _gate(rec):
+    """渲染入口统一闸门：True 表示不产出任何内容（行情不足即隐藏，并计数）。"""
+    if not rec:
+        return True
+    if is_hidden(rec):
+        _HIDDEN_RENDERS[0] += 1
+        return True
+    return False
+
+
+def render_web(rec, compact=False, note=''):
+    """网页版。compact=True 时收成一行，仍包含策略 / 标的组合 / 推荐。
+
+    行情不足（两腿涨跌幅不齐）时整段隐藏：返回空串，不渲染「数据不足」段。
+    """
+    if _gate(rec):
         return ''
     note_html = f'<div class="ai-quant-meta">{_esc(note)}</div>' if note else ''
     if compact:
@@ -552,8 +604,11 @@ def render_web(rec, compact=False, note=''):
 
 
 def render_web_list(recs, note=''):
-    """一条内容里有多组标的时，合成一块 AI 量化，每组一行。"""
-    recs = [r for r in (recs or []) if r]
+    """一条内容里有多组标的时，合成一块 AI 量化，每组一行。
+
+    行情不足的那些条先被整段隐藏；全部隐藏时本块不产出内容。
+    """
+    recs = [r for r in (recs or []) if r and not _gate(r)]
     if not recs:
         return ''
     items = []
@@ -606,8 +661,10 @@ def render_wechat(rec, compact=False, note='', show_rule=False):
 
     show_rule 默认关闭：规则说明由 rule_note_wechat() 在整篇里印一次，
     避免同一段 100 字的规则在 20 多个块里重复（微信单页字符预算很紧）。
+
+    与网页版同一闸门：行情不足（两腿涨跌幅不齐）时整段隐藏，返回空串。
     """
-    if not rec:
+    if _gate(rec):
         return ''
     note_html = (f'<div style="color:#9aa6c3;font-size:10px;margin-top:4px;">{_esc(note)}</div>'
                  if note else '')
@@ -654,8 +711,9 @@ def render_wechat_mini(rec):
     48 小时风险与走势三行仍完整保留在**网页版**与其它栏目的完整块里；
     社区从 14 源扩到 34 源后，同一段三行预测在一页里要重复 30 多次，
     因此在预算吃紧的社区区块用这一版，口径与完整版完全一致（同一份 rec）。
+    行情不足时与完整版一样整段隐藏（迷你版也不留「数据不足」字样）。
     """
-    if not rec:
+    if _gate(rec):
         return ''
     conf = int(round((rec.get('confidence') or 0) * 100))
     z = rec.get('z')
@@ -668,7 +726,8 @@ def render_wechat_mini(rec):
 
 
 def render_wechat_list(recs, note=''):
-    recs = [r for r in (recs or []) if r]
+    """多组标的合成一块微信版；行情不足的那些条整段隐藏，全隐藏则不出块。"""
+    recs = [r for r in (recs or []) if r and not _gate(r)]
     if not recs:
         return ''
     rows = '<br/>'.join(
@@ -705,6 +764,12 @@ def _self_test():
     check(empty['leg_a']['key'] != empty['leg_b']['key'], '两腿不是同一只')
     check('%' not in empty['signal'], '无行情：信号里不编涨跌幅')
     check('25,440' not in json.dumps(empty, ensure_ascii=False), '无行情：不回填历史点位')
+    check(is_hidden(empty), '行情不足：is_hidden 判为整段隐藏')
+    for blob in (render_web(empty), render_web(empty, compact=True),
+                 render_wechat(empty), render_wechat(empty, compact=True),
+                 render_wechat_mini(empty),
+                 render_web_list([empty]), render_wechat_list([empty])):
+        check(blob == '', '行情不足：整段隐藏（不渲染「数据不足」段）')
 
     quotes = {'quotes': {
         'HSTECH': {'name': '恒生科技指数', 'pct': 3.0},
@@ -744,6 +809,9 @@ def _self_test():
     check(tape['cross_domain'] and tape['leg_a']['key'] != tape['leg_b']['key'],
           'tape 兜底也必须是跨域两只标的')
 
+    check(not is_hidden(oil), '行情齐全：正常渲染')
+    check('数据不足' not in render_web(oil) and '数据不足' not in render_wechat(oil),
+          '行情齐全：不出现「数据不足」字样')
     web, wx = render_web(oil), render_wechat(oil)
     for blob in (web, wx, render_web(oil, compact=True), render_wechat(oil, compact=True)):
         check('AI 量化' in blob and '跨域组合' in blob and '推荐' in blob, '渲染包含跨域组合要素')
@@ -754,6 +822,15 @@ def _self_test():
     check(all(is_cross_domain(st) for st in STRATEGIES), '策略目录里不存在同域价差组合')
     check(all(DOMAIN[st['leg_a']] in DOMAIN_LABEL and DOMAIN[st['leg_b']] in DOMAIN_LABEL
               for st in STRATEGIES), '每条策略的域都有中文标签')
+    os.environ[SHOW_NO_DATA_ENV] = '1'          # 内部排查：临时恢复「数据不足」段
+    try:
+        restored = render_web(empty)
+        restored_shown = not is_hidden(empty)
+    finally:
+        os.environ.pop(SHOW_NO_DATA_ENV, None)
+    check('数据不足' in restored and restored_shown,
+          f'{SHOW_NO_DATA_ENV}=1 可临时恢复「数据不足」段（默认隐藏），关闭开关后仍整段隐藏')
+    check(render_web(empty) == '', '开关关闭后回到整段隐藏')
     print('\n' + ('✅ quant_pair 自检全部通过' if ok else '❌ quant_pair 自检存在失败项'))
     return 0 if ok else 1
 

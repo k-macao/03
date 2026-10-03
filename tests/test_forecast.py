@@ -480,7 +480,9 @@ class TestForecastRendering(unittest.TestCase):
     def test_repeated_pair_rule_is_printed_once_not_per_block(self):
         """腾预算的手段之一：配对规则整篇只印一次，不在 20 多个 AI 量化块里重复。"""
         import quant_pair
-        env = {'FORECAST_HISTORY': self.hist}
+        # 本测试要数块，因此明确给当日行情：行情不足时配对段一律整段隐藏（另见 test_quant_pair）。
+        env = {'FORECAST_HISTORY': self.hist,
+               'MARKET_DATA': self._write('market_data.json', BULL)}
         saved = {k: os.environ.get(k) for k in env}
         os.environ.update(env)
         try:
@@ -494,10 +496,15 @@ class TestForecastRendering(unittest.TestCase):
         self.assertGreaterEqual(html.count('AI 量化'), 14, '规则去重不得连带把 AI 量化块删掉')
         # 网页版没有字符上限，规则仍逐块保留（渲染会把 < 转义，比对规则的前半段即可）
         head = quant_pair.RULE.split('|z|', 1)[0]
-        rec = quant_pair.recommend('恒生科技 恒指', {'HSI': {'pct': 0.4}, 'HSTECH': {'pct': 1.4}})
+        rec = quant_pair.recommend('恒生科技 恒指',
+                                   {'HSTECH': {'pct': 1.4}, 'NDQ': {'pct': 0.2}})
         self.assertIn(head, quant_pair.render_web(rec))
         self.assertNotIn(head, quant_pair.render_wechat(rec))
         self.assertIn(head, quant_pair.render_wechat(rec, show_rule=True))
+        # 行情不足（两腿不齐）时整段隐藏，规则说明也不跟着漏出来
+        no_data = quant_pair.recommend('恒生科技 恒指', {'HSTECH': {'pct': 1.4}})
+        self.assertEqual(quant_pair.render_web(no_data), '')
+        self.assertEqual(quant_pair.render_wechat(no_data, show_rule=True), '')
 
     def test_trimming_left_room_for_a_real_forecast_block(self):
         """压缩既有栏目的目的：微信 04 栏要拿到逐标的预测，而不是退成一行摘要。"""

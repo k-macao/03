@@ -321,10 +321,12 @@ def community_card(c, level='full', quotes=None):
 
     if level == 'roster':
         pair = (f'{rec.get("domain_pair", "")}｜{rec.get("pair_label", "")}｜{rec.get("stance", "")}')
+        # 行情不足时整段隐藏的同一口径：名录版也不写「…｜数据不足」，只留社区信息
+        pair_html = '' if quant_pair.is_hidden(rec) else f' · 跨域配对：{pair}'
         return (
             f'<div style="border-bottom:1px solid #1b2540;padding:5px 0;font-size:11px;color:{WECHAT_TEXT_SOFT};">'
             f'{icon} <strong style="color:{WECHAT_TEXT};">{no}. {name}</strong>【{label}】'
-            f' · 跨域配对：{pair} · {_clip_text(quote, 60)}'
+            f'{pair_html} · {_clip_text(quote, 60)}'
             f'<div style="color:{WECHAT_MUTED};font-size:9.5px;">{meta}</div></div>'
         )
 
@@ -499,6 +501,7 @@ def build_single_wechat_html(now=None):
     now = now or datetime.now(timezone.utc)
     ts = now.strftime('%Y-%m-%d %H:%M UTC')
     ts_full = now.strftime('%Y-%m-%d %H:%M:%S UTC')
+    quant_pair.reset_hidden_render_count()      # 行情不足的隐藏处数：本次构建单独计数
 
     GR = WECHAT_CYAN
     NEON = WECHAT_NEON
@@ -985,6 +988,10 @@ def build_single_wechat_html(now=None):
     # 先按「给 04 栏留出最小一版」的预算填充社区，再由 fit_forecast_block() 用剩下的预算选预测版本。
     html = fit_community_block(html, communities, fc_data=_fc, quotes=_quotes)
     html = fit_forecast_block(html, _fc)
+    _hidden_n = quant_pair.hidden_render_count()
+    if _hidden_n:
+        print(f'  🔒 行情不足：{_hidden_n} 处 AI 量化配对已整段隐藏（两腿涨跌幅不齐，'
+              '不渲染「数据不足」，也不编方向）')
 
     # 34 大社区「最新读取」日期统一刷新为当日抓取日期（动态抓取真正上线）
     html = re.sub(r'(最新读取\s+)(20\d{2}-\d{2}-\d{2})',
