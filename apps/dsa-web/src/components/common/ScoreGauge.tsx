@@ -95,26 +95,26 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
   const arcLength = circumference * 0.75;
   const progress = (animatedScore / 100) * arcLength;
 
-  // Sentiment colors - dynamically computed based on score thresholds.
-  // Light theme uses a restrained glow; dark theme keeps the stronger terminal-style glow.
+  // Sentiment colors use the active phosphor palette; dark/light mode tokens
+  // retain the terminal's green / amber / red readout without hardcoded neon blue.
   const sentimentConfig = {
     greed: {
-      color: '#00d4ff',       // Cyan
-      glowFilter: 'rgba(0, 212, 255, 0.66)',
-      lightColor: '#22d3ee',  // Lighter cyan
-      lightEndColor: '#0891b2', // Darker cyan
+      color: 'hsl(var(--primary))',
+      glowFilter: 'hsl(var(--primary) / 0.66)',
+      lightColor: 'hsl(var(--primary))',
+      lightEndColor: 'hsl(var(--primary))',
     },
     neutral: {
-      color: '#a855f7',       // Purple
-      glowFilter: 'rgba(168, 85, 247, 0.66)',
-      lightColor: '#c084fc',  // Lighter purple
-      lightEndColor: '#9333ea', // Darker purple
+      color: 'hsl(var(--color-purple))',
+      glowFilter: 'hsl(var(--color-purple) / 0.66)',
+      lightColor: 'hsl(var(--color-purple))',
+      lightEndColor: 'hsl(var(--color-purple))',
     },
     fear: {
-      color: '#ff4466',       // Red
-      glowFilter: 'rgba(255, 68, 102, 0.66)',
-      lightColor: '#fb7185',  // Lighter rose
-      lightEndColor: '#e11d48', // Darker rose
+      color: 'hsl(var(--destructive))',
+      glowFilter: 'hsl(var(--destructive) / 0.66)',
+      lightColor: 'hsl(var(--destructive))',
+      lightEndColor: 'hsl(var(--destructive))',
     },
   };
 
