@@ -36,7 +36,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
   }, [mobileOpen]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="app-shell min-h-screen bg-background text-foreground">
       <div className="pointer-events-none fixed inset-x-0 top-3 z-40 flex items-start justify-between px-3 lg:hidden">
         <button
           type="button"

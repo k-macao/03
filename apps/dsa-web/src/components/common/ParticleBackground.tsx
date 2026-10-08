@@ -10,7 +10,7 @@ type Particle = {
   baseAlpha: number;
 };
 
-const PARTICLE_COLORS = ['14, 165, 233', '16, 185, 129', '59, 130, 246', '139, 92, 246'];
+const PARTICLE_COLORS = ['100, 255, 92', '126, 228, 104', '87, 185, 77', '179, 213, 105'];
 
 function createParticle(canvas: HTMLCanvasElement): Particle {
   return {
@@ -81,7 +81,7 @@ export const ParticleBackground = () => {
         if (distMouse > 0 && distMouse < 250) {
           c.beginPath();
           const opacity = 0.8 * (1 - distMouse / 250);
-          c.strokeStyle = `rgba(6, 182, 212, ${opacity})`;
+          c.strokeStyle = `rgba(100, 255, 92, ${opacity})`;
           c.lineWidth = 2.0;
           c.moveTo(particles[i].x, particles[i].y);
           c.lineTo(mouse.x, mouse.y);
@@ -100,7 +100,7 @@ export const ParticleBackground = () => {
           if (dist < 150) {
             c.beginPath();
             const opacity = 0.3 * (1 - dist / 150);
-            c.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+            c.strokeStyle = `rgba(163, 255, 151, ${opacity * 0.55})`;
             c.lineWidth = 0.8;
             c.moveTo(particles[i].x, particles[i].y);
             c.lineTo(particles[j].x, particles[j].y);

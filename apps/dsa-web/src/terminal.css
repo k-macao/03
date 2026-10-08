@@ -1,0 +1,758 @@
+/*
+ * Phosphor / DOS terminal theme.
+ * Kept as a late-loaded skin so product components can continue using the
+ * existing design tokens without carrying layout-specific color overrides.
+ */
+:root {
+  color-scheme: light;
+  --background: 94 20% 91%;
+  --foreground: 127 42% 15%;
+  --card: 96 21% 96%;
+  --card-foreground: 127 42% 15%;
+  --popover: 96 21% 96%;
+  --popover-foreground: 127 42% 15%;
+  --primary: 126 62% 27%;
+  --primary-foreground: 92 25% 96%;
+  --secondary: 104 17% 85%;
+  --secondary-foreground: 127 38% 19%;
+  --muted: 100 14% 88%;
+  --muted-foreground: 123 18% 37%;
+  --accent: 104 20% 82%;
+  --accent-foreground: 127 38% 19%;
+  --destructive: 4 77% 44%;
+  --destructive-foreground: 92 25% 96%;
+  --border: 124 22% 66%;
+  --input: 124 22% 66%;
+  --ring: 126 62% 27%;
+  --elevated: 95 20% 93%;
+  --hover: 103 20% 86%;
+  --secondary-text: 124 24% 31%;
+  --muted-text: 124 17% 40%;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --background: 139 38% 5%;
+  --foreground: 112 63% 80%;
+  --card: 139 32% 8%;
+  --card-foreground: 112 63% 80%;
+  --popover: 139 32% 8%;
+  --popover-foreground: 112 63% 80%;
+  --primary: 119 100% 58%;
+  --primary-foreground: 140 48% 5%;
+  --secondary: 137 20% 13%;
+  --secondary-foreground: 112 49% 76%;
+  --muted: 138 17% 12%;
+  --muted-foreground: 121 23% 54%;
+  --accent: 136 23% 16%;
+  --accent-foreground: 112 63% 80%;
+  --destructive: 4 82% 62%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 134 31% 20%;
+  --input: 134 31% 20%;
+  --ring: 119 100% 58%;
+  --elevated: 139 29% 10%;
+  --hover: 137 24% 15%;
+  --secondary-text: 121 28% 68%;
+  --muted-text: 123 22% 50%;
+}
+
+:root.light {
+  color-scheme: light;
+}
+
+:root,
+:root.dark,
+:root.light {
+  --radius: 0.18rem;
+
+  /* Semantic phosphor colors: lime, amber and red instead of cyan / violet. */
+  --color-cyan: hsl(var(--primary));
+  --color-cyan-dim: hsl(var(--primary) / 0.74);
+  --color-cyan-glow: hsl(var(--primary) / 0.18);
+  --color-purple: 43 100% 54%;
+  --color-purple-dim: 43 92% 43%;
+  --color-purple-glow: hsl(var(--color-purple) / 0.14);
+  --color-success: 123 100% 48%;
+  --color-warning: 43 100% 54%;
+  --color-danger: 4 82% 62%;
+  --color-danger-alert-text: var(--destructive);
+  --color-danger-alert-border: var(--destructive);
+  --color-danger-alert-bg: var(--destructive);
+  --color-cyan-400: 120 100% 50%;
+  --color-emerald-400: 123 100% 48%;
+  --color-red-400: 4 82% 62%;
+  --color-amber-400: 43 100% 54%;
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-danger);
+  --sentiment-greed: var(--color-cyan);
+  --sentiment-neutral: var(--color-purple);
+  --sentiment-fear: var(--color-danger);
+  --glow-spread: 5px;
+  --glow-intensity: 0.16;
+  --sentiment-greed-glow: hsl(var(--primary) / var(--glow-intensity));
+  --sentiment-neutral-glow: hsl(var(--color-purple) / var(--glow-intensity));
+  --sentiment-fear-glow: hsl(var(--destructive) / var(--glow-intensity));
+
+  /* Shared surfaces, navigation and home dashboard. */
+  --bg-base: hsl(var(--background));
+  --bg-card: hsl(var(--card));
+  --bg-elevated: hsl(var(--elevated));
+  --bg-hover: hsl(var(--hover));
+  --bg-subtle-raw: var(--foreground);
+  --border-dim-raw: var(--foreground);
+  --border-subtle-raw: var(--foreground);
+  --bg-subtle: hsl(var(--bg-subtle-raw) / 0.045);
+  --border-dim: hsl(var(--border-dim-raw) / 0.09);
+  --border-subtle: hsl(var(--border-subtle-raw) / 0.13);
+  --border-subtle-hover: hsl(var(--primary) / 0.38);
+  --border-default: hsl(var(--border) / 0.75);
+  --border-hover: hsl(var(--primary) / 0.55);
+  --border-selected: hsl(var(--primary) / 0.72);
+  --surface-1: hsl(var(--card));
+  --surface-2: hsl(var(--elevated));
+  --surface-3: hsl(var(--hover));
+  --overlay-hover: hsl(var(--primary) / 0.07);
+  --overlay-selected: hsl(var(--primary) / 0.13);
+  --border-accent: hsl(var(--primary) / 0.68);
+  --border-purple: hsl(var(--color-purple) / 0.45);
+  --border-cyan: hsl(var(--primary));
+  --text-primary: hsl(var(--foreground));
+  --text-secondary-text: hsl(var(--secondary-text));
+  --text-muted-text: hsl(var(--muted-text));
+  --nav-active-bg: hsl(var(--primary) / 0.1);
+  --nav-active-border: hsl(var(--primary) / 0.42);
+  --nav-active-shadow: hsl(var(--primary) / 0.06);
+  --nav-hover-bg: hsl(var(--primary) / 0.065);
+  --nav-icon-active: hsl(var(--primary));
+  --nav-item-height: 2.55rem;
+  --nav-indicator-width: 0.16rem;
+  --nav-indicator-bg: hsl(var(--primary));
+  --nav-indicator-shadow: hsl(var(--primary) / 0.5);
+  --nav-badge-bg: hsl(var(--primary));
+  --nav-brand-shadow: hsl(var(--primary) / 0.12);
+  --shell-sidebar-border: hsl(var(--primary) / 0.32);
+
+  --home-loading-ring-track: hsl(var(--primary) / 0.18);
+  --home-loading-ring-head: hsl(var(--primary));
+  --page-drawer-overlay-bg: hsl(140 45% 2% / 0.76);
+  --home-mobile-overlay-bg: var(--page-drawer-overlay-bg);
+  --home-action-ai-bg: hsl(var(--primary) / 0.08);
+  --home-action-ai-border: hsl(var(--primary) / 0.24);
+  --home-action-ai-text: hsl(var(--primary));
+  --home-action-ai-hover-bg: hsl(var(--primary) / 0.15);
+  --home-action-report-bg: hsl(var(--color-purple) / 0.1);
+  --home-action-report-border: hsl(var(--color-purple) / 0.32);
+  --home-action-report-text: hsl(var(--color-purple));
+  --home-action-report-hover-bg: hsl(var(--color-purple) / 0.17);
+  --home-accent-bg: hsl(var(--primary) / 0.09);
+  --home-accent-bg-hover: hsl(var(--primary) / 0.16);
+  --home-accent-border: hsl(var(--primary) / 0.28);
+  --home-accent-border-hover: hsl(var(--primary) / 0.48);
+  --home-accent-text: hsl(var(--primary));
+  --home-secondary-accent-text: hsl(var(--color-purple));
+  --home-title-accent: hsl(var(--primary));
+  --home-price-up: hsl(4 82% 62%);
+  --home-price-down: hsl(123 100% 48%);
+  --home-strategy-buy: hsl(123 100% 48%);
+  --home-strategy-secondary: hsl(var(--primary));
+  --home-strategy-stop: hsl(4 82% 62%);
+  --home-strategy-take: hsl(var(--color-purple));
+  --home-panel-border: hsl(var(--primary) / 0.22);
+  --home-panel-border-hover: hsl(var(--primary) / 0.52);
+  --home-panel-border-selected: hsl(var(--primary) / 0.72);
+  --home-panel-gradient-start: hsl(var(--primary) / 0.12);
+  --home-panel-gradient-mid: hsl(var(--color-purple) / 0.08);
+  --home-panel-gradient-end: hsl(var(--primary) / 0.04);
+  --home-panel-selected-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.12), 2px 2px 0 hsl(var(--primary) / 0.08);
+  --home-panel-subtle-bg: hsl(var(--card) / 0.88);
+  --home-panel-subtle-bg-hover: hsl(var(--primary) / 0.055);
+  --home-history-item-bg: hsl(var(--card) / 0.88);
+  --home-history-item-hover-bg: hsl(var(--primary) / 0.065);
+  --home-history-item-selected-bg: hsl(var(--primary) / 0.11);
+  --home-divider-border: hsl(var(--primary) / 0.16);
+  --home-surface-button-bg: hsl(var(--card));
+  --home-surface-button-bg-hover: hsl(var(--primary) / 0.08);
+  --home-surface-button-border: hsl(var(--border) / 0.76);
+  --home-surface-button-border-hover: hsl(var(--primary) / 0.48);
+  --home-state-icon-muted: hsl(var(--muted-text));
+  --home-prose-border: hsl(var(--primary) / 0.18);
+  --home-prose-border-strong: hsl(var(--primary) / 0.28);
+  --home-prose-blockquote-border: hsl(var(--primary) / 0.5);
+  --home-prose-blockquote-bg: hsl(var(--primary) / 0.065);
+  --home-panel-shadow: 2px 2px 0 hsl(var(--primary) / 0.045);
+  --home-panel-shadow-hover: 2px 2px 0 hsl(var(--primary) / 0.11);
+  --home-hero-border: hsl(var(--primary) / 0.48);
+  --home-hero-gradient-start: hsl(var(--primary) / 0.16);
+  --home-hero-gradient-mid: hsl(var(--color-purple) / 0.08);
+  --home-hero-gradient-end: hsl(var(--primary) / 0.04);
+  --home-hero-shadow: 2px 2px 0 hsl(var(--primary) / 0.08);
+  --home-rail-border: hsl(var(--primary) / 0.23);
+  --home-rail-bg: hsl(var(--card));
+  --home-rail-shadow: 2px 2px 0 hsl(var(--primary) / 0.055);
+  --home-history-glow: hsl(var(--primary) / 0.12);
+  --autocomplete-hover-bg: hsl(var(--primary));
+
+  /* Flat panel shadows and focusable phosphor inputs. */
+  --shadow-soft-card: 2px 2px 0 hsl(var(--primary) / 0.055);
+  --shadow-soft-card-strong: 2px 2px 0 hsl(var(--primary) / 0.12);
+  --input-surface-bg: hsl(var(--card));
+  --input-surface-border: hsl(var(--border) / 0.78);
+  --input-surface-border-hover: hsl(var(--primary) / 0.52);
+  --input-surface-border-focus: hsl(var(--primary));
+  --input-surface-focus-ring: 0 0 0 2px hsl(var(--primary) / 0.18);
+  --input-surface-shadow: inset 0 1px 2px hsl(var(--background) / 0.16);
+  --settings-input-rest-border: hsl(var(--border) / 0.68);
+  --gradient-primary: hsl(var(--primary));
+
+  --settings-surface: hsl(var(--card));
+  --settings-surface-hover: hsl(var(--primary) / 0.055);
+  --settings-surface-strong: hsl(var(--card));
+  --settings-surface-panel: hsl(var(--elevated));
+  --settings-surface-overlay: hsl(var(--background) / 0.72);
+  --settings-surface-overlay-soft: hsl(var(--background) / 0.56);
+  --settings-surface-overlay-muted: hsl(var(--background) / 0.42);
+  --settings-border: hsl(var(--primary) / 0.26);
+  --settings-border-soft: hsl(var(--primary) / 0.17);
+  --settings-border-strong: hsl(var(--primary) / 0.42);
+  --settings-border-overlay: hsl(var(--primary) / 0.32);
+  --settings-accent-shadow: hsl(var(--primary) / 0.08);
+  --settings-primary-border: hsl(var(--primary) / 0.72);
+  --settings-primary-gradient: hsl(var(--primary));
+  --settings-primary-text: hsl(var(--primary-foreground));
+  --settings-primary-shadow: hsl(var(--primary) / 0.12);
+  --settings-primary-shadow-hover: hsl(var(--primary) / 0.16);
+  --settings-secondary-border: hsl(var(--border) / 0.78);
+  --settings-secondary-bg: hsl(var(--card));
+  --settings-secondary-border-hover: hsl(var(--primary) / 0.52);
+  --settings-secondary-bg-hover: hsl(var(--primary) / 0.08);
+  --settings-glow-hover: hsl(var(--primary) / 0.2);
+  --settings-skeleton-strong: hsl(var(--primary) / 0.1);
+  --settings-skeleton-soft: hsl(var(--primary) / 0.055);
+
+  --chat-avatar-user-bg: hsl(var(--primary) / 0.18);
+  --chat-avatar-user-fg: hsl(var(--foreground));
+  --chat-avatar-user-border: hsl(var(--primary) / 0.32);
+  --chat-avatar-ai-bg: hsl(var(--card));
+  --chat-avatar-ai-fg: hsl(var(--primary));
+  --chat-avatar-ai-border: hsl(var(--primary) / 0.24);
+  --chat-bubble-user-bg: hsl(var(--primary) / 0.1);
+  --chat-bubble-user-border: hsl(var(--primary) / 0.28);
+  --chat-bubble-ai-bg: hsl(var(--card));
+  --chat-bubble-ai-border: hsl(var(--primary) / 0.18);
+
+  --backtest-border-dim: hsl(var(--primary) / 0.14);
+  --backtest-border-subtle: hsl(var(--primary) / 0.19);
+  --backtest-border-light: hsl(var(--primary) / 0.3);
+  --backtest-border-cyan-soft: hsl(var(--primary) / 0.46);
+  --backtest-bg-cyan-subtle: hsl(var(--primary) / 0.08);
+  --backtest-shadow-cyan-glow: 0 0 7px hsl(var(--primary) / 0.1);
+  --backtest-shadow-cyan-glow-strong: 0 0 5px hsl(var(--primary) / 0.28);
+  --backtest-spinner-track: hsl(var(--primary) / 0.2);
+  --backtest-spinner-head: hsl(var(--primary));
+  --backtest-table-bg: hsl(var(--card));
+
+  /* Login still uses the same terminal palette if authentication is enabled. */
+  --login-bg-main: hsl(var(--background));
+  --login-bg-card: hsl(var(--card));
+  --login-border-card: hsl(var(--primary) / 0.38);
+  --login-border-input: hsl(var(--border));
+  --login-border-focus: hsl(var(--primary));
+  --login-error-text: hsl(var(--destructive));
+  --login-error-bg: hsl(var(--destructive) / 0.09);
+  --login-error-border: hsl(var(--destructive) / 0.36);
+  --login-text-primary: hsl(var(--foreground));
+  --login-text-secondary: hsl(var(--secondary-text));
+  --login-text-muted: hsl(var(--muted-text));
+  --login-accent-soft: hsl(var(--primary) / 0.08);
+  --login-accent-border: hsl(var(--primary) / 0.4);
+  --login-accent-text: hsl(var(--primary));
+  --login-accent-glow: hsl(var(--primary) / 0.14);
+  --login-brand-start: hsl(var(--primary));
+  --login-brand-end: hsl(var(--primary));
+  --login-brand-button-start: hsl(var(--primary));
+  --login-brand-button-end: hsl(var(--primary));
+  --login-brand-button-start-hover: hsl(var(--primary));
+  --login-brand-button-end-hover: hsl(var(--primary));
+  --login-button-text: hsl(var(--primary-foreground));
+  --login-label-text: hsl(var(--foreground));
+  --login-hint-text: hsl(var(--secondary-text));
+  --login-input-icon: hsl(var(--primary));
+  --login-input-toggle-bg: hsl(var(--card));
+  --login-input-toggle-border: hsl(var(--border));
+  --login-input-toggle-text: hsl(var(--secondary-text));
+  --login-input-toggle-border-hover: hsl(var(--primary));
+  --login-input-toggle-bg-hover: hsl(var(--primary) / 0.08);
+  --login-input-toggle-text-hover: hsl(var(--primary));
+  --login-input-toggle-ring: hsl(var(--primary) / 0.2);
+  --login-input-toggle-active-bg: hsl(var(--primary) / 0.14);
+  --login-input-toggle-active-border: hsl(var(--primary) / 0.54);
+  --login-input-toggle-active-text: hsl(var(--primary));
+  --login-input-surface: hsl(var(--card));
+  --login-input-border: hsl(var(--border) / 0.78);
+  --login-input-border-hover: hsl(var(--primary) / 0.52);
+  --login-input-border-focus: hsl(var(--primary));
+  --login-input-focus-ring: 0 0 0 2px hsl(var(--primary) / 0.18);
+  --login-input-text: hsl(var(--foreground));
+  --login-input-placeholder: hsl(var(--muted-text));
+  --login-input-caret: hsl(var(--primary));
+  --login-input-fill: hsl(var(--foreground));
+  --login-input-shadow: inset 0 1px 2px hsl(var(--background) / 0.16);
+  --login-grid-line: hsl(var(--primary) / 0.055);
+  --login-grid-mask: radial-gradient(ellipse 80% 55% at 50% 50%, #000 50%, transparent 100%);
+}
+
+:root.dark body::before {
+  mix-blend-mode: screen;
+  opacity: 0.44;
+}
+
+:root.light body::before,
+:root:not(.dark) body::before {
+  mix-blend-mode: multiply;
+  opacity: 0.22;
+}
+
+html {
+  background: hsl(var(--background));
+  scrollbar-color: hsl(var(--primary) / 0.48) hsl(var(--background));
+  scrollbar-width: thin;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: hsl(var(--background));
+  background-image:
+    linear-gradient(hsl(var(--primary) / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: hsl(var(--foreground));
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0.008em;
+  -webkit-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+}
+
+body::before,
+body::after {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+}
+
+body::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    hsl(var(--primary) / 0.055) 3px,
+    transparent 4px
+  );
+}
+
+body::after {
+  background: radial-gradient(ellipse at center, transparent 55%, hsl(140 45% 2% / 0.28) 100%);
+}
+
+:root.light body::after,
+:root:not(.dark) body::after {
+  background: radial-gradient(ellipse at center, transparent 60%, hsl(120 30% 22% / 0.1) 100%);
+}
+
+#root {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+::selection {
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+h1,
+h2,
+h3,
+h4,
+.label-uppercase {
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0.035em;
+  text-shadow: 0 0 8px hsl(var(--primary) / 0.08);
+}
+
+:focus-visible {
+  outline: 1px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+  border-left: 1px solid hsl(var(--primary) / 0.08);
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid hsl(var(--background));
+  border-radius: 0;
+  background: hsl(var(--primary) / 0.42);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.72);
+}
+
+/* Square, hard-edged controls replace the original glass / pill treatment. */
+button,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea,
+[role="menu"],
+[role="dialog"] {
+  border-radius: 2px !important;
+}
+
+[class*="rounded-"]:not([class~="rounded-full"]) {
+  border-radius: 2px !important;
+}
+
+.badge {
+  border-radius: 2px !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+button:not(:disabled) {
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  transform: none;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: hsl(var(--primary));
+}
+
+.input-surface {
+  background: var(--input-surface-bg);
+  border-color: var(--input-surface-border);
+  color: var(--input-surface-text, hsl(var(--foreground)));
+  box-shadow: inset 0 1px 2px hsl(var(--background) / 0.16);
+}
+
+.input-surface:hover:not(:focus):not(:disabled) {
+  border-color: var(--input-surface-border-hover);
+}
+
+.input-surface:focus,
+.input-surface:focus-visible {
+  border-color: var(--input-surface-border-focus);
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.18);
+}
+
+.btn-primary,
+.btn-secondary,
+.settings-button-primary,
+.settings-button-secondary {
+  min-height: 2.25rem;
+  border-radius: 2px !important;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0 hsl(var(--primary) / 0.1);
+}
+
+.btn-primary,
+.settings-button-primary {
+  border: 1px solid hsl(var(--primary)) !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.14);
+}
+
+.btn-primary:hover:not(:disabled),
+.settings-button-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.22);
+}
+
+.btn-secondary,
+.settings-button-secondary {
+  border: 1px solid hsl(var(--primary) / 0.32) !important;
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.btn-secondary:hover:not(:disabled),
+.settings-button-secondary:hover {
+  border-color: hsl(var(--primary) / 0.72) !important;
+  background: hsl(var(--primary) / 0.08) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+:root.dark .portfolio-page .btn-primary:not(:disabled),
+:root.light .portfolio-page .btn-primary:not(:disabled),
+:root.dark .portfolio-page .btn-secondary:not(:disabled),
+:root.light .portfolio-page .btn-secondary:not(:disabled) {
+  box-shadow: 2px 2px 0 hsl(var(--primary) / 0.1);
+}
+
+/* The main frame and navigation now read as a terminal, not a floating glass app. */
+.app-shell {
+  background: transparent;
+}
+
+.app-shell > .mx-auto {
+  gap: 0.65rem;
+}
+
+.app-shell aside[aria-label] {
+  border: 1px solid hsl(var(--primary) / 0.32) !important;
+  border-radius: 3px !important;
+  background: hsl(var(--card) / 0.96) !important;
+  box-shadow: 2px 2px 0 hsl(var(--primary) / 0.08), inset 0 0 0 1px hsl(var(--primary) / 0.035) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.app-shell aside[aria-label] .bg-primary-gradient {
+  border: 1px solid hsl(var(--primary) / 0.8);
+  border-radius: 2px !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  box-shadow: none !important;
+}
+
+.app-shell aside[aria-label] nav a,
+.app-shell aside[aria-label] nav button {
+  border-radius: 2px !important;
+  font-family: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.025em;
+}
+
+.app-shell aside[aria-label] nav a[aria-current="page"] {
+  border-color: hsl(var(--primary) / 0.45) !important;
+  background: hsl(var(--primary) / 0.1) !important;
+  box-shadow: inset 3px 0 0 hsl(var(--primary));
+  color: hsl(var(--primary)) !important;
+}
+
+.app-shell > .mx-auto > main {
+  min-width: 0;
+}
+
+[data-testid="home-dashboard"] {
+  border: 1px solid hsl(var(--primary) / 0.24);
+  background: hsl(var(--background) / 0.8);
+  box-shadow: 2px 2px 0 hsl(var(--primary) / 0.055), inset 0 0 0 1px hsl(var(--primary) / 0.025);
+}
+
+[data-testid="home-dashboard"] > div:first-child > header {
+  border-bottom: 1px solid hsl(var(--primary) / 0.2);
+  background: hsl(var(--card) / 0.78);
+}
+
+.dashboard-card,
+.terminal-card,
+[data-testid="home-dashboard"] .home-report-hero,
+[data-testid="home-dashboard"] .home-rail-card,
+[data-testid="home-dashboard"] .home-insight-card,
+[data-testid="home-dashboard"] .home-strategy-card,
+[data-testid="home-dashboard"] .home-news-item,
+.glass-panel,
+.glass-panel-lg,
+.gradient-border-card,
+.gradient-border-card-inner {
+  border: 1px solid hsl(var(--primary) / 0.22);
+  border-radius: 3px !important;
+  background: hsl(var(--card) / 0.96) !important;
+  box-shadow: 2px 2px 0 hsl(var(--primary) / 0.055) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.dashboard-card::before,
+.dashboard-card::after,
+.terminal-card::before,
+.home-history-item::before,
+.home-report-hero::after,
+.home-rail-card::after,
+.glass-card::after {
+  content: none !important;
+}
+
+.home-panel-card,
+.home-subpanel,
+.home-history-item,
+.home-surface-button,
+.home-board-pill,
+.home-report-hero,
+.home-rail-card,
+.home-insight-card,
+.home-strategy-card,
+.home-news-item,
+.home-trace-pre,
+.home-trace-toggle,
+.home-accent-chip,
+.home-accent-pill-link {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+
+.home-subpanel,
+.home-history-item,
+.home-board-pill,
+.home-news-item,
+.home-trace-pre,
+.home-trace-toggle {
+  border-color: hsl(var(--primary) / 0.2) !important;
+  background: hsl(var(--card) / 0.88) !important;
+}
+
+.home-subpanel:hover,
+.home-history-item:hover,
+.home-surface-button:hover {
+  border-color: hsl(var(--primary) / 0.58) !important;
+  background: hsl(var(--primary) / 0.07) !important;
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.08) !important;
+}
+
+.home-history-item-selected {
+  border-color: hsl(var(--primary) / 0.76) !important;
+  background: hsl(var(--primary) / 0.12) !important;
+  box-shadow: inset 3px 0 0 hsl(var(--primary)) !important;
+}
+
+.home-report-hero,
+.home-rail-card,
+.home-insight-card,
+.home-strategy-card,
+.home-news-item,
+:root.dark .home-report-hero,
+:root.dark .home-rail-card,
+:root.dark .home-insight-card,
+:root.dark .home-strategy-card,
+:root.dark .home-news-item {
+  border-color: hsl(var(--primary) / 0.24) !important;
+  background: hsl(var(--card) / 0.96) !important;
+}
+
+.home-report-hero {
+  --terminal-card-gradient-start: hsl(var(--primary) / 0.12);
+  --terminal-card-gradient-mid: hsl(var(--primary) / 0.06);
+  --terminal-card-gradient-end: hsl(var(--primary) / 0.03);
+}
+
+.home-insight-card .home-insight-icon {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+
+.home-insight-card .home-insight-title,
+.home-title-accent,
+.home-strategy-card .home-strategy-value {
+  color: hsl(var(--primary)) !important;
+}
+
+.home-surface-button,
+.home-accent-chip,
+.home-accent-pill-link {
+  border: 1px solid hsl(var(--primary) / 0.27) !important;
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+.home-markdown-prose :where(code),
+.chat-prose code,
+.home-markdown-prose :where(pre),
+.chat-prose pre {
+  border-radius: 2px !important;
+}
+
+/* Make data grids and reports feel like fixed-width terminal readouts. */
+table {
+  border-collapse: collapse;
+}
+
+thead,
+.backtest-table-head,
+.backtest-table-head-cell {
+  background: hsl(var(--primary) / 0.075) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+td,
+th,
+.backtest-table-cell,
+.backtest-table-head-cell {
+  border-color: hsl(var(--primary) / 0.16) !important;
+}
+
+.backtest-table-wrapper,
+.backtest-summary,
+.backtest-status-chip,
+.backtest-empty-state .icon-wrap {
+  border-radius: 2px !important;
+  border-color: hsl(var(--primary) / 0.2) !important;
+  background: hsl(var(--card)) !important;
+  box-shadow: none !important;
+}
+
+.backtest-table-row:hover {
+  background: hsl(var(--primary) / 0.075) !important;
+}
+
+pre,
+code,
+kbd {
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Login and modal surfaces are brought back into the same phosphor world. */
+:root.dark [class*="perspective-"],
+:root.light [class*="perspective-"],
+:root:not(.dark) [class*="perspective-"] {
+  background-color: hsl(var(--background)) !important;
+  background-image:
+    linear-gradient(hsl(var(--primary) / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.045) 1px, transparent 1px) !important;
+  background-size: 28px 28px !important;
+}
+
+[role="dialog"],
+[role="menu"] {
+  border-color: hsl(var(--primary) / 0.34) !important;
+  background: hsl(var(--card)) !important;
+  box-shadow: 2px 2px 0 hsl(var(--primary) / 0.1) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
